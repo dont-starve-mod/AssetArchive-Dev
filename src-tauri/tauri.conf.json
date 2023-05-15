@@ -16,6 +16,12 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "dialog": {
+        "all": true
+      },
+      "notification": {
+        "all": true 
       }
     },
     "bundle": {
@@ -27,7 +33,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.dont-starve-asset-archive.dev",
       "targets": "all"
     },
     "security": {

@@ -2,7 +2,7 @@
 name = "asset-archive"
 version = "0.0.0"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["LaoWang"]
 license = ""
 repository = ""
 edition = "2021"
@@ -13,11 +13,24 @@ edition = "2021"
 tauri-build = { version = "1.2", features = [] }
 
 [dependencies]
-tauri = { version = "1.2", features = ["shell-open"] }
+tauri = { version = "1.2", features = ["dialog-all", "notification-all", "shell-open"] }
+bstr = "1.4.0"
+zune-inflate= { version="0.2.54",default-features=false,feature= ["zlib"] }
+zip = "0.6.4"
+bcndecode = "0.2.0"
+num-traits = "0.2.15"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+rlua = { version = "^0.19.4", default-features = false, features = ["lua-no-oslib", "builtin-lua51"] }
+image = "0.24.6"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+
+
+[patch.crates-io]
+rlua-lua51-sys = { path = "rlua-lua51-sys" }
+
+[profile.dev]
+opt-level = 1

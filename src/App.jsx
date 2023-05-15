@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/tauri";
 import "./App.css";
@@ -11,6 +11,30 @@ function App() {
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
     setGreetMsg(await invoke("greet", { name }));
   }
+
+  async function mySum() {
+    let r = await invoke("lua_call", { api: "sum", param: JSON.stringify([1,2,3,4])})
+    // window.alert("Lua运算结果: "+r)
+  }
+
+  async function testBytes() {
+    let r = await invoke("lua_call", { api: "bytes", param: ""})
+    console.log(r)
+    let str = r
+    for (var i = 0, j = str.length; i < j; ++i) {
+      console.log(str.charCodeAt(i));
+    }
+  }
+
+  async function luaConsole() {
+    let r = await invoke("lua_console", { script: name })
+    setGreetMsg(r)
+  }
+
+  useEffect(()=> {
+    mySum()
+    testBytes()
+  }, [])
 
   return (
     <div className="container">
@@ -34,15 +58,15 @@ function App() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            greet();
+            luaConsole();
           }}
         >
           <input
             id="greet-input"
             onChange={(e) => setName(e.currentTarget.value)}
-            placeholder="Enter a name..."
+            placeholder="执行Lua脚本"
           />
-          <button type="submit">Greet</button>
+          <button type="submit">RUN</button>
         </form>
       </div>
 
