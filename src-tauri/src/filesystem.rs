@@ -4,6 +4,7 @@ pub mod lua_filesystem {
     use std::convert::TryInto;
     use std::error::Error;
     use std::path::PathBuf;
+    use std::process::Command;
     #[cfg(unix)]
     use std::os::unix::ffi::OsStringExt;
     #[cfg(unix)]
@@ -368,6 +369,25 @@ pub mod lua_filesystem {
             self.inner.is_file()
         }
 
+        fn create_dir(&self) -> bool {
+            if self.is_dir() {
+                true
+            }
+            else {
+                match fs::create_dir_all(&self.inner) {
+                    Ok(())=> true,
+                    _ => false,
+                }
+            }
+        }
+
+        fn parent(&self) -> Self {
+            match self.inner.parent() {
+                Some(path)=> Path::new(path.to_path_buf()),
+                None => Path::from(""),
+            }
+        }
+
         fn iter_dir(&self) -> Vec<Self> {
             let mut result = Vec::new();
             match self.inner.read_dir() {
@@ -395,6 +415,15 @@ pub mod lua_filesystem {
             });
             _methods.add_method("is_dir", |_, path: &Self, ()|{
                 Ok(path.is_dir())
+            });
+            _methods.add_method("create_dir", |_, path: &Self, ()|{
+                Ok(path.create_dir())
+            });
+            _methods.add_method("parent", |_, path: &Self, ()|{
+                Ok(path.parent())
+            });
+            _methods.add_method("name", |_, path: &Self, ()|{
+                Ok(path.inner.file_name().map(|s|s.to_string_lossy().to_string()))
             });
             _methods.add_method("iter", |_, path: &Self, ()|{
                 Ok(path.iter_dir())
@@ -463,6 +492,19 @@ pub mod lua_filesystem {
                 loader.set("error", "Dyn file loading not supported")?;
             }
             Ok(Nil)
+        })?)?;
+        table.set("EverythingSearch", lua_ctx.create_function(|_, path: String|{
+            if cfg!(windows) {
+                match Command::new("es.exe")
+                    .args(["-r", &path, "-case", "/a-d", "-match-path"])
+                    .output() {
+                    Ok(out) => println!("{} 8 {}", 
+                    String::from_utf8(out.stdout).unwrap(), 
+                    String::from_utf8(out.stderr).unwrap()),
+                    Err(_) => (),
+                }
+            }
+            Ok(())
         })?)?;
     
         table.set("ReadStream__index", lua_ctx.create_table()?)?;

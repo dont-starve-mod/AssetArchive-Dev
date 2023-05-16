@@ -18,7 +18,7 @@ function App() {
   }
 
   async function testBytes() {
-    let r = await invoke("lua_call", { api: "bytes", param: ""})
+    let r = await invoke("lua_call", { api: "byte", param: ""})
     console.log(r)
     let str = r
     for (var i = 0, j = str.length; i < j; ++i) {

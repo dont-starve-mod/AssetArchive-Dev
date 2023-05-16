@@ -7,7 +7,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 use std::sync::{Mutex};
 
-
 use rlua::{Lua, StdLib, InitFlags, Function, Table, FromLua};
 use rlua::Result as LuaResult;
 use rlua::Error as LuaError;
@@ -25,19 +24,21 @@ use crate::filesystem::lua_filesystem::Path as LuaPath;
 struct LuaEnv {
     // lua: Arc<Mutex<Lua>>,
     lua: Mutex<Lua>,
+    state: Mutex<HashMap<String, String>>,
     init_errors: Mutex<HashMap<String, String>>,
 }
 
 impl LuaEnv {
     fn new() -> Self {
         let lua = unsafe {Lua::unsafe_new_with_flags(
-            StdLib::ALL - StdLib::IO, // 保留debug库, 去除io库
-            InitFlags::DEFAULT - InitFlags::LOAD_WRAPPERS, // 禁用load patch, 该patch会修改io库, 引发nil报错)
+            StdLib::ALL - StdLib::IO, // remove libio
+            InitFlags::DEFAULT - InitFlags::LOAD_WRAPPERS,
         ) };
         // LuaEnv { lua: Arc::new(Mutex::new(lua)) }
         LuaEnv { 
-            lua: Mutex::new(lua), 
-            init_errors: Mutex::new(HashMap::<_, _>::new()),
+            lua: Mutex::new(lua),
+            state: Mutex::new(HashMap::new()), 
+            init_errors: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -48,8 +49,6 @@ fn main() {
         .setup(|app| {
             lua_init(app)?;
             lua_postinit(app)?;
-
-            // return Err("12345".into()); // 强制终止
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![lua_console, lua_call])
@@ -57,9 +56,9 @@ fn main() {
         .expect("Failed to launch app");
 }
 
+/// debug function which runs Lua script in console
 #[tauri::command]
 fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
-    println!("{:?}", script);
     match state.lua.lock().unwrap().context(|lua_ctx|{
         lua_ctx.load(&script).exec()
     }) {
@@ -68,13 +67,15 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
     }
 }
 
+/// call a lua ipc handler with a JSON string or "" as param
 #[tauri::command]
 fn lua_call(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Result<String, String> {
-    // use rlua::String as LuaString;
-    println!("Run lua call: {:?} {:?}", api, param);
     state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String>{
         let ipc = lua_ctx.globals().get::<_, Table>("IpcHandlers")?;
-        let api_func = ipc.get::<_, Function>(api)?;
+        let api_func = match ipc.get::<_, Function>(api.clone()) {
+            Ok(f) => f,
+            _ => return Err(rlua::Error::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
+        };
         let result = api_func.call::<_, String>(param)?;
         Ok(result)
     }).map_err(
@@ -87,9 +88,9 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
     let state = app.state::<LuaEnv>();
     let lua = state.lua.lock().unwrap();
 
-    let app_dir = |path: Option<PathBuf>|{
+    let app_dir = |path: Option<PathBuf>, create: bool|{
         if let Some(path) = path {
-            if !path.is_dir() {
+            if !path.is_dir() && create {
                 if fs::create_dir_all(path.clone()).is_err() {
                     eprintln!("Cannot create app directory: {}", path.to_string_lossy());
                 }
@@ -104,10 +105,27 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
     lua.context(|lua_ctx| -> LuaResult<()>{
         let globals = lua_ctx.globals();
  
-        globals.set("APP_CACHE_DIR", app_dir(resolver.app_cache_dir()))?;
-        globals.set("APP_CONFIG_DIR", app_dir(resolver.app_config_dir()))?;
-        globals.set("APP_LOG_DIR", app_dir(resolver.app_log_dir()))?;
+        globals.set("APP_CACHE_DIR", app_dir(resolver.app_cache_dir(), true))?;
+        globals.set("APP_CONFIG_DIR", app_dir(resolver.app_config_dir(), true))?;
+        globals.set("APP_LOG_DIR", app_dir(resolver.app_log_dir(), true))?;
+        globals.set("APP_DATA_DIR", app_dir(resolver.app_data_dir(), true))?;
         
+        globals.set("HOME_DIR", app_dir(tauri::api::path::home_dir(), false))?;
+        globals.set("DOWNLOAD_DIR", app_dir(tauri::api::path::download_dir(), false))?;
+
+        if cfg!(windows) {
+            globals.set("PLATFORM", "WINDOWS")?;
+        }
+        else if cfg!(target_os = "macos") {
+            globals.set("PLATFORM", "MACOS")?;
+        }
+        else if cfg!(target_os = "linux") {
+            globals.set("PLATFORM", "LINUX")?;
+        }
+        else {
+            globals.set("PLATFORM", "UNKNOWN")?;
+        }
+
         // // 获取地址 未完成qwq
         // globals.set("addr", lua_ctx.create_function(|_, (obj): (Table)|{
         //     dbg!(obj);
@@ -134,7 +152,6 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
                 .as_millis();
             Ok(time)
         })?)?;
-
                 // globals.set("IPC_EmitEvent", lua_ctx.create_function(move|_, (event, payload): (String, String)|{
         //     // let main_window = app.get_window("main").unwrap();
         //     main_window.emit(&event, payload).map_err(|err|{
@@ -201,16 +218,6 @@ fn lua_postinit(app: &mut tauri::App) -> LuaResult<()> {
         let main_window4 = app.get_window("main").unwrap();
 
         let globals = lua_ctx.globals();
-        // tauri console
-        // main_window.listen("console", |event|{
-        //     match lua_ctx.load(event.payload().unwrap()).exec() {
-        //         Ok(_)=> (),
-        //         Err(e)=> println!("{:?}", e),
-        //     }
-        // });
-        // tauri Event
-        
-
 
         Ok(())
     })
