@@ -42,6 +42,7 @@
 
 global("APP_CACHE_DIR")
 global("APP_CONFIG_DIR")
+global("APP_LOG_DIR")
 
 APP_CACHE_DIR = APP_CACHE_DIR or APP_CONFIG_DIR
 
@@ -103,3 +104,5 @@ end
 function ReadStream.tell(fs)
     return fs:seek_forward(0)
 end
+
+-- 

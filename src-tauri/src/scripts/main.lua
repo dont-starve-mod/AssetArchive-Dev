@@ -9,6 +9,7 @@ require "class"
 require "hashlib"
 require "filesystem"
 require "assetloader"
+require "assetprovider"
 
 -- local i = Image.From_RGBA(string.rep("\255\0\0\255", 50*50*5), 50,50)
 -- timeit(1)

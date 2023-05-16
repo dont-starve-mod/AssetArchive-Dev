@@ -32,6 +32,24 @@ IpcHandlers.Register = function(name, handler)
 	IpcHandlers[name] = fn
 end
 
+-- Lua state
+local state = {}
+function SetState(k, v)
+	if type(v) == "function" then
+		state[k] = v(state[k])
+	else
+		state[k] = v
+	end
+end
+
+function GetState(k)
+	return state[k]
+end
+
+IpcHandlers.Register("getstate", function(key)
+	return GetState(k)
+end)
+
 IpcHandlers.Register("sum", function(values)
 	local total = 0
 	for _,v in ipairs(values)do
