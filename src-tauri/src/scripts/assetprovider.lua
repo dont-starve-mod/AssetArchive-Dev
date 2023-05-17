@@ -1,3 +1,6 @@
+local CreateReader = FileSystem.CreateReader
+local CreateBytesReader = FileSystem.CreateBytesReader
+
 local DST_DataRoot = Class(function(self, suggested_root)
 	self.game = "DST"
 	self.databundles = {}
@@ -62,22 +65,102 @@ function DST_DataRoot:SetRoot(path)
 		path = FileSystem.Path(path)
 	end
 	local path = self:ResolvePath(path)
+	if path == nil then
+		return false
+	end
 	if path == self.root then
 		return true
 	end
 
 	self.root = path
-	print("Set game root: "..path)
+	print("Set game root: ", path)
+	self:DropDatabundles()
+	local databundles = self.root/"databundles"
+	if databundles:is_dir() then
+		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", --[["scripts"]]}do
+			local zippath = databundles/(k..".zip")
+			local fs = zippath:is_file() and FileSystem.CreateReader(zippath)
+			if fs then
+				timeit(true)
+				print("databundles::"..k)
+				local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL)
+				timeit()
+				if not zip.error then
+					self.databundles[k:gsub("_", "/").."/"] = zip
+				end
+			end
+		end
+	end
+	-- TODO 写入配置文件
 end
 
 function DST_DataRoot:SearchGame()
-	for i = 2, 25 do
-		local drive = FileSystem.Path(string.char(65 + i) .. ":/")
-		print(drive)
-		if drive:is_dir() then
-			--
+	if PLATFORM == "WINDOWS" then
+		for i = 2, 25 do
+			local drive = FileSystem.Path(string.char(65 + i) .. ":/")
+			print(drive)
+			if drive:is_dir() then
+				-- TODO
+			end
 		end
+	elseif PLATFORM == "MACOS" then
+		if HOME_DIR ~= nil then
+			local steamapps = HOME_DIR/"Library/Application Support/Steam/steamapps/common"
+			for _, game in ipairs{
+				"Don't Starve Together/dontstarve_steam.app/Contents/data",
+				"Don't Starve Together Dedicated Server/dontstarve_dedicated_server_nullrenderer.app/Contents/data",
+			}do
+				local path = steamapps/game
+				if path:is_dir() and self:SetRoot(path) then
+					return true
+				end
+			end
+		end
+	elseif PLATFORM == "LINUX" then
+		-- 
 	end
 end
 
-DST_DataRoot.SearchGame()
+function DST_DataRoot:Open(path, bundled)
+	if self.root then
+		if bundled ~= false then
+			-- search databundles
+			for k,v in pairs(self.databundles)do
+				if path:startswith(k) then
+					local bytes = v:Get(path)
+					local fs = bytes and CreateBytesReader(bytes)
+					if fs ~= nil then
+						return fs
+					end
+				end
+			end
+		end
+		local fullpath = self.root/path
+		return CreateReader(fullpath)
+	end
+end
+
+function DST_DataRoot:Exists(path, bundled)
+	if self.root then
+		if bundled ~= false then
+			for k,v in pairs(self.databundles)do
+				if path:startswith(k) and v:Get(path) ~= nil then
+					return true
+				end
+			end
+		end
+		return (self.root/path):is_file()
+	end
+end
+
+function DST_DataRoot:DropDatabundles()
+	for k,v in pairs(self.databundles)do
+		v:Close()
+	end
+end
+
+function DST_DataRoot:__div(path)
+	return self.root/path
+end
+
+Root = DST_DataRoot("/Users/wzh/DST/dontstarve_dedicated_server_nullrenderer.app/Contents/data/")

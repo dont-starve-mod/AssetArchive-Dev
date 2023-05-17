@@ -1,5 +1,8 @@
 -- generate index for quickly access to anim/build source file
 
+local CreateReader = FileSystem.CreateReader
+local CreateBytesReader = FileSystem.CreateBytesReader
+
 local Cache = Class(function(self, type)
 	self.type = type
 	self.data = {}
@@ -15,9 +18,50 @@ local AssetIndex = Class(function(self, root)
 	self.buildcache = Cache("buildcache")
 	self.hashcache = Cache("hashcache")
 
-	self:IndexAnim()
-	self:IndexBuild()
+	self:Index()
 end)
+
+function AssetIndex:Index()
+	local t = now()
+	print("Index assets ...")
+	local animzip = (self.root/"anim"):iter()
+	local animdyn = self.root.databundles["anim/dynamic/"]
+
+	-- animzip: *.zip -> anim.bin + build.bin
+	for i, v in ipairs(animzip) do
+		if v:is_file() and v:check_extention(".zip") then
+			local zip = ZipLoader(CreateReader(v), ZipLoader.NAME_FILTER.INDEX)
+			local anim_raw = zip:Get("anim.bim")
+			local build_raw = zip:Get("build.bim")
+			if anim_raw ~= nil then
+				local al = AnimLoader(CreateBytesReader(anim_raw), true)
+			end
+			if build_raw ~= nil then
+				local bl = BuildLoader(CreateBytesReader(build_raw, true))
+			end
+			zip:Close()
+		end
+	end
+
+	-- animdyn: anim_dynamic.zip -> *.zip -> build.bin
+	if animdyn ~= nil then
+		for k,v in pairs(animdyn.contents)do
+			if k:endswith(".zip") then
+				local zip = ZipLoader(CreateBytesReader(v.raw_data), ZipLoader.NAME_FILTER.BUILD)
+				local build_raw, build_mtime = zip:Get("build.bin")
+				if build_raw ~= nil then
+					local bl = BuildLoader(CreateBytesReader(build_raw))
+					if not bl.error then
+						-- print(bl.buildname)
+					end
+				end
+			end
+		end
+	end
+
+	timeit()
+end
+
 
 function AssetIndex:IndexAnim()
 	local t = now()
@@ -29,7 +73,7 @@ function AssetIndex:IndexAnim()
 			local al = ZipLoader.LoadAnim(v, true)
 			if al and not al.error then
 				local info = {}
-				for _, anim in al.animdata.anim do
+				for _, anim in ipairs(al.animlist) do
 					table.insert(info, {
 						name = anim.name, 
 						bankhash = anim.bankhash, 
@@ -48,9 +92,6 @@ function AssetIndex:IndexAnim()
 	end
 end
 
-function AssetIndex:IndexBuild()
-	--
-end
 
 function AssetIndex:OnProgress(name, percent)
 	print(table.concat({
@@ -60,10 +101,10 @@ function AssetIndex:OnProgress(name, percent)
 		"%) ",
 		string.rep("-", math.floor((1-percent)*32 + 0.5)),
 	}, ""))
-	-- IPC_EmitEvent("111", "222")
+	SetState("index_progress", percent)
 end
 
-AssetIndex(FileSystem.Path("/Users/wzh/DST/dontstarve_dedicated_server_nullrenderer.app/Contents/data/"))
+AssetIndex(Root)
 
 
 -- self.animinfo = {} # [hash]-> ['idle_loop']: {filelist, facinglist}

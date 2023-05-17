@@ -335,6 +335,7 @@ pub mod lua_filesystem {
         }
     }
 
+    #[derive(PartialEq, Clone)]
     pub struct Path {
         inner: PathBuf
     }
@@ -444,6 +445,9 @@ pub mod lua_filesystem {
             });
             _methods.add_meta_method(MetaMethod::Div, |_, path: &Self, s: String|{
                 Ok(path.join(s))
+            });
+            _methods.add_meta_method(MetaMethod::Eq, |_, path: &Self, rhs: Self|{
+                Ok(path == &rhs)
             });
         }
     }

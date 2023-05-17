@@ -230,7 +230,7 @@ AnimLoader = Class(function(self, f, lazy)
     end
 
     self.lazy = lazy
-
+    local animlist = {}
     for i = 1, numanims do
         local name = f:read_variable_length_string()
         local facing = f:read_exact(1)
@@ -241,20 +241,55 @@ AnimLoader = Class(function(self, f, lazy)
             return error(ERROR.UNEXPECTED_EOF)
         end
 
+        local anim = {
+            name = name,
+            facing = facing,
+            bankhash = bankhash,
+            framerate = framerate,
+            numframes = numframes,
+        }
+        local frame = {}
+
         for j = 1, numframes do
-            f:seek_forward(16) --rect
+            f:seek_forward(16) -- rect (f32*4)
             local numevents = f:read_u32()
             if numevents == nil then
                 return error(ERROR.UNEXPECTED_EOF)
+            elseif numevents > 0 then
+                f:seek_forward(numevents* 4)
             end
-            f:seek_forward(numevents* 4)
             local numelements = f:read_u32()
             if numelements == nil then
                 return error(ERROR.UNEXPECTED_EOF)
             end
-            f:seek_forward(numelements* 40)
+            if lazy then
+                f:seek_forward(numelements* 40)
+            else
+                local element = {}
+                for k = 1, numelements do
+                    local e = {
+                        imghash = f:read_u32(),
+                        imgindex = f:read_u32(),
+                        layerhash = f:read_u32(),
+                        matrix = { f:read_and_unpack("ffffff") },
+                    }
+                    local z_index = f:read_f32()
+                    if z_index == nil then
+                        return error(ERROR.UNEXPECTED_EOF)
+                    else
+                        e.z_index = (z_index + 5)* numelements / 10 + 0.5
+                        table.insert(element, e)
+                    end
+                end
+                table.insert(frame, element)
+            end
         end
+
+        anim.frame = frame
+        table.insert(animlist, anim)
     end
+
+    self.animlist = animlist
 
     HashLib:ParseFile(f)
 
@@ -434,8 +469,7 @@ ZipLoader = Class(function(self, f, name_filter)
         else
             return error(ERROR.UNSUPORTED_ZIP_COMPRESS_METHOD)
         end
-        f:seek_forward(4)
-
+        local mtime = f:read_u32()
         local crc = f:read_u32()
         local compressed_len = f:read_u32()
         local raw_len = f:read_u32()
@@ -453,12 +487,12 @@ ZipLoader = Class(function(self, f, name_filter)
             if compressed_data ~= nil then
                 local raw_data = Deflate(compressed_data)
                 if raw_data ~= nil then
-                    self.contents[name] = { raw_data = raw_data }
+                    self.contents[name] = { raw_data = raw_data, mtime = mtime }
                 end
             end
         else
             f:seek_forward(compressed_len)
-            self.contents[name] = { data_starts = data_starts, compressed_len = compressed_len }
+            self.contents[name] = { data_starts = data_starts, compressed_len = compressed_len, mtime = mtime }
         end
     end
 
@@ -472,7 +506,10 @@ function ZipLoader:Close()
 end
 
 function ZipLoader:Get(name)
-    return self.contents[name] and self.contents[name].raw_data
+    local data = self.contents[name]
+    if data ~= nil then
+        return data.raw_data, data.mtime
+    end
 end
 
 function ZipLoader:List()
@@ -490,12 +527,23 @@ ZipLoader.NAME_FILTER = {
     INDEX = function(name) return name == "anim.bin" or name == "build.bin" end,
 }
 
+-- load anim.bin in zipfile, make sure that path is a file
 function ZipLoader.LoadAnim(path, ...)
-    local zip = ZipLoader(CreateReader(path, ZipLoader.NAME_FILTER.ANIM))
+    local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.ANIM)
     local anim_raw = zip and zip:Get("anim.bin")
     local anim = anim_raw and AnimLoader(CreateBytesReader(anim_raw), ...)
     if anim and not anim.error then
         return anim
+    end
+end
+
+-- load build.bin in zipfile, make sure that path is a file
+function ZipLoader.LoadBuild(path, ...)
+    local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.BUILD)
+    local build_raw = zip and zip:Get("build.bin")
+    local build = build_raw and BuildLoader(CreateBytesReader(build_raw), ...)
+    if build and not build.error then
+        return build
     end
 end
 

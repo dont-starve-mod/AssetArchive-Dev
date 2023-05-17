@@ -3,6 +3,7 @@
 require "strict"
 require "util"
 json = require "json"
+require "ipc"
 require "constants"
 require "debugprint"
 require "class"
@@ -26,5 +27,4 @@ require "assetprovider"
 -- print(f == b)
 -- exit()
 
--- require "assetindex"
-require "ipc"
+require "assetindex"

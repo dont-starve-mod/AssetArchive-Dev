@@ -43,8 +43,16 @@
 global("APP_CACHE_DIR")
 global("APP_CONFIG_DIR")
 global("APP_LOG_DIR")
+global("APP_DATA_DIR")
+global("HOME_DIR")
 
-APP_CACHE_DIR = APP_CACHE_DIR or APP_CONFIG_DIR
+-- fallbacks
+-- -- dev branch strict check
+assert(APP_DATA_DIR, "APP_DATA_DIR is nil")
+APP_DATA_DIR = APP_DATA_DIR or HOME_DIR
+APP_CACHE_DIR = APP_CACHE_DIR or APP_DATA_DIR
+APP_CONFIG_DIR = APP_CONFIG_DIR or APP_DATA_DIR
+APP_LOG_DIR = APP_LOG_DIR or APP_DATA_DIR
 
 local ReadStream = FileSystem.ReadStream__index
 local ZipReader = FileSystem.ZipReader__index
