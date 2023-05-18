@@ -485,9 +485,11 @@ ZipLoader = Class(function(self, f, name_filter)
         if name_filter ~= nil and name_filter(name) == true then
             local compressed_data = f:read_string(compressed_len)
             if compressed_data ~= nil then
-                local raw_data = Deflate(compressed_data)
-                if raw_data ~= nil then
-                    self.contents[name] = { raw_data = raw_data, mtime = mtime }
+                if name_filter == self.NAME_FILTER.ALL_LAZY then
+                    self.contents[name] = { compressed_data = compressed_data, mtime = mtime, lazy = true }
+                else
+                    local raw_data = Deflate(compressed_data)
+                    self.contents[name] = raw_data ~= nil and { raw_data = raw_data, mtime = mtime } or nil
                 end
             end
         else
@@ -508,6 +510,12 @@ end
 function ZipLoader:Get(name)
     local data = self.contents[name]
     if data ~= nil then
+        if data.lazy then
+            -- delay delfate
+            data.raw_data = Deflate(data.compressed_data)
+            data.lazy = nil
+            data.compressed_data = nil
+        end
         return data.raw_data, data.mtime
     end
 end
@@ -522,6 +530,7 @@ end
 
 ZipLoader.NAME_FILTER = {
     ALL = function() return true end,
+    ALL_LAZY = function() return true end,
     ANIM = function(name) return name == "anim.bin" end,
     BUILD = function(name) return name == "build.bin" end,
     INDEX = function(name) return name == "anim.bin" or name == "build.bin" end,

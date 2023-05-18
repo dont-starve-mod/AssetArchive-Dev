@@ -3,25 +3,16 @@
 local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
 
-local Cache = Class(function(self, type)
-	self.type = type
-	self.data = {}
-	self.dirty = nil
-	--
-end)
-
 local AssetIndex = Class(function(self, root)
 	self.root = root
 	self.animinfo = {} -- [hash] = {idle_loop = {filelist, facinglist}}
 	self.buildinfo = {} -- [wilson] = {file, swap_icon}
-	self.animcache = Cache("animcache")
-	self.buildcache = Cache("buildcache")
-	self.hashcache = Cache("hashcache")
+	self.indexcache = Persistant.IndexCache
 
-	self:Index()
+	self:DoIndex()
 end)
 
-function AssetIndex:Index()
+function AssetIndex:DoIndex()
 	local t = now()
 	print("Index assets ...")
 	local animzip = (self.root/"anim"):iter()
@@ -45,9 +36,9 @@ function AssetIndex:Index()
 
 	-- animdyn: anim_dynamic.zip -> *.zip -> build.bin
 	if animdyn ~= nil then
-		for k,v in pairs(animdyn.contents)do
+		for k in pairs(animdyn.contents)do
 			if k:endswith(".zip") then
-				local zip = ZipLoader(CreateBytesReader(v.raw_data), ZipLoader.NAME_FILTER.BUILD)
+				local zip = ZipLoader(CreateBytesReader(animdyn:Get(k)), ZipLoader.NAME_FILTER.BUILD)
 				local build_raw, build_mtime = zip:Get("build.bin")
 				if build_raw ~= nil then
 					local bl = BuildLoader(CreateBytesReader(build_raw))

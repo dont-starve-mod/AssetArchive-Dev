@@ -1,4 +1,4 @@
--- Lua FileSystem: {
+-- Lua FileSystem {
 --   CreateReader(path: string) -> ReadStream | nil
 --     open a file by path and return a ReadStream userdata
 --     note: this function may fail on file not exists, permission denied, or reach max file descriptors
@@ -55,7 +55,6 @@ APP_CONFIG_DIR = APP_CONFIG_DIR or APP_DATA_DIR
 APP_LOG_DIR = APP_LOG_DIR or APP_DATA_DIR
 
 local ReadStream = FileSystem.ReadStream__index
-local ZipReader = FileSystem.ZipReader__index
 
 function ReadStream.read_and_unpack(fs, str)
     local result = {}

@@ -7,9 +7,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 use std::sync::{Mutex};
 
-use rlua::{Lua, StdLib, InitFlags, Function, Table, FromLua};
+use rlua::Variadic;
+use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil};
 use rlua::Result as LuaResult;
 use rlua::Error as LuaError;
+use rlua::String as LuaString;
 
 use tauri::Event;
 use tauri::Manager;
@@ -74,7 +76,7 @@ fn lua_call(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Resu
         let ipc = lua_ctx.globals().get::<_, Table>("IpcHandlers")?;
         let api_func = match ipc.get::<_, Function>(api.clone()) {
             Ok(f) => f,
-            _ => return Err(rlua::Error::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
+            _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
         };
         let result = api_func.call::<_, String>(param)?;
         Ok(result)
@@ -152,12 +154,29 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
                 .as_millis();
             Ok(time)
         })?)?;
-                // globals.set("IPC_EmitEvent", lua_ctx.create_function(move|_, (event, payload): (String, String)|{
-        //     // let main_window = app.get_window("main").unwrap();
-        //     main_window.emit(&event, payload).map_err(|err|{
-        //         LuaError::RuntimeError(format!("Rust: Failed to emit event: {:?}", err))
-        //     })
-        // })?)?;
+
+        // delete some functions
+        globals.set("dofile", Nil)?;
+        globals.set("load", Nil)?;
+        globals.set("loadfile", Nil)?;
+        // let old_loadstring = globals.get::<_, Function>("loadstring")?;
+        globals.set("loadstring", lua_ctx.create_function(|lua, (s, chunkname): (LuaString, Option<String>)|{
+            if s.as_bytes().len() == 0 {
+                Err(LuaError::RuntimeError("loadstring: try to load an empty string".to_string()))
+            }
+            else if s.as_bytes().get(0) == Some(&27) {
+                Err(LuaError::RuntimeError("loadstring: loading binary chunks is not allowed".to_string()))
+            }
+            else {
+                Ok(match chunkname {
+                    Some(name)=> lua.load(&s)
+                        .set_name(&name)?
+                        .into_function(),
+                    None => lua.load(&s)
+                        .into_function()
+                })
+            }
+        })?)?;
 
         let workdir = std::env::current_dir().unwrap_or(PathBuf::new());
         let script_root = if workdir.join("Cargo.toml").exists() { // 判定开发者环境, 有点不好, 以后要删了
@@ -181,13 +200,13 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         let ori_path = package.get::<_, String>("path")?;
         let script_root_str = script_root.as_os_str().to_string_lossy();
         package.set("path", format!("{}{}?.lua;{}", 
-        script_root_str, 
-        std::path::MAIN_SEPARATOR, 
+            script_root_str, 
+            std::path::MAIN_SEPARATOR, 
             ori_path))?;
         // SCRIPT_ROOT
         globals.set("SCRIPT_ROOT", format!("{}", script_root_str))?;
 
-        // 加载文件
+        // xpcall script
         let script_name = "main.lua";
         let script_full_path = format!("{}{}{}",
             script_root_str,
@@ -196,7 +215,18 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         );
         println!("Load: {}", script_full_path);
         if let Ok(s) = fs::read_to_string(script_full_path) {
-            lua_ctx.load(&s).set_name(&script_name)?.exec()?;
+            let func = lua_ctx.load(&s).set_name(&script_name)?.into_function()?;
+            let xpcall = globals.get::<_, Function>("xpcall")?;
+            let print_traceback = lua_ctx.load("
+            function(e)
+                print(e)
+                print(debug.traceback()) 
+            end").set_name("[CORE]")?.eval::<Function>()?;
+            let success = xpcall.call::<_, bool>((func, 
+                print_traceback, Variadic::<bool>::new()))?;
+            if !success {
+                eprintln!("\nError: script init runtime error");
+            }
         }
         else {
             eprintln!("Error: Failed to load Lua scripts");
@@ -218,6 +248,15 @@ fn lua_postinit(app: &mut tauri::App) -> LuaResult<()> {
         let main_window4 = app.get_window("main").unwrap();
 
         let globals = lua_ctx.globals();
+
+
+                // globals.set("IPC_EmitEvent", lua_ctx.create_function(move|_, (event, payload): (String, String)|{
+        //     // let main_window = app.get_window("main").unwrap();
+        //     main_window.emit(&event, payload).map_err(|err|{
+        //         LuaError::RuntimeError(format!("Rust: Failed to emit event: {:?}", err))
+        //     })
+        // })?)?;
+
 
         Ok(())
     })

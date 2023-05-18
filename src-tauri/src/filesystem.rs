@@ -350,7 +350,13 @@ pub mod lua_filesystem {
         }
 
         fn join(&self, s: String) -> Self {
-            Path { inner: self.inner.join(s)}
+            let p = PathBuf::from(&s);
+            if p.is_relative() && !p.has_root() {
+                Path { inner: self.inner.join(p) }
+            }
+            else {
+                panic!("Join an absolute path is not allowed: {}", s);
+            }
         }
 
         fn extension(&self) -> Option<String> {
@@ -407,8 +413,19 @@ pub mod lua_filesystem {
         fn to_string(&self) -> String {
             self.inner.to_string_lossy().to_string()
         }
-    }
 
+        fn open_and_write(&self, content: Option<String>) -> Result<(), ()> {
+            match content {
+                Some(s)=> fs::write(&self.inner, s).map_err(|_|()),
+                None=> fs::remove_file(&self.inner).map_err(|_|()),
+            }
+        }
+
+        fn open_and_read(&self) -> Result<Vec<u8>, ()> {
+            fs::read(&self.inner).map_err(|_|())
+        }
+    }
+    
     impl UserData for Path {
         fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
             _methods.add_method("is_file", |_, path: &Self, ()|{
@@ -439,6 +456,9 @@ pub mod lua_filesystem {
                 else {
                     Ok(path.extension() == Some(ext))
                 }
+            });
+            _methods.add_method("as_string", |_, path: &Self, ()|{
+                Ok(path.to_string())
             });
             _methods.add_meta_method(MetaMethod::ToString, |_, path: &Self, ()|{
                 Ok(format!("Path<{}>", path.to_string()))
@@ -477,6 +497,21 @@ pub mod lua_filesystem {
         })?)?;
         table.set("CreateBytesReader", lua_ctx.create_function(|_, bytes: LuaString|{
             Ok(ReadStream::wrap_bytes(Vec::<u8>::from(bytes.as_bytes())))
+        })?)?;
+        table.set("SaveString", lua_ctx.create_function(|lua: Context, (path, content): (String, Option<String>)|{
+            match lua.globals().get::<_, Path>("APP_DATA_DIR") {
+                Ok(data)=> Ok(data.join(path).open_and_write(content).is_ok()), // TODO: 检查windows平台对分隔符是否敏感
+                Err(_)=> Ok(false)
+            }
+        })?)?;
+        table.set("GetString", lua_ctx.create_function(|lua: Context, path: String|{
+            match lua.globals().get::<_, Path>("APP_DATA_DIR") {
+                Ok(data)=> match data.join(path).open_and_read() {
+                    Ok(s)=> Ok(Some(lua.create_string(&s)?)),
+                    Err(_)=> Ok(None),
+                },
+                Err(_)=> Ok(None)
+            }
         })?)?;
         table.set("ListDir", lua_ctx.create_function(|_: Context, path: String|{
             Ok(Path::from(&path).iter_dir())

@@ -1,5 +1,4 @@
--- print(package.path)
--- print(package.cpath)
+print(loadstring(c))
 require "strict"
 require "util"
 json = require "json"
@@ -7,6 +6,7 @@ require "ipc"
 require "constants"
 require "debugprint"
 require "class"
+require "persistant"
 require "hashlib"
 require "filesystem"
 require "assetloader"

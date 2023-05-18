@@ -1,5 +1,6 @@
 local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
+local Config = Persistant.Config
 
 local DST_DataRoot = Class(function(self, suggested_root)
 	self.game = "DST"
@@ -9,7 +10,10 @@ local DST_DataRoot = Class(function(self, suggested_root)
 		return
 	end
 
-	-- if -- get config of last path
+	local last_dst_root = Config:Get("last_dst_root")
+	if last_dst_root and self:SetRoot(last_dst_root) then
+		return
+	end
 
 	if self:SearchGame() then
 		return
@@ -77,21 +81,20 @@ function DST_DataRoot:SetRoot(path)
 	self:DropDatabundles()
 	local databundles = self.root/"databundles"
 	if databundles:is_dir() then
-		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", --[["scripts"]]}do
+		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts"}do
 			local zippath = databundles/(k..".zip")
 			local fs = zippath:is_file() and FileSystem.CreateReader(zippath)
 			if fs then
-				timeit(true)
-				print("databundles::"..k)
-				local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL)
-				timeit()
+				local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL_LAZY)
 				if not zip.error then
 					self.databundles[k:gsub("_", "/").."/"] = zip
 				end
+				zip:Close()
 			end
 		end
 	end
-	-- TODO 写入配置文件
+
+	Config:SetAndSave("last_dst_root", self.root:as_string())
 end
 
 function DST_DataRoot:SearchGame()
@@ -101,6 +104,7 @@ function DST_DataRoot:SearchGame()
 			print(drive)
 			if drive:is_dir() then
 				-- TODO
+				error("unimplement!")
 			end
 		end
 	elseif PLATFORM == "MACOS" then
@@ -154,9 +158,9 @@ function DST_DataRoot:Exists(path, bundled)
 end
 
 function DST_DataRoot:DropDatabundles()
-	for k,v in pairs(self.databundles)do
-		v:Close()
-	end
+	-- for k,v in pairs(self.databundles)do
+	-- 	v:Close()
+	-- end
 end
 
 function DST_DataRoot:__div(path)
