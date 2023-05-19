@@ -1,4 +1,3 @@
-print(loadstring(c))
 require "strict"
 require "util"
 json = require "json"

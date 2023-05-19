@@ -9,14 +9,9 @@ use std::sync::{Mutex};
 
 use rlua::Variadic;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil};
-use rlua::Result as LuaResult;
-use rlua::Error as LuaError;
-use rlua::String as LuaString;
+use rlua::prelude::{LuaResult, LuaError, LuaString};
 
-use tauri::Event;
 use tauri::Manager;
-use tauri::command;
-use tauri::generate_handler;
 
 mod image;
 mod filesystem;

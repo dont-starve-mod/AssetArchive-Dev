@@ -17,6 +17,10 @@ end
 HashLib = Class(function(self)
     self.map_string = {} -- string -> number
     self.map_number = {} -- number -> string
+
+    for k,v in pairs(Persistant.Hash.data)do
+        self:AddHash(k, v)
+    end
 end)
 
 function HashLib:AddHash(s, h)

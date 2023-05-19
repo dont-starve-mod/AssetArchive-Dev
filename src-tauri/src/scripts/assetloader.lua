@@ -243,7 +243,7 @@ AnimLoader = Class(function(self, f, lazy)
 
         local anim = {
             name = name,
-            facing = facing,
+            facing = string.byte(facing, 1),
             bankhash = bankhash,
             framerate = framerate,
             numframes = numframes,
@@ -464,12 +464,13 @@ ZipLoader = Class(function(self, f, name_filter)
             return error(ERROR.UNEXPECTED_EOF)
         elseif method == 1 then
             method = "stored"
+            -- TODO 尚未实现该逻辑，请注意！
         elseif method == 8 then
             method = "deflated"
         else
             return error(ERROR.UNSUPORTED_ZIP_COMPRESS_METHOD)
         end
-        local mtime = f:read_u32()
+        local mtime = f:read_u32() -- 4 bytes
         local crc = f:read_u32()
         local compressed_len = f:read_u32()
         local raw_len = f:read_u32()
@@ -518,6 +519,11 @@ function ZipLoader:Get(name)
         end
         return data.raw_data, data.mtime
     end
+end
+
+function ZipLoader:GetModified(name)
+    local data = self.contents[name]
+    return data and data.mtime
 end
 
 function ZipLoader:List()

@@ -2,19 +2,16 @@ pub mod lua_filesystem {
     use std::fs::{self, File};
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
-    use std::error::Error;
     use std::path::PathBuf;
     use std::process::Command;
-    #[cfg(unix)]
-    use std::os::unix::ffi::OsStringExt;
     #[cfg(unix)]
     use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
     #[cfg(windows)]
     use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
-    use rlua::{Function, Lua, MetaMethod, UserData, UserDataMethods, Variadic, Table, Context, AnyUserData};
+    use rlua::{Function, MetaMethod, UserData, UserDataMethods, Variadic, Table, Context, AnyUserData};
     use rlua::Value;
     use rlua::Value::Nil;
-    use rlua::{FromLua, ToLua};
+    use rlua::{FromLua};
     use rlua::prelude::{LuaResult, LuaString, LuaError};
 
     #[repr(C)]
@@ -66,7 +63,7 @@ pub mod lua_filesystem {
                             index = 0;
                         }
                     },
-                    Err(e) => return false,
+                    Err(_) => return false,
                 }
             }
         }
@@ -442,6 +439,17 @@ pub mod lua_filesystem {
             });
             _methods.add_method("name", |_, path: &Self, ()|{
                 Ok(path.inner.file_name().map(|s|s.to_string_lossy().to_string()))
+            });
+            _methods.add_method("mtime", |_, path: &Self, ()|{
+                Ok(match fs::metadata(&path.inner) {
+                    Ok(meta)=> match meta.modified() {
+                        Ok(mtime)=> Some(mtime.duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs()),
+                        Err(_)=> None,
+                    },
+                    Err(_)=> None,
+                })
             });
             _methods.add_method("iter", |_, path: &Self, ()|{
                 Ok(path.iter_dir())

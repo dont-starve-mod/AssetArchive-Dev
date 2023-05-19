@@ -1,7 +1,7 @@
 function GetTableSize(table)
 	local n = 0
 	if table ~= nil then
-		for k,v in pairs(table) do
+		for k in pairs(table) do
 		    n = n + 1
 		end
 	end

@@ -37,12 +37,9 @@ pub mod lua_algorithm {
             as u32
     }
 
-    fn smallhash(s: &str) -> u32 {
-        kleihash(s.as_bytes())
-    }
-
     #[test]
     fn check_hash() {
+        let smallhash = |s: &str| kleihash(s.as_bytes());
         assert_eq!(smallhash("DontStarve"), 2178190994);
         assert_eq!(smallhash("老王天天写bug"), 3695745239);   
         kleihash(&vec![0,0,0]); 
@@ -61,27 +58,12 @@ pub mod lua_algorithm {
             (compressed_data, width, height): (LuaString, usize, usize)|{
             Ok(lua_ctx.create_string(&dxt5_decompress(compressed_data.as_bytes(), width, height)))
         })?)?;
-        table.set("SmallHash_Impl", lua_ctx.create_function(|lua_ctx: Context, s: LuaString|{
+        table.set("SmallHash_Impl", lua_ctx.create_function(|_, s: LuaString|{
             Ok(kleihash(s.as_bytes()))
         })?)?;
 
         let globals = lua_ctx.globals();
         globals.set("Algorithm", table)?;
         Ok(())
-    }
-}
-
-#[test]
-pub fn deflate_test() {
-    use std::fs;
-    use std::io::Read;
-    use zune_inflate::DeflateDecoder;
-
-    let mut f = fs::OpenOptions::new().read(true).open("./compressed.dat").unwrap();
-    let mut buf = Vec::<u8>::new();
-    f.read_to_end(&mut buf).unwrap();
-    for i in 0..1000 {
-        if i % 100 == 0 { println!("{i}"); }
-        DeflateDecoder::new(&buf[..]).decode_deflate().unwrap();
     }
 }

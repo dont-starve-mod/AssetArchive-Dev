@@ -47,6 +47,14 @@ function LocalStorage:SetAndSave(k,v)
 	self:Save()
 end
 
+function LocalStorage:Update(t)
+	for k,v in pairs(t)do
+		self.data[k] = v
+	end
+	self.dirty = true
+	return self
+end
+
 function LocalStorage:__tostring()
 	return string.format("LocalStorage<%s>", self.type)
 end
@@ -54,4 +62,5 @@ end
 Persistant = {
 	IndexCache = LocalStorage("index-v0"),
 	Config = LocalStorage("config-v0"),
+	Hash = LocalStorage("hash-v0"),
 }
