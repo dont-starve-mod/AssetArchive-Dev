@@ -19,7 +19,9 @@ HashLib = Class(function(self)
     self.map_number = {} -- number -> string
 
     for k,v in pairs(Persistant.Hash.data)do
-        self:AddHash(k, v)
+        if type(k) == "string" then
+            self:String2Hash(k)
+        end
     end
 end)
 

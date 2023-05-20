@@ -2,9 +2,11 @@ pub mod lua_algorithm {
     use rlua::{Context, Value};
     use rlua::Result as LuaResult;
     use rlua::String as LuaString;
+    use rlua::Error as LuaError;
     use zune_inflate::DeflateDecoder;
     use zune_inflate::errors::InflateDecodeErrors;
 
+    #[inline]
     fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, InflateDecodeErrors> {
         let mut decoder = DeflateDecoder::new(compressed_data);
         match decoder.decode_deflate() {
@@ -16,6 +18,7 @@ pub mod lua_algorithm {
         }
     }
 
+    #[inline]
     fn dxt5_decompress(compressed_data: &[u8], width: usize, height: usize) -> Vec<u8> {
         match bcndecode::decode(compressed_data, width, height,
             bcndecode::BcnEncoding::Bc3, // DXT5
@@ -25,6 +28,14 @@ pub mod lua_algorithm {
         }
     }
 
+    #[inline]
+    fn flip_bytes(bytes: &[u8], linewidth: usize) -> Vec<u8> {
+        let mut temp = bytes.chunks_exact(linewidth).collect::<Vec<&[u8]>>();
+        temp.reverse();
+        temp.join(&[][..])
+    }
+
+    #[inline]
     fn kleihash(bytes: &[u8]) -> u32 {
         bytes.iter().fold::<u64, _>(0, |hash, x|{
             let x = match *x as u64 {
@@ -35,6 +46,70 @@ pub mod lua_algorithm {
             (x + (hash << 6) + (hash << 16) - hash) & 0xFFFFFFFF
         })
             as u32
+    }
+
+    #[inline]
+    fn crop_bytes(bytes: &[u8], width: usize, height: usize,
+        x: usize, y: usize, cw: usize, ch: usize) -> Result<Vec<u8>, &'static str> {
+        if bytes.len() != width* height* 4 {
+            Err("Not a RGBA sequence")
+        }
+        else if x + cw > width || y + ch > height {
+            Err("Rect out of bound")
+        }
+        else {
+            let mut result = Vec::<u8>::with_capacity(cw*ch*4);
+            for py in y..y + ch {
+                let start = py* width* 4 + x;
+                result.extend_from_slice(&bytes[start..start+cw*4]);
+            }
+            assert!(result.len() == cw*ch*4);
+            Ok(result)
+        }
+    }
+
+    #[inline]
+    fn mult_alpha_and_clamp(v: u8, a: u8) -> u8 {
+        match a {
+            0 => 0,
+            255 => v,
+            a => f32::clamp((v as f32)* (a as f32)/255.0, 0.0, 255.0) as u8
+        }
+    }
+
+    #[inline]
+    fn mult_alpha(bytes: &[u8]) -> Vec<u8> {
+        bytes.chunks_exact(4)
+            .map(|color|[
+                mult_alpha_and_clamp(color[0], color[3]),
+                mult_alpha_and_clamp(color[1], color[3]),
+                mult_alpha_and_clamp(color[2], color[3]),
+                color[3]
+            ])
+            .collect::<Vec<_>>()
+            .join(&[][..])
+    }
+
+    #[inline]
+    fn div_alpha_and_clamp(v: u8, a: u8) -> u8 {
+        match a {
+            0 => 0,
+            255 => v,
+            a => f32::clamp((v as f32)/ (a as f32)*255.0, 0.0, 255.0) as u8
+        }
+    }
+
+    #[inline]
+    fn div_alpha(bytes: &[u8]) -> Vec<u8> {
+        bytes.chunks_exact(4)
+            .map(|color|[
+                div_alpha_and_clamp(color[0], color[3]),
+                div_alpha_and_clamp(color[1], color[3]),
+                div_alpha_and_clamp(color[2], color[3]),
+                color[3]
+            ])
+            .collect::<Vec<_>>()
+            .join(&[][..])
     }
 
     #[test]
@@ -60,6 +135,22 @@ pub mod lua_algorithm {
         })?)?;
         table.set("SmallHash_Impl", lua_ctx.create_function(|_, s: LuaString|{
             Ok(kleihash(s.as_bytes()))
+        })?)?;
+        table.set("CropBytes", lua_ctx.create_function(|lua: Context,
+            (bytes, width, height, x, y, cw, ch): (LuaString, usize, usize, usize, usize, usize, usize)|{
+            crop_bytes(bytes.as_bytes(), width, height, x, y, cw, ch)
+                .map(|r|lua.create_string(&r))
+                .map_err(|e|LuaError::RuntimeError(e.to_string()))
+        })?)?;
+        table.set("FlipBytes", lua_ctx.create_function(|lua: Context,
+            (bytes, linewidth): (LuaString, usize)|{
+            Ok(lua.create_string(&flip_bytes(bytes.as_bytes(), linewidth))?)
+        })?)?;
+        table.set("MultAlpha", lua_ctx.create_function(|lua: Context, bytes: LuaString|{
+            Ok(lua.create_string(&mult_alpha(bytes.as_bytes()))?)
+        })?)?;
+        table.set("DivAlpha", lua_ctx.create_function(|lua: Context, bytes: LuaString|{
+            Ok(lua.create_string(&div_alpha(bytes.as_bytes()))?)
         })?)?;
 
         let globals = lua_ctx.globals();

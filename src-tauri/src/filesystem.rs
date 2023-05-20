@@ -43,6 +43,9 @@ pub mod lua_filesystem {
         /// 设置指针位置
         fn seek_to(&mut self, _: u64) -> () { }
 
+        /// reset file cursor
+        fn rewind(&mut self) -> io::Result<()>;
+
         /// 查找下一个标志符, 注意该方法可能有性能问题
         fn seek_to_string(&mut self, flag: &str) -> bool {
             let bytes = flag.as_bytes();
@@ -113,6 +116,11 @@ pub mod lua_filesystem {
                 Err(e)=> Err(e),
             }
         }
+
+        fn rewind(&mut self) -> io::Result<()> {
+            <Self as Seek>::rewind(self)
+        }
+
         #[cfg(unix)]
         fn get_fd(&self) -> Option<RawFd> {
             Some(self.as_raw_fd()) 
@@ -140,6 +148,11 @@ pub mod lua_filesystem {
         fn seek_to(&mut self, pos: u64) -> () {
             self.index = usize::min(pos as usize, self.bytes.len());
         }
+
+        fn rewind(&mut self) -> io::Result<()> {
+            self.index = 0;
+            Ok(())
+        }
     }
 
     impl ReadStreamTrait for Cursor<Vec<u8>> {
@@ -149,11 +162,15 @@ pub mod lua_filesystem {
                 Err(e)=> Err(e),
             }
         }
+
+        fn rewind(&mut self) -> io::Result<()> {
+            <Self as Seek>::rewind(self)
+        }
     }
 
     struct ReadStream
     {
-        f: Box<dyn ReadStreamTrait>,
+        inner: Box<dyn ReadStreamTrait>,
         data_mode: DataMode,
     }
 
@@ -169,7 +186,7 @@ pub mod lua_filesystem {
                 },
             };
             Some(ReadStream {
-                f: Box::new(f),
+                inner: Box::new(f),
                 data_mode: DataMode::LittleEndian,
             })
         }
@@ -177,7 +194,7 @@ pub mod lua_filesystem {
         fn wrap_bytes(bytes: Vec<u8>) -> Self {
             ReadStream {
                 // f: Box::new(BytesReader{index: 0, bytes}),
-                f: Box::new(Cursor::<Vec<u8>>::new(bytes)),
+                inner: Box::new(Cursor::<Vec<u8>>::new(bytes)),
                 data_mode: DataMode::LittleEndian ,
             }
         }
@@ -193,7 +210,7 @@ pub mod lua_filesystem {
         fn read_exact(&mut self, len: usize) -> core::result::Result<Vec<u8>, std::io::Error> {
             let mut buf = Vec::<u8>::new();
             buf.resize(len, 0);
-            match self.f.read_exact(&mut buf) {
+            match self.inner.read_exact(&mut buf) {
                 Ok(_)=> Ok(buf),
                 Err(e)=> Err(e),
                 // Err(e)=> {println!("{:?}", e); Ok(buf)},
@@ -203,7 +220,7 @@ pub mod lua_filesystem {
         fn read(&mut self, len: usize) -> core::result::Result<Vec<u8>, std::io::Error> {
             let mut buf = Vec::<u8>::new();
             buf.resize(len, 0);
-            match self.f.read(&mut buf) {
+            match self.inner.read(&mut buf) {
                 Ok(n)=> {
                     buf.resize(n, 0);
                     Ok(buf)
@@ -293,30 +310,30 @@ pub mod lua_filesystem {
                 }
             });
             _methods.add_method_mut("seek_forward", |_, fs: &mut Self, len: i64|{
-                match fs.f.seek_forward(len) {
+                match fs.inner.seek_forward(len) {
                     Ok(pos) => Ok(Some(pos)),
                     Err(_) => Ok(None)
                 }
             });
             _methods.add_method_mut("seek_to", |_, fs: &mut Self, pos: u64|{
-                fs.f.seek_to(pos);
+                fs.inner.seek_to(pos);
                 Ok(Nil)
             });
             _methods.add_method_mut("seek_to_string", |_, fs: &mut Self, flag: String|{
-                Ok(fs.f.seek_to_string(&flag))
+                Ok(fs.inner.seek_to_string(&flag))
             });
             _methods.add_method_mut("rewind", |_, fs: &mut Self, ()|{
-                Ok(LuaError::RuntimeError("unimpliment...".into()))
+                fs.inner.rewind().map_err(|_|LuaError::RuntimeError("Failed to rewind file cursor".to_string()))
             });
             _methods.add_method_mut("drop", |_, fs: &mut Self, ()|{
-                match fs.f.get_fd() {
+                match fs.inner.get_fd() {
                     Some(fd)=> {
                         #[cfg(unix)]
                         drop(unsafe { OwnedFd::from_raw_fd(fd) });
                         #[cfg(windows)]
                         drop(unsafe { OwnedHandle::from_raw_handle(fd)});
                         // prevent second call for drop()
-                        fs.f = Box::new(BytesReader{index: 0, bytes: Vec::<u8>::new()});
+                        fs.inner = Box::new(BytesReader{index: 0, bytes: Vec::<u8>::new()});
                     },
                     None => ()
                 }
@@ -363,6 +380,10 @@ pub mod lua_filesystem {
                 } else { None },
                 None => None,
             }
+        }
+
+        fn with_name(&self, s: String) -> Self {
+            Path { inner: self.inner.with_file_name(s) }
         }
 
         fn is_dir(&self) -> bool {
@@ -439,6 +460,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method("name", |_, path: &Self, ()|{
                 Ok(path.inner.file_name().map(|s|s.to_string_lossy().to_string()))
+            });
+            _methods.add_method("with_name", |_, path: &Self, name: String|{
+                Ok(path.with_name(name))
             });
             _methods.add_method("mtime", |_, path: &Self, ()|{
                 Ok(match fs::metadata(&path.inner) {
@@ -591,7 +615,7 @@ pub mod lua_filesystem {
         let chunk_size = dyn_index_s.len();
 
         let mut buf = Vec::with_capacity(10000);
-        if reader.f.read_to_end(&mut buf).is_err() {
+        if reader.inner.read_to_end(&mut buf).is_err() {
             return None;
         }
         let len = buf.len();

@@ -400,7 +400,10 @@ pub mod lua_image {
                     image::ImageFormat::Png).unwrap();
                 Ok(lua.create_string(writer.get_ref())?)
             });
-            
+            // convert to rgba sequence
+            _methods.add_method("to_bytes", |lua: Context, img: &Self, ()|{
+                Ok(lua.create_string(img.img.as_bytes())?)
+            });
             _methods.add_meta_method(MetaMethod::ToString, |_, img: &Self, ()|{
                 Ok(format!("Image<{}x{} {}>", img.width, img.height, img.pixelformat()))
             });

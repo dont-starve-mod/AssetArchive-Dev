@@ -1,3 +1,8 @@
+local a = "\255\255\200\255"
+-- local a = "\255\255\200\0"
+local b = Algorithm.MultAlpha(a)
+print(string.byte(b, 1, 100))
+
 require "strict"
 require "util"
 json = require "json"
@@ -9,6 +14,7 @@ require "persistant"
 require "hashlib"
 require "filesystem"
 require "assetloader"
+require "assetindex"
 require "assetprovider"
 
 -- local i = Image.From_RGBA(string.rep("\255\0\0\255", 50*50*5), 50,50)
@@ -25,5 +31,3 @@ require "assetprovider"
 -- local f = json.decode(j).file
 -- print(f == b)
 -- exit()
-
-require "assetindex"

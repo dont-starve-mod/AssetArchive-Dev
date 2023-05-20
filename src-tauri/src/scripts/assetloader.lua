@@ -1,6 +1,9 @@
 local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
 local Deflate = Algorithm.Deflate
+local DXT5_Decompress = Algorithm.DXT5_Decompress
+local FlipBytes = Algorithm.FlipBytes
+local DivAlpha = Algorithm.DivAlpha
 local slaxdom = require "slaxdom"
 local ZIP_SIG = ZIP_SIG
 local DYN_SIG = DYN_SIG
@@ -319,6 +322,8 @@ XmlLoader = Class(function(self, f)
             self.tex = texture.attr.filename
             if self.tex == nil then
                 return error(ERROR.XML_TEX_FILENAME_NOT_FOUND)
+            elseif self.tex:find("[/\\]") then
+                return error(ERROR.XML_TEX_FILENAME_INVALID)
             end
             local elements = node:find_elements("Elements")[1]
             if elements == nil then
@@ -329,7 +334,13 @@ XmlLoader = Class(function(self, f)
             for _, v in ipairs(elements:find_elements("Element")) do
                 local attr = v.attr or {}
                 if attr.name and attr.u1 and attr.u2 and attr.v1 and attr.v2 then
-                    self.imgs[attr.name] = attr
+                    self.imgs[attr.name] = {
+                        name = attr.name,
+                        u1 = attr.u1,
+                        v1 = attr.v1,
+                        u2 = attr.u2,
+                        v2 = attr.v2,
+                    }
                 end
             end
         else
@@ -424,18 +435,44 @@ function TexLoader:GetImage(i)
     local m = self.mipmaps[i]
     if m ~= nil then
         if self.pixelformat == 5 then
-            return Image.From_RGB(m.data)
+            return Image.From_RGB(m.data, m.width, m.height)
         elseif self.pixelformat == 2 then
             if m.pixels ~= nil then -- use cache
                 return Image.From_RGBA(m.pixels, m.width, m.height)
             else
-                m.pixels = Algorithm.DXT5_Decompress(m.data, m.width, m.height)
+                m.pixels = DXT5_Decompress(m.data, m.width, m.height)
+                m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
                 return Image.From_RGBA(m.pixels, m.width, m.height)
             end
         else
             error("Unsupported pixelformat: "..self.pixelformat)
         end
     end
+end
+
+function TexLoader:GetImageBytes(i)
+    i = self:NormalizeMipIndex(i)
+    local m = self.mipmaps[i]
+    if m ~= nil then
+        if self.pixelformat == 5 then
+            return m.data, m.width, m.height
+        elseif self.pixelformat == 2 then
+            if m.pixels ~= nil then -- use cache
+                return m.pixels, m.width, m.height
+            else
+                m.pixels = Algorithm.DXT5_Decompress(m.data, m.width, m.height)
+                m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
+                return m.pixels, m.width, m.height
+            end
+        else
+            error("Unsupported pixelformat: "..self.pixelformat)
+        end
+    end
+end
+
+function TexLoader:GetSize()
+    local info = self.mipmaps[1]
+    return info.width, info.height
 end
 
 function TexLoader:__tostring()
@@ -464,7 +501,6 @@ ZipLoader = Class(function(self, f, name_filter)
             return error(ERROR.UNEXPECTED_EOF)
         elseif method == 1 then
             method = "stored"
-            -- TODO 尚未实现该逻辑，请注意！
         elseif method == 8 then
             method = "deflated"
         else
@@ -486,7 +522,9 @@ ZipLoader = Class(function(self, f, name_filter)
         if name_filter ~= nil and name_filter(name) == true then
             local compressed_data = f:read_string(compressed_len)
             if compressed_data ~= nil then
-                if name_filter == self.NAME_FILTER.ALL_LAZY then
+                if method == "stored" then
+                    self.contents[name] = { raw_data = compressed_data, mtime = mtime }
+                elseif name_filter == self.NAME_FILTER.ALL_LAZY then
                     self.contents[name] = { compressed_data = compressed_data, mtime = mtime, lazy = true }
                 else
                     local raw_data = Deflate(compressed_data)

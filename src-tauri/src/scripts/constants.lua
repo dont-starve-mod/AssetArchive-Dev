@@ -5,6 +5,7 @@ ERROR = {
 
     XML_ELEMENT_NOT_FOUND = "Xml element not found",
     XML_TEX_FILENAME_NOT_FOUND = "Xml tex filename not found",
+    XML_TEX_FILENAME_INVALID = "Xml tex filename invalid"
 }
 
 ZIP_SIG = "PK\3\4"
