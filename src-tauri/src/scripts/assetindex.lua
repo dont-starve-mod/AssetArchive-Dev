@@ -17,10 +17,19 @@ function AssetIndex:DoIndex(ignore_cache)
 	print("Index assets ...")
 	local animzip = (self.root/"anim"):iter()
 	local animdyn = self.root.databundles["anim/dynamic/"]
+	local animzip_total = #animzip
+	local animdyn_total = GetTableSize(animdyn and animdyn.contents)
+	local total = animzip_total + animdyn_total
+	local bar = ProgressBar(total)
+	local function OnProgress(i)
+		bar:set_position(i)
+		SetState("index_progress", i / total)
+		if i == total then
+			bar:done()
+		end
+	end
 
 	-- animzip: *.zip -> anim.bin + build.bin
-	local total = #animzip
-	local step = math.floor(total / 10)
 	for i, v in ipairs(animzip) do
 		if v:is_file() and v:check_extention(".zip") then
 			local mtime = v:mtime()
@@ -68,16 +77,14 @@ function AssetIndex:DoIndex(ignore_cache)
 			end
 		end
 
-		if i % step == 0 then
-			self:OnProgress(i / total / 2) -- 0% -> 50%
+		if i % 100 == 0 then
+			OnProgress(i)
 		end
 	end
 
 	-- animdyn: anim_dynamic.zip -> *.zip -> build.bin
 	if animdyn ~= nil then
-		local total = GetTableSize(animdyn.contents)
-		local step = math.floor(total / 10)
-		local i = 0
+		local i = animzip_total
 		for k in pairs(animdyn.contents)do
 			if k:endswith(".zip") then
 				local filename = k
@@ -105,11 +112,13 @@ function AssetIndex:DoIndex(ignore_cache)
 			end
 
 			i = i + 1
-			if i % step == 0 then
-				self:OnProgress(i / total / 2 + 0.5) -- 50% -> 100%
+			if i % 100 == 0 then
+				OnProgress(i)
 			end 
 		end
 	end
+
+	OnProgress(total)
 
 	self.indexcache:Save()
 	Persistant.Hash:Update(HashLib.map_string):Save()
@@ -154,17 +163,6 @@ function AssetIndex:GetAnimFileList(bankhash, animname)
 	if data ~= nil then
 		return data.files
 	end
-end
-
-function AssetIndex:OnProgress(percent)
-	print(table.concat({
-		string.rep("-", math.floor(percent*32) + 0.5),
-		" (",
-		tostring(math.floor(math.min(100, math.floor(percent*100 + 0.5)))),
-		"%) ",
-		string.rep("-", math.floor((1-percent)*32 + 0.5)),
-	}, ""))
-	SetState("index_progress", percent)
 end
 
 return AssetIndex

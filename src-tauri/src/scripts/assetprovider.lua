@@ -173,6 +173,22 @@ end
 
 Root = DST_DataRoot("/Users/wzh/DST/dontstarve_dedicated_server_nullrenderer.app/Contents/data/")
 
+local function CalcIndex(w, h, args)
+	local rw, rh = args.rw, args.rh
+	local index = {}
+	if type(rw) == "number" then
+		table.insert(index, select(2, math.frexp(w / rw, 2)))
+	end
+	if type(rh) == "number" then
+		table.insert(index, select(2, math.frexp(h / rh, 2)))
+	end
+	if #index == 0 then
+		return 1
+	else
+		return math.min(unpack(index))
+	end
+end
+
 local Provider = Class(function(self, root, static)
 	self.root = root
 
@@ -185,14 +201,19 @@ local Provider = Class(function(self, root, static)
 	self.loaders = {
 		xml = {},
 		tex = {},
+		atlas = {},
 	}
 
 	self.static = static
+	-- self:ListAsset()
 
 	if not self.static then
 		self.index = AssetIndex(root)
 	end
 end)
+
+-- function Provider:ListAsset()
+	-- (self.root/"anim"):iter
 
 function Provider:Fetch(type, args)
 	if type == "build" then
@@ -200,7 +221,7 @@ function Provider:Fetch(type, args)
 	elseif type == "animation" then
 		return self:GetAnimation(args)
 	elseif type == "atlas" then
-		
+		return self:GetAtlas(args)
 	elseif type == "image" then
 		return self:GetImage(args)
 	elseif type == "show" then
@@ -266,6 +287,83 @@ function Provider:LoadAnim(path)
 	end
 end
 
+function Provider:GetAtlas(args)
+	if type(args.name) == "string" then
+		if args.n == nil then
+			args.n = 0 -- note: atlas sampler index starts at 0
+		end
+		if type(args.n) ~= "number" then
+			return
+		end
+
+		local atlaslist = self:LoadAtlas(args.name)
+		if atlaslist then
+			local atlas = atlaslist[args.n]
+			if atlas ~= nil then
+				local w, h = atlas:GetSize()
+				local index = CalcIndex(w, h, args)
+				if args.format == "rgba" then
+					return { width = w, height = h, bytes = atlas:GetImageBytes(index) }
+				elseif args.format == "img" then
+					return atlas:GetImage(index)
+				elseif args.format == "png" then
+					return atlas:GetImage(index):save_png_bytes()
+				end
+			end
+		end
+	end
+end
+			
+function Provider:LoadAtlas(name) --> atlaslist
+	if self.loaders.atlas[name] then
+		return self.loaders.atlas[name]
+	end
+
+	local path = self.index:GetBuildFile(name)
+	local build = path and self:LoadBuild(path)
+	if build ~= nil then
+		local atlas = build.atlas
+		local zippath = self.root/path
+		if path:startswith("anim/dynamic") then
+			zippath = zippath:with_extension(".dyn")
+		end
+		if not zippath:is_file() then
+			print("Warning: LoadAtlas: file not exists: "..tostring(zippath))
+			return
+		end
+		local fs = CreateReader(zippath)
+		if fs == nil then
+			print("Warning: LoadAtlas: failed to open: "..tostring(zippath))
+		end
+		local sig = fs:read_exact(6) or ""
+		local zip = nil
+		fs:rewind()
+		if sig:startswith(ZIP_SIG) then
+			zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL)
+		elseif sig == DYN_SIG then
+			zip = DynLoader(fs)
+		else
+			print("Warning: LoadAtlas: invalid file sig")
+			return
+		end
+		if zip.error then
+			return
+		end
+		local atlaslist = {}
+		for i,name in ipairs(build.atlas)do
+			local raw = zip:Get(name)
+			if raw ~= nil then
+				local tex = TexLoader(CreateBytesReader(raw))
+				if not tex.error then
+					tex.n = i - 1
+					atlaslist[i - 1] = tex
+				end
+			end
+		end
+		return atlaslist
+	end
+end
+
 function Provider:GetImage(args)
 	if type(args.xml) == "string" and type(args.tex) == "string" and type(args.format) == "string" then
 		local xml = self:LoadXml(args.xml)
@@ -273,7 +371,11 @@ function Provider:GetImage(args)
 			table.foreach(xml.imgs, print)
 			local info = xml:Get(args.tex)
 			if info == nil then
-				return
+				if args.tex:startswith("@ATLAS") then
+					info = {u1 = 0, u2 = 1, v1 = 0, v2 = 1}
+				else
+					return
+				end
 			end
 			local u1, u2, v1, v2 = info.u1, info.u2, info.v1, info.v2
 			local tex = xml.tex
@@ -284,43 +386,30 @@ function Provider:GetImage(args)
 			local tex = self:LoadTex(parent..tex)
 			if tex ~= nil then
 				local w, h = tex:GetSize()
+				local ew = math.min(w, floor(w*u2)+1) - math.max(0, floor(w*u1))
+				local eh = math.min(h, floor(h*(1-v1))+1) - math.max(0, floor(h*(1-v2)))
+				local index = CalcIndex(ew, eh, args)
+				local bytes = tex:GetImageBytes(index)
+				local w, h = tex:GetSize(index)
 				local rect = {
 					math.max(0, floor(w*u1)), math.max(0, floor(h*(1-v2))), 
 					math.min(w, floor(w*u2)+1), math.min(h, floor(h*(1-v1))+1)
 				}
 				local ew, eh = rect[3] - rect[1], rect[4] - rect[2]
-				local index = 1 -- TODO calc
-				local bytes = tex:GetImageBytes(index)
+
 				bytes = CropBytes(bytes, w, h, rect[1], rect[2], ew, eh)
-
-				Image.From_RGBA(bytes, ew, eh):save("1.png")
-				return bytes
-
---[[
-	w, h = tex.size
-			rect = int(w* u1), int(h* (1-v2)), int(w* u2)+1, int(h* (1-v1))+1			
-			ew, eh = rect[2]-rect[0], rect[3]-rect[1]
-
-			if res:= params.get("res"):
-				index = self.__calc_mipmap_index(res, ew, eh)
-				img = tex.get_mipmap_img(index)
-			else:
-				img = tex.get_mipmap_img(0)
-
-			# 重新计算bbox并切图
-			w, h = img.size
-			rect = int(w* u1), int(h* (1-v2)), int(w* u2)+1, int(h* (1-v1))+1
-			img = img.crop(rect)
-
-			if format == "png":
-				return dump_img(img)
-			elif format == "rgba":
-				return img]]
+				if args.format == "rgba" then
+					return { width = ew, height = eh, bytes = bytes }
+				elseif args.format == "img" then
+					return Image.From_RGBA(bytes, ew, eh)
+				elseif args.format == "png" then
+					return Image.From_RGBA(bytes, ew, eh):save_png_bytes()
+				end
 			end
 		end
 	end
 end
-		-- TODO: dyn vs zip
+
 
 function Provider:LoadXml(path)
 	if self.loaders.xml[path] ~= nil then
@@ -360,7 +449,10 @@ print(p:GetBuild({name="pig_build"}))
 print(p:GetBuild({name="wolfgang_ice"}))
 -- print(json.encode(p:GetAnimation{bank = "wilson", name = "idle_+loop"}))
 timeit(1)
-print(p:GetImage{xml = "bigportraits/wilson_none.xml", tex = "wilson_none_oval.tex", format = "RGBA"})
+-- print(#p:GetImage{xml = "bigportraits/wilson_none.xml", tex = "wilson_none_oval.tex", format = "rgba"})
+-- print(#p:GetImage{xml = "bigportraits/wilson_none.xml", tex = "@ATLAS-.tex", format = "rgba"})
+print(p:GetAtlas{name="wilson", n=0})
+print(FileSystem.SaveString("1.png", p:GetAtlas{name="wilson_ice", n=0, format="png"}))
 timeit()
 
 

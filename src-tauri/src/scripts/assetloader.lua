@@ -470,8 +470,9 @@ function TexLoader:GetImageBytes(i)
     end
 end
 
-function TexLoader:GetSize()
-    local info = self.mipmaps[1]
+function TexLoader:GetSize(i)
+    i = self:NormalizeMipIndex(i or 1)
+    local info = self.mipmaps[i]
     return info.width, info.height
 end
 

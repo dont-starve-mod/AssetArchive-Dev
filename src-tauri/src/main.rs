@@ -16,6 +16,7 @@ use tauri::Manager;
 mod image;
 mod filesystem;
 mod algorithm;
+mod misc;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 
 struct LuaEnv {
@@ -140,6 +141,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         image::lua_image::init(lua_ctx).unwrap_or_else(init_error("lua_image"));
         filesystem::lua_filesystem::init(lua_ctx).unwrap_or_else(init_error("lua_filesystem"));
         algorithm::lua_algorithm::init(lua_ctx).unwrap_or_else(init_error("lua_algorithm"));
+        misc::lua_misc::init(lua_ctx).unwrap_or_else(init_error("lua_misc"));
         
         // timestamp
         globals.set("now", lua_ctx.create_function(|_, ()|{

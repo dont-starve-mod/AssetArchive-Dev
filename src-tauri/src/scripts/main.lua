@@ -1,8 +1,3 @@
-local a = "\255\255\200\255"
--- local a = "\255\255\200\0"
-local b = Algorithm.MultAlpha(a)
-print(string.byte(b, 1, 100))
-
 require "strict"
 require "util"
 json = require "json"

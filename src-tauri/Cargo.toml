@@ -15,6 +15,7 @@ tauri-build = { version = "1.2", features = [] }
 [dependencies]
 tauri = { version = "1.2", features = ["dialog-all", "notification-all", "shell-open"] }
 bstr = "1.4.0"
+indicatif = "0.17.3"
 zune-inflate= { version="0.2.54",default-features=false,feature= ["zlib"] }
 zip = "0.6.4"
 bcndecode = "0.2.0"

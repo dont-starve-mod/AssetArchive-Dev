@@ -1,5 +1,5 @@
 pub mod lua_filesystem {
-    use std::fs::{self, File};
+    use std::fs::{self, File, read_to_string};
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
     use std::path::PathBuf;
@@ -382,6 +382,10 @@ pub mod lua_filesystem {
             }
         }
 
+        fn with_extension(&self, s: String) -> Self {
+            Path { inner: self.inner.with_extension(s) }
+        }
+
         fn with_name(&self, s: String) -> Self {
             Path { inner: self.inner.with_file_name(s) }
         }
@@ -432,9 +436,9 @@ pub mod lua_filesystem {
             self.inner.to_string_lossy().to_string()
         }
 
-        fn open_and_write(&self, content: Option<String>) -> Result<(), ()> {
+        fn open_and_write(&self, content: Option<LuaString>) -> Result<(), ()> {
             match content {
-                Some(s)=> fs::write(&self.inner, s).map_err(|_|()),
+                Some(s)=> fs::write(&self.inner, s.as_bytes()).map_err(|_|()),
                 None=> fs::remove_file(&self.inner).map_err(|_|()),
             }
         }
@@ -489,6 +493,14 @@ pub mod lua_filesystem {
                     Ok(path.extension() == Some(ext))
                 }
             });
+            _methods.add_method("with_extension", |_, path: &Self, mut ext: String|{
+                if ext.starts_with('.') {
+                    Ok(path.with_extension(ext.split_off(1)))
+                }
+                else {
+                    Ok(path.with_extension(ext))
+                }
+            });
             _methods.add_method("as_string", |_, path: &Self, ()|{
                 Ok(path.to_string())
             });
@@ -530,7 +542,7 @@ pub mod lua_filesystem {
         table.set("CreateBytesReader", lua_ctx.create_function(|_, bytes: LuaString|{
             Ok(ReadStream::wrap_bytes(Vec::<u8>::from(bytes.as_bytes())))
         })?)?;
-        table.set("SaveString", lua_ctx.create_function(|lua: Context, (path, content): (String, Option<String>)|{
+        table.set("SaveString", lua_ctx.create_function(|lua: Context, (path, content): (String, Option<LuaString>)|{
             match lua.globals().get::<_, Path>("APP_DATA_DIR") {
                 Ok(data)=> Ok(data.join(path).open_and_write(content).is_ok()), // TODO: 检查windows平台对分隔符是否敏感
                 Err(_)=> Ok(false)
@@ -551,18 +563,26 @@ pub mod lua_filesystem {
         table.set("Path", lua_ctx.create_function(|_: Context, path: String|{
             Ok(Path::from(&path))
         })?)?;
-        table.set("DynLoader_Ctor", lua_ctx.create_function(|lua: Context, (loader, path): (Table, String)|{
-            if let Some(fs) = read_dyn(&path) {
-                let globals = lua.globals();
-                let ziploader = globals.get::<_, Table>("ZipLoader")?;
-                let ctor = ziploader.get::<_, Function>("_ctor")?;
-                let filter = ziploader.get::<_, Table>("NAME_FILTER")?.get::<_, Function>("ALL")?;
-                ctor.call::<_, Value>((loader, fs, filter))?;
-            }
-            else {
-                loader.set("error", "Dyn file loading not supported")?;
-            }
-            Ok(Nil)
+        table.set("DynLoader_Ctor", lua_ctx.create_function(|lua: Context, (loader, fs): (Table, AnyUserData)|{
+            fs.borrow_mut::<ReadStream>().and_then(|mut fs|{
+                let mut buf = Vec::with_capacity(10000);
+                if fs.inner.read_to_end(&mut buf).is_err() {
+                    loader.set("error", "Cannot read from fs")?;
+                    return Ok(Nil)
+                }
+
+                if let Some(fs) = read_dyn(buf) {
+                    let globals = lua.globals();
+                    let ziploader = globals.get::<_, Table>("ZipLoader")?;
+                    let ctor = ziploader.get::<_, Function>("_ctor")?;
+                    let filter = ziploader.get::<_, Table>("NAME_FILTER")?.get::<_, Function>("ALL")?;
+                    ctor.call::<_, Value>((loader, fs, filter))?;
+                }
+                else {
+                    loader.set("error", "Dyn file loading not supported")?;
+                }
+                Ok(Nil)
+            })
         })?)?;
         table.set("EverythingSearch", lua_ctx.create_function(|_, path: String|{
             if cfg!(windows) {
@@ -586,16 +606,15 @@ pub mod lua_filesystem {
         let globals = lua_ctx.globals();
         globals.set("FileSystem", table)?;
         Ok(())
-
     }
 
     // dyn loader (secret vars is defined in env)
     const DYN_INDEX: Option<&'static str> = option_env!("DYN_INDEX"); // some string
     const DYN_MAGIC_NUMBER: Option<&'static str> = option_env!("DYN_MAGIC_NUMBER"); // some string
 
-    fn read_dyn(path: &str) -> Option<ReadStream> {
+    fn read_dyn(mut bytes: Vec<u8>) -> Option<ReadStream> {
         // skip this feature if magic number not provided
-        // compiler can work throgh
+        // compiler can work though
         let dyn_index_s = DYN_INDEX.unwrap_or("");
         let dyn_magic_number_s = DYN_MAGIC_NUMBER.unwrap_or("");
         if dyn_index_s.len() == 0 || dyn_magic_number_s.len() == 0 {
@@ -604,32 +623,25 @@ pub mod lua_filesystem {
         // parse
         // need a exact correct value to run properly (defined in env/github action)
         // if you don't know the value, do not set env var `DYN_INDEX` and `DYN_MAGIC_NUMBER`
-        let mut reader = match ReadStream::open(path) {
-            Some(f)=> f,
-            _ => return None
-        };
         let dyn_index = dyn_index_s.chars()
             .map(|i|i.to_string().parse::<u8>().unwrap() as usize)
             .collect::<Vec<usize>>();
         let dyn_magic_number = dyn_magic_number_s.to_string().parse::<u8>().unwrap();
         let chunk_size = dyn_index_s.len();
 
-        let mut buf = Vec::with_capacity(10000);
-        if reader.inner.read_to_end(&mut buf).is_err() {
-            return None;
-        }
-        let len = buf.len();
+        let len = bytes.len();
         let len_aligned = if len % chunk_size == 0 { len } else { (len / chunk_size + 1) * chunk_size };
         if len_aligned > len {
-            buf.extend_from_slice(&vec![0; len_aligned - len]);
+            bytes.extend_from_slice(&vec![0; len_aligned - len]);
         }
-        for chunk in buf.chunks_mut(chunk_size) {
+
+        for chunk in bytes.chunks_exact_mut(chunk_size) {
             chunk.to_vec().iter()
                 .zip(&dyn_index)
                 .for_each(|(v, index)| chunk[*index] = v ^ (dyn_magic_number + *index as u8));
         }
     
-        Some(ReadStream::wrap_bytes(buf))
+        Some(ReadStream::wrap_bytes(bytes))
     }
     
 }

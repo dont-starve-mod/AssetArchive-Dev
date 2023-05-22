@@ -30,11 +30,11 @@ pub mod lua_algorithm {
 
     #[inline]
     fn flip_bytes(bytes: &[u8], linewidth: usize) -> Vec<u8> {
-        let mut temp = bytes.chunks_exact(linewidth).collect::<Vec<&[u8]>>();
-        temp.reverse();
-        temp.join(&[][..])
+        bytes.rchunks_exact(linewidth)
+            .collect::<Vec<&[u8]>>()
+            .concat()
     }
-
+    
     #[inline]
     fn kleihash(bytes: &[u8]) -> u32 {
         bytes.iter().fold::<u64, _>(0, |hash, x|{
@@ -87,7 +87,7 @@ pub mod lua_algorithm {
                 color[3]
             ])
             .collect::<Vec<_>>()
-            .join(&[][..])
+            .concat()
     }
 
     #[inline]
