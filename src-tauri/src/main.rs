@@ -1,11 +1,10 @@
-use std::io;
-use std::fs;
+use std::arch::global_asm;
+use std::{fs, result};
 use std::path::PathBuf;
 use std::process;
 use std::error::Error;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
-use std::sync::{Mutex};
+use std::sync::Mutex;
 
 use rlua::Variadic;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil};
@@ -20,7 +19,6 @@ mod misc;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 
 struct LuaEnv {
-    // lua: Arc<Mutex<Lua>>,
     lua: Mutex<Lua>,
     state: Mutex<HashMap<String, String>>,
     init_errors: Mutex<HashMap<String, String>>,
@@ -28,11 +26,10 @@ struct LuaEnv {
 
 impl LuaEnv {
     fn new() -> Self {
-        let lua = unsafe {Lua::unsafe_new_with_flags(
+        let lua = unsafe { Lua::unsafe_new_with_flags(
             StdLib::ALL - StdLib::IO, // remove libio
             InitFlags::DEFAULT - InitFlags::LOAD_WRAPPERS,
         ) };
-        // LuaEnv { lua: Arc::new(Mutex::new(lua)) }
         LuaEnv { 
             lua: Mutex::new(lua),
             state: Mutex::new(HashMap::new()), 
@@ -46,10 +43,9 @@ fn main() {
         .manage(LuaEnv::new())
         .setup(|app| {
             lua_init(app)?;
-            lua_postinit(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![lua_console, lua_call])
+        .invoke_handler(tauri::generate_handler![lua_console, lua_call, lua_call_async, lua_call_scope])
         .run(tauri::generate_context!())
         .expect("Failed to launch app");
 }
@@ -57,6 +53,9 @@ fn main() {
 /// debug function which runs Lua script in console
 #[tauri::command]
 fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
+    if script.len() == 0 {
+        return ();
+    }
     match state.lua.lock().unwrap().context(|lua_ctx|{
         lua_ctx.load(&script).exec()
     }) {
@@ -76,6 +75,45 @@ fn lua_call(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Resu
         };
         let result = api_func.call::<_, String>(param)?;
         Ok(result)
+    }).map_err(
+        |e|format!("{:?}", e)
+    )
+}
+
+#[tauri::command(async)]
+async fn lua_call_async(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Result<String, String> {
+    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String>{
+        let ipc = lua_ctx.globals().get::<_, Table>("IpcHandlers")?;
+        let api_func = match ipc.get::<_, Function>(api.clone()) {
+            Ok(f) => f,
+            _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
+        };
+        let result = api_func.call::<_, String>(param)?;
+        Ok(result)
+    }).map_err(
+        |e|format!("{:?}", e)
+    )
+}
+
+#[tauri::command(async)]
+fn lua_call_scope<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
+    api: String, param: String) -> Result<String, String> {
+    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String> {
+        let globals = lua_ctx.globals();
+        let ipc = globals.get::<_, Table>("IpcHandlers")?;
+        let api_func = match ipc.get::<_, Function>(&api[..]) {
+            Ok(f) => f,
+            _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
+        };
+        // `app` cannot be shared between threads safely, use `lua_ctx.scope`
+        lua_ctx.scope(|scope| -> LuaResult<String>{
+            globals.set("IpcEmitEvent", scope.create_function(|_,(event, payload): (String, String)|{
+                app.emit_all(&event, payload).unwrap();
+                Ok(())
+            })?)?;
+            let result = api_func.call::<_, String>(param)?;
+            Ok(result)
+        })
     }).map_err(
         |e|format!("{:?}", e)
     )
@@ -137,20 +175,11 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
             }
         };
             
-        // Lua userdata
+        // Lua modules
         image::lua_image::init(lua_ctx).unwrap_or_else(init_error("lua_image"));
         filesystem::lua_filesystem::init(lua_ctx).unwrap_or_else(init_error("lua_filesystem"));
         algorithm::lua_algorithm::init(lua_ctx).unwrap_or_else(init_error("lua_algorithm"));
         misc::lua_misc::init(lua_ctx).unwrap_or_else(init_error("lua_misc"));
-        
-        // timestamp
-        globals.set("now", lua_ctx.create_function(|_, ()|{
-            let time = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis();
-            Ok(time)
-        })?)?;
 
         // delete some functions
         globals.set("dofile", Nil)?;
@@ -226,35 +255,11 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
             }
         }
         else {
-            eprintln!("Error: Failed to load Lua scripts");
+            eprintln!("Error: Failed to read Lua scripts");
             process::exit(1);
         }         
         
         Ok(())
     })
 
-}
-
-fn lua_postinit(app: &mut tauri::App) -> LuaResult<()> {
-    let state = app.state::<LuaEnv>();
-    let lua = state.lua.lock().unwrap();
-    lua.context(|lua_ctx| -> LuaResult<()>{
-        let main_window1 = app.get_window("main").unwrap();
-        let main_window2 = app.get_window("main").unwrap();
-        let main_window3 = app.get_window("main").unwrap();
-        let main_window4 = app.get_window("main").unwrap();
-
-        let globals = lua_ctx.globals();
-
-
-                // globals.set("IPC_EmitEvent", lua_ctx.create_function(move|_, (event, payload): (String, String)|{
-        //     // let main_window = app.get_window("main").unwrap();
-        //     main_window.emit(&event, payload).map_err(|err|{
-        //         LuaError::RuntimeError(format!("Rust: Failed to emit event: {:?}", err))
-        //     })
-        // })?)?;
-
-
-        Ok(())
-    })
 }

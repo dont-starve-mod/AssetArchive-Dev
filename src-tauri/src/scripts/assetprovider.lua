@@ -441,18 +441,3 @@ function Provider:LoadTex(path)
 	end
 end
 
-
-
-
-local p = Provider(Root)
-print(p:GetBuild({name="pig_build"}))
-print(p:GetBuild({name="wolfgang_ice"}))
--- print(json.encode(p:GetAnimation{bank = "wilson", name = "idle_+loop"}))
-timeit(1)
--- print(#p:GetImage{xml = "bigportraits/wilson_none.xml", tex = "wilson_none_oval.tex", format = "rgba"})
--- print(#p:GetImage{xml = "bigportraits/wilson_none.xml", tex = "@ATLAS-.tex", format = "rgba"})
-print(p:GetAtlas{name="wilson", n=0})
-print(FileSystem.SaveString("1.png", p:GetAtlas{name="wilson_ice", n=0, format="png"}))
-timeit()
-
-

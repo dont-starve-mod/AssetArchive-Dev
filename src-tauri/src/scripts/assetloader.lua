@@ -431,21 +431,12 @@ function TexLoader:GetTextureData(i)
 end
 
 function TexLoader:GetImage(i)
-    i = self:NormalizeMipIndex(i)
-    local m = self.mipmaps[i]
-    if m ~= nil then
+    local bytes, width, height = self:GetImageBytes(i)
+    if bytes then
         if self.pixelformat == 5 then
-            return Image.From_RGB(m.data, m.width, m.height)
+            return Image.From_RGB(bytes, width, height)
         elseif self.pixelformat == 2 then
-            if m.pixels ~= nil then -- use cache
-                return Image.From_RGBA(m.pixels, m.width, m.height)
-            else
-                m.pixels = DXT5_Decompress(m.data, m.width, m.height)
-                m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
-                return Image.From_RGBA(m.pixels, m.width, m.height)
-            end
-        else
-            error("Unsupported pixelformat: "..self.pixelformat)
+            return Image.From_RGBA(bytes, width, height)
         end
     end
 end
@@ -454,16 +445,18 @@ function TexLoader:GetImageBytes(i)
     i = self:NormalizeMipIndex(i)
     local m = self.mipmaps[i]
     if m ~= nil then
+        if m.pixels ~= nil then -- use cache
+            return m.pixels, m.width, m.height
+        end
+
         if self.pixelformat == 5 then
-            return m.data, m.width, m.height
+            m.pixels = FlipBytes(m.data, m.width*3)
+            m.data = nil
+            return m.pixels, m.width, m.height
         elseif self.pixelformat == 2 then
-            if m.pixels ~= nil then -- use cache
-                return m.pixels, m.width, m.height
-            else
-                m.pixels = Algorithm.DXT5_Decompress(m.data, m.width, m.height)
-                m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
-                return m.pixels, m.width, m.height
-            end
+            m.pixels = DXT5_Decompress(m.data, m.width, m.height)
+            m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
+            return m.pixels, m.width, m.height
         else
             error("Unsupported pixelformat: "..self.pixelformat)
         end

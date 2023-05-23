@@ -47,7 +47,14 @@ function GetState(k)
 end
 
 IpcHandlers.Register("getstate", function(key)
-	return GetState(k)
+	return GetState(key)
+end)
+
+IpcHandlers.Register("setroot", function(root)
+	print(">>>", root)
+	local index = require "assetindex"
+	Root:SetRoot(FileSystem.Path(root))
+	index(Root):DoIndex(true)
 end)
 
 IpcHandlers.Register("sum", function(values)
@@ -61,3 +68,10 @@ end)
 IpcHandlers.Register("bytes", function(_)
 	return "\1\1\45\14"
 end)
+
+
+IpcEmitEvent = function(event, payload)
+	-- push event to frontend
+	-- this function must call in ipc handler api
+	-- it's registered before ipc call, and destructed after that
+end

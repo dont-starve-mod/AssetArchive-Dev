@@ -23,7 +23,7 @@ function AssetIndex:DoIndex(ignore_cache)
 	local bar = ProgressBar(total)
 	local function OnProgress(i)
 		bar:set_position(i)
-		SetState("index_progress", i / total)
+		IpcEmitEvent("index_progress", tostring(i/total))
 		if i == total then
 			bar:done()
 		end

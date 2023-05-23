@@ -1,6 +1,7 @@
 pub mod lua_misc {
-    use rlua::prelude::{LuaString, LuaResult};
+    use rlua::prelude::{LuaResult, LuaError};
     use rlua::{Nil, UserData, Context};
+    use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
 
     struct Bar {
@@ -34,17 +35,25 @@ pub mod lua_misc {
                 bar.inner.finish_with_message("done");
                 Ok(Nil)
             });
-            // _methods.add_method("print", |_, bar: &Self, ()|{
-            //     bar.inner.inc_length(delta)
-            // })
         }
     }
 
     pub fn init(lua_ctx: Context) -> LuaResult<()> {
         let globals = lua_ctx.globals();
+        // progress bar printer
         globals.set("ProgressBar", lua_ctx.create_function(|_, len: u64|{
             Ok(Bar::new(len))
         })?)?;
+
+        // timestamp
+        globals.set("now", lua_ctx.create_function(|_, ()|{
+            let time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+            Ok(time)
+        })?)?;
+
         Ok(())
     }
 }
