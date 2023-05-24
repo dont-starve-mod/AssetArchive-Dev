@@ -8,21 +8,36 @@ require "class"
 require "persistant"
 require "hashlib"
 require "filesystem"
+require "asset"
 require "assetloader"
-require "assetindex"
-require "assetprovider"
+local AssetIndex = require "assetindex"
+local DST_DataRoot =  require "assetprovider".DST_DataRoot
+local Provider =  require "assetprovider".Provider
 
--- local i = Image.From_RGBA(string.rep("\255\0\0\255", 50*50*5), 50,50)
--- timeit(1)
--- local j = i:affine_transform(50, 50, {0.86,0.5,-0.5,0.86,-.20,-.20}, 1)
--- timeit()
--- local k = i:affine_transform(50, 50, {0.86,0.5,-0.5,0.86,-0,-0}, 0)
--- timeit()
--- j:save("out-bili.png")
--- k:save("out-near.png")
--- local b = k:save_png_bytes()
--- print(#b)
--- local j = (json.encode({file = b}))
--- local f = json.decode(j).file
--- print(f == b)
--- exit()
+GLOBAL = {
+	root = nil,
+	prov = nil,
+}
+
+--[[
+/Users/wzh/DST/data的替身
+/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents
+]]
+
+IpcHandlers.Register("init", function()
+	GLOBAL.root = DST_DataRoot()
+	GLOBAL.prov = Provider(GLOBAL.root)
+	GLOBAL.prov:DoIndex(false)
+end)
+
+IpcHandlers.init("")
+
+IpcHandlers.Register("setroot", function(path)
+	if GLOBAL.root:SetRoot(path) then
+		GLOBAL.prov = Provider(GLOBAL.root)
+		GLOBAL.prov:DoIndex(true)
+		return true
+	else
+		return false
+	end
+end)

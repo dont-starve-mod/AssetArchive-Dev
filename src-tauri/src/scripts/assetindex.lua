@@ -8,20 +8,22 @@ local AssetIndex = Class(function(self, root)
 	self.animinfo = {}  -- [hash] = {idle_loop = {files, facings}}
 	self.buildinfo = {} -- swap_pitchfork = {file, icon}
 	self.indexcache = Persistant.IndexCache
-
-	self:DoIndex()
 end)
 
 function AssetIndex:DoIndex(ignore_cache)
 	local t = now()
 	print("Index assets ...")
-	local animzip = (self.root/"anim"):iter()
+	local animzip = (self.root/"anim"):iter_file_with_extension(".zip")
 	local animdyn = self.root.databundles["anim/dynamic/"]
 	local animzip_total = #animzip
 	local animdyn_total = GetTableSize(animdyn and animdyn.contents)
 	local total = animzip_total + animdyn_total
 	local bar = ProgressBar(total)
 	local function OnProgress(i)
+		if IpcInterrupted() then
+			print(ERROR.IPC_INTERRUPTED)
+			return error(ERROR.IPC_INTERRUPTED)
+		end
 		bar:set_position(i)
 		IpcEmitEvent("index_progress", tostring(i/total))
 		if i == total then
@@ -31,50 +33,48 @@ function AssetIndex:DoIndex(ignore_cache)
 
 	-- animzip: *.zip -> anim.bin + build.bin
 	for i, v in ipairs(animzip) do
-		if v:is_file() and v:check_extention(".zip") then
-			local mtime = v:mtime()
-			local filename = "anim/"..v:name()
-			local cacheinfo = self.indexcache:Get(filename)
-			if not ignore_cache and mtime ~= nil and cacheinfo ~= nil and cacheinfo.mtime == mtime then
-				-- use cache
-				self:AddAnim(filename, cacheinfo.anim)
-				self:AddBuild(filename, cacheinfo.build)
-			else
-				local zip = ZipLoader(CreateReader(v), ZipLoader.NAME_FILTER.INDEX)
-				local anim_raw = zip:Get("anim.bin")
-				local build_raw = zip:Get("build.bin")
-				local info = {
-					mtime = mtime,
-					anim = {},
-					build = {},
-				}
-				if anim_raw ~= nil then
-					local al = AnimLoader(CreateBytesReader(anim_raw), true)
-					if not al.error then
-						for _, anim in ipairs(al.animlist) do
-							table.insert(info.anim, {
-								name = anim.name,
-								bankhash = anim.bankhash,
-								facing = anim.facing,
-							})
-						end
-					end
-				end
-				if build_raw ~= nil then
-					local bl = BuildLoader(CreateBytesReader(build_raw), true)
-					if not bl.error then
-						table.insert(info.build, {
-							name = bl.buildname,
-							swap_icon_0 = bl.swap_icon_0
+		local mtime = v:mtime()
+		local filename = "anim/"..v:name()
+		local cacheinfo = self.indexcache:Get(filename)
+		if not ignore_cache and mtime ~= nil and cacheinfo ~= nil and cacheinfo.mtime == mtime then
+			-- use cache
+			self:AddAnim(filename, cacheinfo.anim)
+			self:AddBuild(filename, cacheinfo.build)
+		else
+			local zip = ZipLoader(CreateReader(v), ZipLoader.NAME_FILTER.INDEX)
+			local anim_raw = zip:Get("anim.bin")
+			local build_raw = zip:Get("build.bin")
+			local info = {
+				mtime = mtime,
+				anim = {},
+				build = {},
+			}
+			if anim_raw ~= nil then
+				local al = AnimLoader(CreateBytesReader(anim_raw), true)
+				if not al.error then
+					for _, anim in ipairs(al.animlist) do
+						table.insert(info.anim, {
+							name = anim.name,
+							bankhash = anim.bankhash,
+							facing = anim.facing,
 						})
 					end
 				end
-
-				self.indexcache:Set(filename, info)
-				self:AddAnim(filename, info.anim)
-				self:AddBuild(filename, info.build)
-				zip:Close()
 			end
+			if build_raw ~= nil then
+				local bl = BuildLoader(CreateBytesReader(build_raw), true)
+				if not bl.error then
+					table.insert(info.build, {
+						name = bl.buildname,
+						swap_icon_0 = bl.swap_icon_0
+					})
+				end
+			end
+
+			self.indexcache:Set(filename, info)
+			self:AddAnim(filename, info.anim)
+			self:AddBuild(filename, info.build)
+			zip:Close()
 		end
 
 		if i % 100 == 0 then

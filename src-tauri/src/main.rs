@@ -1,5 +1,4 @@
-use std::arch::global_asm;
-use std::{fs, result};
+use std::fs;
 use std::path::PathBuf;
 use std::process;
 use std::error::Error;
@@ -10,7 +9,7 @@ use rlua::Variadic;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 
-use tauri::Manager;
+use tauri::{Manager, command};
 
 mod image;
 mod filesystem;
@@ -21,6 +20,7 @@ use crate::filesystem::lua_filesystem::Path as LuaPath;
 struct LuaEnv {
     lua: Mutex<Lua>,
     state: Mutex<HashMap<String, String>>,
+    interrupt_flag: Mutex<bool>,
     init_errors: Mutex<HashMap<String, String>>,
 }
 
@@ -33,6 +33,7 @@ impl LuaEnv {
         LuaEnv { 
             lua: Mutex::new(lua),
             state: Mutex::new(HashMap::new()), 
+            interrupt_flag: Mutex::new(false),
             init_errors: Mutex::new(HashMap::new()),
         }
     }
@@ -45,7 +46,12 @@ fn main() {
             lua_init(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![lua_console, lua_call, lua_call_async, lua_call_scope])
+        .invoke_handler(tauri::generate_handler![
+            lua_console, 
+            lua_call, 
+            lua_call_async,
+            lua_interrupt,
+        ])
         .run(tauri::generate_context!())
         .expect("Failed to launch app");
 }
@@ -64,22 +70,6 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
     }
 }
 
-/// call a lua ipc handler with a JSON string or "" as param
-#[tauri::command]
-fn lua_call(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Result<String, String> {
-    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String>{
-        let ipc = lua_ctx.globals().get::<_, Table>("IpcHandlers")?;
-        let api_func = match ipc.get::<_, Function>(api.clone()) {
-            Ok(f) => f,
-            _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
-        };
-        let result = api_func.call::<_, String>(param)?;
-        Ok(result)
-    }).map_err(
-        |e|format!("{:?}", e)
-    )
-}
-
 #[tauri::command(async)]
 async fn lua_call_async(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Result<String, String> {
     state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String>{
@@ -96,7 +86,7 @@ async fn lua_call_async(state: tauri::State<'_, LuaEnv>, api: String, param: Str
 }
 
 #[tauri::command(async)]
-fn lua_call_scope<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
+fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
     api: String, param: String) -> Result<String, String> {
     state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String> {
         let globals = lua_ctx.globals();
@@ -105,18 +95,34 @@ fn lua_call_scope<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Wi
             Ok(f) => f,
             _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
         };
-        // `app` cannot be shared between threads safely, use `lua_ctx.scope`
+        // `app` cannot be shared between threads safely, so use `lua_ctx.scope()`
         lua_ctx.scope(|scope| -> LuaResult<String>{
+            // register ipc util functions
             globals.set("IpcEmitEvent", scope.create_function(|_,(event, payload): (String, String)|{
                 app.emit_all(&event, payload).unwrap();
                 Ok(())
             })?)?;
+            globals.set("IpcSetState", scope.create_function(|_,(key, value): (String, String)|{
+                state.state.lock().unwrap().insert(key, value);
+                Ok(())
+            })?)?;
+            globals.set("IpcInterrupted", scope.create_function(|_, ()|{
+                Ok(*state.interrupt_flag.lock().unwrap())
+            })?)?;
+            // reset flag before ipc call
+            *state.interrupt_flag.lock().unwrap() = false;
+            // do call
             let result = api_func.call::<_, String>(param)?;
             Ok(result)
         })
     }).map_err(
         |e|format!("{:?}", e)
     )
+}
+
+#[tauri::command]
+fn lua_interrupt(state: tauri::State<'_, LuaEnv>) {
+    *state.interrupt_flag.lock().unwrap() = true;
 }
 
 fn lua_init(app: &mut tauri::App) -> LuaResult<()> {

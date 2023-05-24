@@ -300,7 +300,7 @@ AnimLoader = Class(function(self, f, lazy)
 end)
 
 -- loader for *.xml file
-XmlLoader = Class(function(self, f)
+XmlLoader = Class(function(self, f, skip_image_parser)
     local function error(e)
         self.error = e
         funcprint("Error in XmlLoader._ctor(): "..e)
@@ -308,49 +308,58 @@ XmlLoader = Class(function(self, f)
     end
 
     local s = f:read_to_end()
-    if s ~= nil and #s > 0 then
-        local success, dom = pcall(function() return slaxdom:dom(s) end)
-        if success and type(dom) == "table" then
-            local node = dom:find_elements("Atlas")[1]
-            if node == nil then
-                return error(ERROR.XML_ELEMENT_NOT_FOUND)
-            end
-            local texture = node:find_elements("Texture")[1]
-            if texture == nil then
-                return error(ERROR.XML_ELEMENT_NOT_FOUND)
-            end
-            self.tex = texture.attr.filename
-            if self.tex == nil then
-                return error(ERROR.XML_TEX_FILENAME_NOT_FOUND)
-            elseif self.tex:find("[/\\]") then
-                return error(ERROR.XML_TEX_FILENAME_INVALID)
-            end
-            local elements = node:find_elements("Elements")[1]
-            if elements == nil then
-                return error(ERROR.XML_ELEMENT_NOT_FOUND)
-            end
+    f:close()
 
-            self.imgs = {}
-            for _, v in ipairs(elements:find_elements("Element")) do
-                local attr = v.attr or {}
-                if attr.name and attr.u1 and attr.u2 and attr.v1 and attr.v2 then
-                    self.imgs[attr.name] = {
-                        name = attr.name,
-                        u1 = attr.u1,
-                        v1 = attr.v1,
-                        u2 = attr.u2,
-                        v2 = attr.v2,
-                    }
-                end
-            end
-        else
-            return error("Xml file parse error: "..dom)
-        end
-    else
-        return error("Xml file failed to load")
+    if s == nil or #s == 0 then
+        return error(ERROR.UNEXPECTED_EOF)
     end
 
-    f:close()
+    if skip_image_parser ~= true then 
+        local success, result = self.ImageAtlasParser(s)
+        if success then
+            self.tex, self.imgs = unpack(result)
+            return
+        end
+    end
+
+    -- print("use slaxdom parse...")
+    local success, dom = pcall(function() return slaxdom:dom(s) end)
+    if success and type(dom) == "table" then
+        local node = dom:find_elements("Atlas")[1]
+        if node == nil then
+            return error(ERROR.XML_ELEMENT_NOT_FOUND)
+        end
+        local texture = node:find_elements("Texture")[1]
+        if texture == nil then
+            return error(ERROR.XML_ELEMENT_NOT_FOUND)
+        end
+        self.tex = texture.attr.filename
+        if self.tex == nil then
+            return error(ERROR.XML_TEX_FILENAME_NOT_FOUND)
+        elseif self.tex:find("[/\\]") then
+            return error(ERROR.XML_TEX_FILENAME_INVALID)
+        end
+        local elements = node:find_elements("Elements")[1]
+        if elements == nil then
+            return error(ERROR.XML_ELEMENT_NOT_FOUND)
+        end
+
+        self.imgs = {}
+        for _, v in ipairs(elements:find_elements("Element")) do
+            local attr = v.attr or {}
+            if attr.name and attr.u1 and attr.u2 and attr.v1 and attr.v2 then
+                self.imgs[attr.name] = {
+                    name = attr.name,
+                    u1 = attr.u1,
+                    v1 = attr.v1,
+                    u2 = attr.u2,
+                    v2 = attr.v2,
+                }
+            end
+        end
+    else
+        return error("Xml file parse error: "..dom)
+    end
 end)
 
 function XmlLoader:Get(name)
@@ -363,6 +372,40 @@ function XmlLoader:__tostring()
     else
         return string.format("Xml<imgs=%d>", GetTableSize(self.imgs))
     end
+end
+
+-- a simpler parser (high performance)
+function XmlLoader.ImageAtlasParser(s)
+    local texname = nil
+    local imgs = {}
+    do
+        local i = select(2, s:find("Texture%s*filename"))
+        if i ~= nil then
+            texname = select(3, s:find("\"([^\"]*)\"", i))
+            if texname == nil then
+                return false, ERROR.XML_TEX_FILENAME_NOT_FOUND
+            elseif texname:find("[/\\]") then
+                return false, ERROR.XML_TEX_FILENAME_INVALID
+            end
+        end
+    end
+    do
+        local i = select(2, s: find("<Elements>"))
+        if i ~= nil then
+            for content in s:gmatch("<Element%s([^/]+)/>") do
+                local img = {}
+                for k,v in content:gmatch("([nameuv12]+)%s*=%s*\"([^\"]+)\"")do
+                    if k ~= "name" then v = tonumber(v) end
+                    img[k] = v
+                end
+                if img.name and img.u1 and img.u2 and img.v1 and img.v2 then
+                    imgs[img.name] = img
+                end
+            end
+        end
+    end
+
+    return true, {texname, imgs}
 end
 
 -- loader for *.tex file
@@ -556,6 +599,10 @@ end
 function ZipLoader:GetModified(name)
     local data = self.contents[name]
     return data and data.mtime
+end
+
+function ZipLoader:Exists(name)
+    return self.contents[name] ~= nil
 end
 
 function ZipLoader:List()

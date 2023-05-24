@@ -82,7 +82,6 @@ function DST_DataRoot:SetRoot(path)
 
 	self.root = path
 	print("Set game root: ", path)
-	self:DropDatabundles()
 	local databundles = self.root/"databundles"
 	if databundles:is_dir() then
 		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts"}do
@@ -99,6 +98,7 @@ function DST_DataRoot:SetRoot(path)
 	end
 
 	Config:SetAndSave("last_dst_root", self.root:as_string())
+	return true
 end
 
 function DST_DataRoot:SearchGame()
@@ -136,9 +136,8 @@ function DST_DataRoot:Open(path, bundled)
 			for k,v in pairs(self.databundles)do
 				if path:startswith(k) then
 					local bytes = v:Get(path)
-					local fs = bytes and CreateBytesReader(bytes)
-					if fs ~= nil then
-						return fs
+					if bytes ~= nil then
+						return CreateBytesReader(bytes)
 					end
 				end
 			end
@@ -150,9 +149,11 @@ end
 
 function DST_DataRoot:Exists(path, bundled)
 	if self.root then
-		if bundled ~= false then
+		if bundled and self.databundles[bundled] then
+			return self.databundles[bundled]:Exists(path)
+		elseif bundled ~= false then
 			for k,v in pairs(self.databundles)do
-				if path:startswith(k) and v:Get(path) ~= nil then
+				if path:startswith(k) and v:Exists(path) then
 					return true
 				end
 			end
@@ -161,17 +162,24 @@ function DST_DataRoot:Exists(path, bundled)
 	end
 end
 
-function DST_DataRoot:DropDatabundles()
-	-- for k,v in pairs(self.databundles)do
-	-- 	v:Close()
-	-- end
+function DST_DataRoot:Iter(path)
+	if self.root then
+		local result = {}
+		if self.databundles[path] then
+			for _,name in ipairs(self.databundles[path]:List())do
+				table.insert(result, name)
+			end
+		end
+		for _, file in ipairs((self.root/path):iter_file()) do
+			table.insert(result, path..file:name())
+		end
+		return result
+	end
 end
 
 function DST_DataRoot:__div(path)
 	return self.root/path
 end
-
-Root = DST_DataRoot("/Users/wzh/DST/dontstarve_dedicated_server_nullrenderer.app/Contents/data/")
 
 local function CalcIndex(w, h, args)
 	local rw, rh = args.rw, args.rh
@@ -192,11 +200,11 @@ end
 local Provider = Class(function(self, root, static)
 	self.root = root
 
-	self.allzipfilepath = {}
-	self.alldynfilepath = {}
-	self.allxmlfilepath = {}
-	self.alltexelements = {}
-	self.allfevfilepath = {}
+	self.allzipfile = {}
+	self.alldynfile = {}
+	self.allxmlfile = {}
+	self.alltexelement = {}
+	self.allfevfile = {}
 
 	self.loaders = {
 		xml = {},
@@ -205,15 +213,66 @@ local Provider = Class(function(self, root, static)
 	}
 
 	self.static = static
-	-- self:ListAsset()
-
-	if not self.static then
-		self.index = AssetIndex(root)
-	end
+	self:ListAsset()
 end)
 
--- function Provider:ListAsset()
-	-- (self.root/"anim"):iter
+function Provider:DoIndex(ignore_cache)
+	self.index = AssetIndex(self.root)
+	self.index:DoIndex(ignore_cache)
+end
+
+
+function Provider:ListAsset()
+	for _,v in ipairs((self.root/"anim"):iter_file_with_extension(".zip"))do
+		table.insert(self.allzipfile, Asset("animzip", {file = "anim/"..v:name()}))
+	end
+
+	for _,v in ipairs((self.root/"anim"/"dynamic"):iter_file_with_extension(".dyn"))do
+		local name = v:name()
+		local zipname = name:sub(1, #name - 4)..".zip"
+		if not self.root:Exists("anim/dynamic/"..zipname, "anim/dynamic") then
+			print("Warning: dyn file without build zip: "..name)
+		else
+			table.insert(self.alldynfile, Asset("animdyn", {file = "anim/dynamic/"..v:name()}))
+		end
+	end
+
+	for _, folder in ipairs{"minimap", "images", "bigportraits"}do
+		for _,v in ipairs(self.root:Iter(folder.."/") or {}) do
+			if v:endswith(".xml") then
+				local f = self.root:Open(v)
+				if not f then
+					print("Warning: failed to open xml file: "..v)
+				else
+					local xml = XmlLoader(f)
+					if not xml.error then
+						local texname = xml.tex
+						local _,_, parent = string.find(v, "^(.*/)[^/]+$")
+						local texpath = parent and parent .. texname
+						if not self.root:Exists(texpath) then
+							if not texname:find("motd_box") then
+								print("Warning: cannot find tex file that xml references to: ",
+									v, "->", texpath)
+							end
+						else
+							table.insert(self.allxmlfile, Asset("xml", {
+								file = v,
+								texname = texname,
+								texpath = texpath,
+							}))
+							for name in pairs(xml.imgs)do
+								table.insert(self.alltexelement, Asset("tex", {
+									xml = v,
+									tex = name,
+								}))
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
 
 function Provider:Fetch(type, args)
 	if type == "build" then
@@ -441,3 +500,7 @@ function Provider:LoadTex(path)
 	end
 end
 
+return {
+	DST_DataRoot = DST_DataRoot,
+	Provider = Provider,
+}

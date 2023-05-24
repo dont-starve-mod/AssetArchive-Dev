@@ -13,7 +13,16 @@ IpcHandlers.Register = function(name, handler)
 			end
 		end
 
-		local result = handler(param)
+		local msg = nil
+		local function onerror(e)
+			msg = "Error in ipc `"..name.."`: "..e.."\n"..
+				debug.traceback()
+		end
+		local success, result = xpcall(handler, onerror, param)
+		if not success then
+			print(msg)
+			return json.encode({error = "ipc", msg = msg})
+		end
 		if type(result) == "string" then
 			return result
 		elseif type(result) == "table" then
@@ -50,28 +59,19 @@ IpcHandlers.Register("getstate", function(key)
 	return GetState(key)
 end)
 
-IpcHandlers.Register("setroot", function(root)
-	print(">>>", root)
-	local index = require "assetindex"
-	Root:SetRoot(FileSystem.Path(root))
-	index(Root):DoIndex(true)
-end)
-
-IpcHandlers.Register("sum", function(values)
-	local total = 0
-	for _,v in ipairs(values)do
-		total = total + v
-	end
-	return total
-end)
-
-IpcHandlers.Register("bytes", function(_)
-	return "\1\1\45\14"
-end)
-
+-- ipc util functions:
+-- these function must be invoked by ipc handler api
+-- registered before every ipc call, and destructed after the call
 
 IpcEmitEvent = function(event, payload)
 	-- push event to frontend
-	-- this function must call in ipc handler api
-	-- it's registered before ipc call, and destructed after that
+end
+
+IpcSetState = function(k, v)
+	-- set a key -> value pair to core state
+end
+
+IpcInterrupted = function()
+	-- check if core has a interrupt flag
+	-- useful for aborting an expensive job in middle
 end

@@ -1,7 +1,13 @@
+local smallhash = Algorithm.SmallHash_Impl
+
 Asset = Class(function(self, type, data)
 	self.type = type
-	self.data = {}
 	for k,v in pairs(data)do
-		self.data[k] = v
+		self[k] = v
 	end
 end)
+
+function Asset:__tostring()
+	return string.format("Asset<%s %s>",
+		self.type, self.file or self.xml)
+end

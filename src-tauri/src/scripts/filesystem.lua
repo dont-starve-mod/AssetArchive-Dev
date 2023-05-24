@@ -39,6 +39,9 @@
 --       -- do something ...
 --       f:close()
 --     end
+--   
+--   rewind()
+--     reset file cursor to 0
 
 global("APP_CACHE_DIR")
 global("APP_CONFIG_DIR")

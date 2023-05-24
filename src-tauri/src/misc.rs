@@ -1,5 +1,5 @@
 pub mod lua_misc {
-    use rlua::prelude::{LuaResult, LuaError};
+    use rlua::prelude::{LuaResult, LuaString};
     use rlua::{Nil, UserData, Context};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
@@ -53,6 +53,12 @@ pub mod lua_misc {
                 .as_millis();
             Ok(time)
         })?)?;
+
+        // // cmd args
+        // globals.set("Args", lua_ctx.create_table_from(std::env::args()
+        //     .map(|v|lua_ctx.create_string(&v).unwrap_or(Nil))
+        //     .enumerate()
+        // )?)?;
 
         Ok(())
     }

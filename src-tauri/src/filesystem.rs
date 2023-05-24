@@ -1,5 +1,5 @@
 pub mod lua_filesystem {
-    use std::fs::{self, File, read_to_string};
+    use std::fs::{self, File};
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
     use std::path::PathBuf;
@@ -180,8 +180,8 @@ pub mod lua_filesystem {
         fn open(path: &str) -> Option<Self> {
             let f: File = match fs::OpenOptions::new().read(true).open(path) {
                 Ok(f)=> f,
-                Err(_)=> {
-                    // println!("ReadStream: cannot read file: {}", path);
+                Err(e)=> {
+                    eprintln!("ReadStream: cannot read file: {} {:?}", path, e);
                     return None
                 },
             };
@@ -382,18 +382,30 @@ pub mod lua_filesystem {
             }
         }
 
+        #[inline]
         fn with_extension(&self, s: String) -> Self {
             Path { inner: self.inner.with_extension(s) }
         }
 
+        #[inline]
+        fn check_extention(&self, ext: &str) -> bool {
+            match self.extension() {
+                Some(s)=> s == ext,
+                None => false
+            }
+        }
+
+        #[inline]
         fn with_name(&self, s: String) -> Self {
             Path { inner: self.inner.with_file_name(s) }
         }
 
+        #[inline]
         fn is_dir(&self) -> bool {
             self.inner.is_dir()
         }
 
+        #[inline]
         fn is_file(&self) -> bool {
             self.inner.is_file()
         }
@@ -410,6 +422,7 @@ pub mod lua_filesystem {
             }
         }
 
+        #[inline]
         fn parent(&self) -> Self {
             match self.inner.parent() {
                 Some(path)=> Path::new(path.to_path_buf()),
@@ -432,6 +445,7 @@ pub mod lua_filesystem {
             result
         }
         
+        #[inline]
         fn to_string(&self) -> String {
             self.inner.to_string_lossy().to_string()
         }
@@ -481,6 +495,22 @@ pub mod lua_filesystem {
             });
             _methods.add_method("iter", |_, path: &Self, ()|{
                 Ok(path.iter_dir())
+            });
+            _methods.add_method("iter_file", |_, path: &Self, ()|{
+                Ok(path.iter_dir()
+                    .iter()
+                    .filter(|p|p.is_file())
+                    .map(|p|p.clone())
+                    .collect::<Vec<_>>())
+            });
+            _methods.add_method("iter_file_with_extension", |_, path: &Self, mut ext: String|{
+                if ext.starts_with('.') { ext = ext.split_off(1) }
+                let ext_str = &ext[..];
+                Ok(path.iter_dir()
+                    .iter()
+                    .filter(|p|p.is_file() && p.check_extention(ext_str))
+                    .map(|p|p.clone())
+                    .collect::<Vec<_>>())
             });
             _methods.add_method("extention", |_, path: &Self, ()|{
                 Ok(path.extension())
