@@ -1,3 +1,6 @@
+[workspace]
+members = ["fmod", "include_lua", "include_lua_macro"]
+
 [package]
 name = "asset-archive"
 version = "0.0.0"
@@ -8,6 +11,8 @@ repository = ""
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
 
 [build-dependencies]
 tauri-build = { version = "1.2", features = [] }
@@ -23,6 +28,10 @@ num-traits = "0.2.15"
 serde = { version = "1.0", features = ["derive"] }
 rlua = { version = "^0.19.4", default-features = false, features = ["lua-no-oslib", "builtin-lua51"] }
 image = "0.24.6"
+
+fmod = { path = "./fmod" }
+include_lua = { path = "./include_lua" }
+include_lua_macro = { path = "./include_lua_macro" }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

@@ -1,3 +1,4 @@
+print(114514.3.3-a-0d*)
 require "strict"
 require "util"
 json = require "json"

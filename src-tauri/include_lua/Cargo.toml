@@ -1,0 +1,8 @@
+[package]
+name = "include_lua"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rlua = { version = "^0.19.4", default-features = false, features = ["lua-no-oslib", "builtin-lua51"] }
+include_lua_macro = { path = "../include_lua_macro" }

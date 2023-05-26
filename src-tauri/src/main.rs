@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use rlua::Variadic;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
+// use include_lua::{include_lua, ContextExt};
 
 use tauri::{Manager, command};
 
@@ -16,6 +17,22 @@ mod filesystem;
 mod algorithm;
 mod misc;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
+
+use fmod;
+use include_lua::{ContextExt, LuaModules};
+use include_lua_macro;
+
+use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
+fn menu() -> Menu {
+    // 这里 `"quit".to_string()` 定义菜单项 ID，第二个参数是菜单项标签。
+    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
+    let close = CustomMenuItem::new("close".to_string(), "Close");
+    let submenu = Submenu::new("File", Menu::new().add_item(quit).add_item(close));
+    Menu::new()
+    .add_native_item(MenuItem::Copy)
+    .add_item(CustomMenuItem::new("hide", "Hide"))
+    .add_submenu(submenu)
+}
 
 struct LuaEnv {
     lua: Mutex<Lua>,
@@ -52,6 +69,7 @@ fn main() {
             lua_call_async,
             lua_interrupt,
         ])
+        .menu(menu())
         .run(tauri::generate_context!())
         .expect("Failed to launch app");
 }
@@ -212,31 +230,27 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
 
         let workdir = std::env::current_dir().unwrap_or(PathBuf::new());
         let script_root = if workdir.join("Cargo.toml").exists() { // 判定开发者环境, 有点不好, 以后要删了
-            println!("[以开发者环境运行]");
+            println!("[DEBUG] Enable dynamic src loading");
             PathBuf::from_iter(vec!["src", "scripts"])
         }
         else {
-            let exe = std::env::args_os().next().unwrap_or_else(||{
-                eprintln!("Failed to get exec path (args[0])");
-                process::exit(1);
-            });
-            let exe = PathBuf::from(exe);
-            let exedir = exe.parent().unwrap_or_else(||{
-                eprintln!("Failed to get exec directory (Lua script root)");
-                process::exit(1);
-            });
-            exedir.to_path_buf().join("scripts")
+            PathBuf::new()
         };
         // package.path
         let package = globals.get::<_, Table>("package")?;
         let ori_path = package.get::<_, String>("path")?;
         let script_root_str = script_root.as_os_str().to_string_lossy();
-        package.set("path", format!("{}{}?.lua;{}", 
-            script_root_str, 
-            std::path::MAIN_SEPARATOR, 
-            ori_path))?;
+        if script_root_str.len() > 0 {
+            println!("root: {}", script_root_str);
+            package.set("path", format!("{}{}?.lua;{}", 
+                script_root_str, 
+                std::path::MAIN_SEPARATOR, 
+                ori_path))?;
+        }
         // SCRIPT_ROOT
-        globals.set("SCRIPT_ROOT", format!("{}", script_root_str))?;
+        globals.set("SCRIPT_ROOT", format!("{}{}", 
+            script_root_str,
+            std::path::MAIN_SEPARATOR))?;
 
         // xpcall script
         let script_name = "main.lua";
@@ -245,25 +259,36 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
             std::path::MAIN_SEPARATOR,
             script_name
         );
-        println!("Load: {}", script_full_path);
-        if let Ok(s) = fs::read_to_string(script_full_path) {
-            let func = lua_ctx.load(&s).set_name(&script_name)?.into_function()?;
-            let xpcall = globals.get::<_, Function>("xpcall")?;
-            let print_traceback = lua_ctx.load("
-            function(e)
-                print(e)
-                print(debug.traceback()) 
-            end").set_name("[CORE]")?.eval::<Function>()?;
-            let success = xpcall.call::<_, bool>((func, 
-                print_traceback, Variadic::<bool>::new()))?;
-            if !success {
-                eprintln!("\nError: script init runtime error");
+        
+        let module = include_lua_macro::include_lua!("scripts");
+        lua_ctx.add_modules(module)?;
+        match lua_ctx.load("
+            require \"main\"
+        ").set_name("[CORE]")?
+            .exec() {
+                Ok(_)=> (),
+                Err(e)=> eprintln!("无法加载lua: {:?}", e),
             }
-        }
-        else {
-            eprintln!("Error: Failed to read Lua scripts");
-            process::exit(1);
-        }         
+        
+        // println!("Load: {}", script_full_path);
+        // if let Ok(s) = fs::read_to_string(script_full_path) {
+        //     let func = lua_ctx.load(&s).set_name(&script_name)?.into_function()?;
+        //     let xpcall = globals.get::<_, Function>("xpcall")?;
+        //     let print_traceback = lua_ctx.load("
+        //     function(e)
+        //         print(e)
+        //         print(debug.traceback()) 
+        //     end").set_name("[CORE]")?.eval::<Function>()?;
+        //     let success = xpcall.call::<_, bool>((func, 
+        //         print_traceback, Variadic::<bool>::new()))?;
+        //     if !success {
+        //         eprintln!("\nError: script init runtime error");
+        //     }
+        // }
+        // else {
+        //     eprintln!("Error: Failed to read Lua scripts");
+        //     process::exit(1);
+        // }         
         
         Ok(())
     })

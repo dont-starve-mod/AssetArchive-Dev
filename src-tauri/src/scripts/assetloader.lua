@@ -304,7 +304,6 @@ XmlLoader = Class(function(self, f, skip_image_parser)
     local function error(e)
         self.error = e
         funcprint("Error in XmlLoader._ctor(): "..e)
-        f:close()
     end
 
     local s = f:read_to_end()
@@ -322,7 +321,7 @@ XmlLoader = Class(function(self, f, skip_image_parser)
         end
     end
 
-    -- print("use slaxdom parse...")
+    -- print("use slaxdom parser...")
     local success, dom = pcall(function() return slaxdom:dom(s) end)
     if success and type(dom) == "table" then
         local node = dom:find_elements("Atlas")[1]
@@ -403,6 +402,15 @@ function XmlLoader.ImageAtlasParser(s)
                 end
             end
         end
+    end
+
+    -- dev branch: check word count
+    local c1 = s:count("Atlas")
+    local c2 = s:count("Elements")
+    local c3 = s:count("Element")
+    if c1 ~= 2 or c2 ~= 2 or c3 ~= GetTableSize(imgs) + 2 then
+        print("Warning: xml re parser failed")
+        return false, "Parse failed"
     end
 
     return true, {texname, imgs}
@@ -621,42 +629,42 @@ ZipLoader.NAME_FILTER = {
     INDEX = function(name) return name == "anim.bin" or name == "build.bin" end,
 }
 
--- load anim.bin in zipfile, make sure that path is a file
-function ZipLoader.LoadAnim(path, ...)
-    local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.ANIM)
-    local anim_raw = zip and zip:Get("anim.bin")
-    local anim = anim_raw and AnimLoader(CreateBytesReader(anim_raw), ...)
-    if anim and not anim.error then
-        return anim
-    end
-end
+-- -- load anim.bin in zipfile, make sure that path is a file
+-- function ZipLoader.LoadAnim(path, ...)
+--     local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.ANIM)
+--     local anim_raw = zip and zip:Get("anim.bin")
+--     local anim = anim_raw and AnimLoader(CreateBytesReader(anim_raw), ...)
+--     if anim and not anim.error then
+--         return anim
+--     end
+-- end
 
--- load build.bin in zipfile, make sure that path is a file
-function ZipLoader.LoadBuild(path, ...)
-    local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.BUILD)
-    local build_raw = zip and zip:Get("build.bin")
-    local build = build_raw and BuildLoader(CreateBytesReader(build_raw), ...)
-    if build and not build.error then
-        return build
-    end
-end
+-- -- load build.bin in zipfile, make sure that path is a file
+-- function ZipLoader.LoadBuild(path, ...)
+--     local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.BUILD)
+--     local build_raw = zip and zip:Get("build.bin")
+--     local build = build_raw and BuildLoader(CreateBytesReader(build_raw), ...)
+--     if build and not build.error then
+--         return build
+--     end
+-- end
 
 DynLoader = Class(ZipLoader, FileSystem.DynLoader_Ctor)
 
-function DynLoader.IsDyn(path)
-    local f = CreateReader(path)
-    if f then
-        local result = f:read_string(#DYN_SIG) == DYN_SIG
-        f:close()
-        return result
-    end
-end
+-- function DynLoader.IsDyn(path)
+--     local f = CreateReader(path)
+--     if f then
+--         local result = f:read_string(#DYN_SIG) == DYN_SIG
+--         f:close()
+--         return result
+--     end
+-- end
 
-function DynLoader.IsZip(path)
-    local f = CreateReader(path)
-    if f then
-        local result = f:read_string(#ZIP_SIG) == ZIP_SIG
-        f:close()
-        return result
-    end
-end
+-- function DynLoader.IsZip(path)
+--     local f = CreateReader(path)
+--     if f then
+--         local result = f:read_string(#ZIP_SIG) == ZIP_SIG
+--         f:close()
+--         return result
+--     end
+-- end

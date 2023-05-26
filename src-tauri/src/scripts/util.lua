@@ -38,6 +38,14 @@ function string.isascii(str)
 	return true
 end
 
+function string.count(str, neddle)
+	local n =  0
+	for _ in str:gmatch(neddle)do
+		n = n + 1
+	end
+	return n
+end
+
 function math.clamp(n, min, max)
 	return math.max(math.min(n, max), min)
 end

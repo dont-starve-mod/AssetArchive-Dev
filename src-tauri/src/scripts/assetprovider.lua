@@ -31,7 +31,8 @@ function DST_DataRoot:ResolvePath(path)
 		and (path/"anim"):is_dir()
 		and (path/"bigportraits"):is_dir()
 		and (path/"images"):is_dir()
-		and (path/"minimap"):is_dir() then
+		and (path/"minimap"):is_dir()
+		and (path/"sound"):is_dir() then
 		return path
 	end
 
@@ -259,6 +260,7 @@ function Provider:ListAsset()
 								file = v,
 								texname = texname,
 								texpath = texpath,
+								_numtex = GetTableSize(xml.imgs),
 							}))
 							for name in pairs(xml.imgs)do
 								table.insert(self.alltexelement, Asset("tex", {
