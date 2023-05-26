@@ -5,13 +5,12 @@ use std::collections::HashMap;
 /// Represents a Lua source tree embedded into a binary via [`include_lua!`][include_lua].
 pub struct LuaModules {
     files: HashMap<String, (String, String)>,
-    prefix: String,
 }
 
 impl LuaModules {
     #[doc(hidden)]
-    pub fn __new(files: HashMap<String, (String, String)>, prefix: &str) -> LuaModules {
-        LuaModules { files, prefix: prefix.to_string() }
+    pub fn __new(files: HashMap<String, (String, String)>, _prefix: &str) -> LuaModules {
+        LuaModules { files }
     }
 }
 

@@ -8,7 +8,7 @@ pub mod lua_filesystem {
     use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
     #[cfg(windows)]
     use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
-    use rlua::{Function, MetaMethod, UserData, UserDataMethods, Variadic, Table, Context, AnyUserData};
+    use rlua::{Function, MetaMethod, UserData, UserDataMethods, Table, Context, AnyUserData};
     use rlua::Value;
     use rlua::Value::Nil;
     use rlua::{FromLua};
