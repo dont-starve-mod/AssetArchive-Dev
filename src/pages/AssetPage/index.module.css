@@ -1,0 +1,91 @@
+.grid-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.grid-container .grid {
+  width: 20%;
+  max-width: 120px;
+  margin: 10px;
+}
+
+.grid-container .grid > div {
+  position: relative;
+}
+
+.grid-name {
+  width: calc(100% + 20px);
+  min-height: 20px;
+  margin-left: -10px;
+  margin-right: -10px;
+  margin-bottom: -13px;
+  /* background-color: pink; */
+  text-align: center;
+  word-wrap: break-word;
+}
+
+.grid-button-group {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.16);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+:global(.bp4-card):hover .grid-button-group {
+  display: block;
+  cursor: pointer;
+}
+
+.grid-button-group > div {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.list-container {
+
+}
+
+.list-container tbody tr {
+  border-bottom: 1px solid #ccc;
+  border-radius: 10px;
+  /* padding-top: 5px!important; */
+  /* padding-bottom: 5px!important; */
+}
+
+.list-container tbody tr:hover {
+  background-color: #eee;
+}
+
+.list-container tbody tr td {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  vertical-align: middle;
+}
+
+:global(.bp4-dark) .list-container tbody tr:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.list-container .list-name {
+  min-width: 80px;
+  max-width: 320px;
+  width: calc(100vw - 580px);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list-container .list-name:hover {
+  font-weight: 700;
+  text-decoration: underline;
+}

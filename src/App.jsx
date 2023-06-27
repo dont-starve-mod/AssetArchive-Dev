@@ -1,93 +1,115 @@
-import { useEffect, useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/tauri";
-import { emit, listen } from '@tauri-apps/api/event'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Spinner } from "@blueprintjs/core"
+import { useLocation, useRoutes, useSearchParams } from 'react-router-dom'
+import { MainRouteList } from './routelist'
+import { appWindow } from '@tauri-apps/api/window'
+import { listen as globalListen } from '@tauri-apps/api/event' 
+import "./App.css"
 
-import "./App.css";
+import Nav from './components/Nav'
+import MainMenu from './components/MainMenu'
+import Footer from './components/Footer'
+import AppToaster from './components/AppToaster'
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
-  const [root, setRoot] = useState("")
+import AppInit from './components/AppInit'
+import { useLuaCall } from './hooks'
+import { FocusStyleManager } from "@blueprintjs/core"
+import Preview from './components/Preview'
+FocusStyleManager.onlyShowFocusOnTabs()
 
-  useEffect(()=> {
-    const unlisten = listen("index_progress", ({event, payload})=> {
-      console.log(event, payload)
-    })
-    
-    return ()=> unlisten.then(f=> f())
-  }, [])
+export default function App() {
+	let url = useLocation()
+	let main_routes = useRoutes(MainRouteList)
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-    setGreetMsg(await invoke("greet", { name }));
-  }
+	let compile = useLuaCall("debug_analyze")
 
-  async function mySum() {
-    let r = await invoke("lua_call", { api: "sum", param: JSON.stringify([1,2,3,4])})
-    // window.alert("Lua运算结果: "+r)
-  }
+	// TODO: 注意这里的颜色模式切换并不是启动即时的，可能有点问题需要优化
+	const [systemTheme, setSystemTheme] = useState("light")
+	const [configTheme, setConfigTheme] = useState()
 
-  async function pushRoot() {
-    invoke("lua_call", { api: "setroot", param: JSON.stringify(root)}).then(
-      r=> console.log(r),
-      e=> console.warn(e),
-    )
-  }
+	useEffect(()=> {
+		
+		appWindow.theme().then(
+			theme=> {
+				setSystemTheme(theme)
+			}
+		)
+	}, [setSystemTheme])
 
-  async function luaConsole() {
-    let r = await invoke("lua_console", { script: name })
-    setGreetMsg(r)
-  }
+	useEffect(()=> {
+		
+		const configListener = appWindow.listen("colortheme", ({payload: theme})=> {
+			setConfigTheme(theme)
+		})
+		const systemListener = appWindow.onThemeChanged(({payload: theme})=> {
+			setSystemTheme(theme)
+		})
+		return ()=> {
+			configListener.then(f=> f())
+			systemListener.then(f=> f())
+		}
+	}, [systemTheme, setSystemTheme, configTheme, setConfigTheme])
 
+	const isDarkMode = useMemo(()=> {
+		if (configTheme === "auto") {
+			return systemTheme === "dark"
+		}
+		else {
+			return configTheme === "dark"
+		}
+	}, [systemTheme, configTheme])
 
-  const [percent, setPercent] = useState(-1)
-  const update = ()=> {
-    invoke("lua_call_async", {api: "getstate", param: JSON.stringify("index_progress")})
-    .then(
-      res=> setPercent(res),
-      err=> console.log(err)
-    )
-  }
+	const articleRef = useRef()
 
-  const abort = ()=> {
-    invoke("lua_interrupt", {})
-  }
+	useEffect(()=> {
+		let unlisten = appWindow.listen("reset_scroll", ()=> {
+			if (articleRef.current) {
+				articleRef.current.scrollTop = 0
+			}
+		})
+		return ()=> unlisten.then(f=> f())
+	}, [])
 
-  return (
-    <div className="container">
-      <h1>Welcome to Tauri!</h1>
+  return (<div className={isDarkMode ? "bp4-dark": null}>
+		<header>
+			<div onMouseDown={async()=> await appWindow.startDragging()}></div>
+			<div>
+				<Nav/>
+			</div>
+		</header>
+		<div className='main'>
+			<menu>
+				<MainMenu/>
+			</menu>
+			<article ref={articleRef}>
+				{
+					main_routes
+				}
+				
+				<div style={{height: 300}}></div>
+				<br/>
+				<Button onClick={()=> compile()}> compile </Button>
+				
+				
+			</article>
+		</div>
+		<footer>
+			<Footer/>
+		</footer>
 
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <div className="row">
-        <form>
-          <input
-            id="greet-input"
-            onChange={(e) => setName(e.currentTarget.value)}
-            placeholder="执行Lua脚本"
-          />
-          <button type="submit" onClick={e=> {e.preventDefault(); luaConsole()}}>RUN</button>
-          <br/>
-          <input
-            id='root-path'
-            onChange={e=> setRoot(e.currentTarget.value)}
-            placeholder="设置根目录"
-          />
-          <button type="submit" onClick={
-            e=> {
-              e.preventDefault()
-              pushRoot()
-            }
-          }>Set</button>
-        </form>
-      </div>
-
-      <button style={{display: "inline-block"}} onClick={abort}>中断</button>
-
-      <p>{greetMsg}</p>
-    </div>
-  );
+		<AppInit/>
+		<AppToaster/>
+		
+		
+		{/* <Local/> */}
+  </div>)
 }
 
-export default App;
+function Local() {
+	const [_, plus] = useState(0)
+	useEffect(()=> {
+		let t = setInterval(()=> plus(v=> v+1), 500)
+		return ()=> clearInterval(t)
+	}, [plus])
+	return <p>{JSON.stringify(window.config)}</p>
+}
