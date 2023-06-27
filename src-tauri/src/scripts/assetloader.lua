@@ -25,6 +25,15 @@ local function average(t)
     return sum / n
 end
 
+local function median(t)
+    local n = #t
+    if n == 1 then
+        return t[1]
+    else
+        return t[math.floor(n/2)]
+    end
+end
+
 -- loader for <build.bin>
 BuildLoader = Class(function(self, f, lazy)
     local function error(e)
@@ -70,7 +79,7 @@ BuildLoader = Class(function(self, f, lazy)
         if lazy and imghash ~= self.SWAP_ICON then
             f:seek_forward(numimgs * 32)
         else
-            local imgs = { imghash = imghash }
+            local imgs = { imghash = imghash, imglist = {} }
             for j = 1, numimgs do
                 local img = {
                     index = f:read_u32(),
@@ -85,13 +94,13 @@ BuildLoader = Class(function(self, f, lazy)
                 if img.numvertexs == nil then
                     return error(ERROR.UNEXPECTED_EOF)
                 end
-                table.insert(imgs, img)
+                table.insert(imgs.imglist, img)
                 table.insert(allimgs, img)
             end
 
             if lazy then
-                if #imgs >= 1 and imgs[1].index == 0 then
-                    self.swap_icon_0 = imgs[1]
+                if #imgs.imglist >= 1 and imgs.imglist[1].index == 0 then
+                    self.swap_icon_0 = imgs.imglist[1]
                 else
                     print("Warning: failed to get first image from symbol `SWAP_ICON`")
                 end
@@ -152,8 +161,8 @@ BuildLoader = Class(function(self, f, lazy)
                 local vmax = f:read_f32()   -- 16
                 f:seek_forward(19*4)
 
-                local cw = (right - left) / max(umax - umin, .01)
-                local ch = (top - bottom) / min(vmax - vmin, -.01)
+                local cw = (right - left) / max(umax - umin, .00001)
+                local ch = (top - bottom) / min(vmax - vmin, -.00001)
                 local bbx = umin * cw - (left - x_offset)
                 local bby = (1-vmin) * ch - (top - y_offset)
 
@@ -164,11 +173,11 @@ BuildLoader = Class(function(self, f, lazy)
                 table.insert(temp.ch, ch)
             end
 
-            img.sampler = math.floor(average(temp.sampler) + 0.5)
-            img.bbx = round2(average(temp.bbx))
-            img.bby = round2(average(temp.bby))
-            img.cw = round2(average(temp.cw))
-            img.ch = round2(average(temp.ch))
+            img.sampler = math.floor(median(temp.sampler) + 0.5)
+            img.bbx = round2(median(temp.bbx))
+            img.bby = round2(median(temp.bby))
+            img.cw = round2(median(temp.cw))
+            img.ch = round2(median(temp.ch))
 
             if not lazy then
                 img.vertexindex = nil
@@ -316,7 +325,7 @@ XmlLoader = Class(function(self, f, skip_image_parser)
     if skip_image_parser ~= true then 
         local success, result = self.ImageAtlasParser(s)
         if success then
-            self.tex, self.imgs = unpack(result)
+            self.texname, self.imgs = unpack(result)
             return
         end
     end
@@ -332,10 +341,10 @@ XmlLoader = Class(function(self, f, skip_image_parser)
         if texture == nil then
             return error(ERROR.XML_ELEMENT_NOT_FOUND)
         end
-        self.tex = texture.attr.filename
-        if self.tex == nil then
+        self.texname = texture.attr.filename
+        if self.texname == nil then
             return error(ERROR.XML_TEX_FILENAME_NOT_FOUND)
-        elseif self.tex:find("[/\\]") then
+        elseif self.texname:find("[/\\]") then
             return error(ERROR.XML_TEX_FILENAME_INVALID)
         end
         local elements = node:find_elements("Elements")[1]

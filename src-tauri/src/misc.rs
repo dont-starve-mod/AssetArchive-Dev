@@ -1,8 +1,9 @@
 pub mod lua_misc {
-    use rlua::prelude::{LuaResult, LuaString};
-    use rlua::{Nil, UserData, Context};
+    use rlua::prelude::{LuaResult, LuaString, LuaError};
+    use rlua::{Nil, UserData, Context, Value};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
+    use clippers::{ClipperData, ClipperImage, Clipboard};
 
     struct Bar {
         inner: ProgressBar,
@@ -39,12 +40,13 @@ pub mod lua_misc {
     }
 
     pub fn init(lua_ctx: Context) -> LuaResult<()> {
+        use crate::image::lua_image::Image;
+
         let globals = lua_ctx.globals();
         // progress bar printer
         globals.set("ProgressBar", lua_ctx.create_function(|_, len: u64|{
             Ok(Bar::new(len))
         })?)?;
-
         // timestamp
         globals.set("now", lua_ctx.create_function(|_, ()|{
             let time = SystemTime::now()
@@ -53,6 +55,40 @@ pub mod lua_misc {
                 .as_millis();
             Ok(time)
         })?)?;
+        // clipboard writing
+        let clipboard = lua_ctx.create_table()?;
+        clipboard.set("WriteImage", lua_ctx.create_function(|_, img: Value|{
+            match img {
+                Value::UserData(v)=> {
+                    if let Ok(v) = v.borrow::<Image>() {
+                        let mut clipboard = clippers::Clipboard::get();
+                        match clipboard.write_image(v.width, v.height, v.as_bytes()) {
+                            Ok(())=> Ok(true),
+                            Err(e)=> Err(LuaError::RuntimeError(format!("Failed to write image to clipboard: {:?}", e)))
+                        }
+                    }
+                    else {
+                        Err(LuaError::RuntimeError("Type is not image".to_string()))
+                    }
+                },
+                _ => Err(LuaError::RuntimeError("Type is not image".to_string()))
+            }
+        })?)?;
+        clipboard.set("WriteImage_Bytes", lua_ctx.create_function(|_, (bytes, width, height): (LuaString, u32, u32)|{
+            let mut clipboard = clippers::Clipboard::get();
+            match clipboard.write_image(width, height, bytes.as_bytes()) {
+                Ok(())=> Ok(true),
+                Err(e)=> Err(LuaError::RuntimeError(format!("Failed to write image to clipboard: {:?}", e)))
+            }
+        })?)?;
+        clipboard.set("WriteText", lua_ctx.create_function(|_, text: String|{
+            let mut clipboard = clippers::Clipboard::get();
+            match clipboard.write_text(&text) {
+                Ok(())=> Ok(true),
+                Err(e)=> Err(LuaError::RuntimeError(format!("Failed to write string to clipboard: {:?}", e)))
+            }
+        })?)?;
+        globals.set("Clipboard", clipboard)?;
 
         // // cmd args
         // globals.set("Args", lua_ctx.create_table_from(std::env::args()

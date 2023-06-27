@@ -590,6 +590,11 @@ pub mod lua_filesystem {
         table.set("ListDir", lua_ctx.create_function(|_: Context, path: String|{
             Ok(Path::from(&path).iter_dir())
         })?)?;
+        table.set("WorkDir", lua_ctx.create_function(|_: Context, ()|{
+            Ok(Path::from(std::env::current_dir().unwrap()
+                .as_os_str()
+                .to_str().unwrap()))
+        })?)?;
         table.set("Path", lua_ctx.create_function(|_: Context, path: String|{
             Ok(Path::from(&path))
         })?)?;
@@ -606,6 +611,7 @@ pub mod lua_filesystem {
                     let ziploader = globals.get::<_, Table>("ZipLoader")?;
                     let ctor = ziploader.get::<_, Function>("_ctor")?;
                     let filter = ziploader.get::<_, Table>("NAME_FILTER")?.get::<_, Function>("ALL")?;
+                    loader.set("is_dyn", true)?;
                     ctor.call::<_, Value>((loader, fs, filter))?;
                 }
                 else {

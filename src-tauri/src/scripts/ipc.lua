@@ -5,34 +5,37 @@ IpcHandlers.Register = function(name, handler)
 		if param == "" then
 			param = nil
 		else
-			local success = false
-			success, param = pcall(json.decode, param)
+			local success, param_or_msg = pcall(json.decode, param)
 			if not success then
-				print("Error in parsing lua ipc handler `"..name.."` param: "..param)
-				return json.encode({error = "json.decode", msg = param})
+				local msg = "IpcError<"..name.."> in decoding param json:\n"..param
+				return error(msg)
+			else
+				param = param_or_msg
 			end
 		end
 
 		local msg = nil
 		local function onerror(e)
-			msg = "Error in ipc `"..name.."`: "..e.."\n"..
+			msg = "IpcError<"..name.."> in invoking handler:\n"..tostring(e).."\n"..
 				debug.traceback()
 		end
 		local success, result = xpcall(handler, onerror, param)
 		if not success then
 			print(msg)
-			return json.encode({error = "ipc", msg = msg})
+			return error(msg)
 		end
 		if type(result) == "string" then
 			return result
 		elseif type(result) == "table" then
-			local success, result = pcall(json.encode, result)
+			local success, result = pcall(json.encode_compliant, result)
 			if not success then
-				print("Error in encoding lua ipc handler `"..name.."` return value: "..result)
-				return json.encode({error = "json.encode", msg = result})
+				local msg = "IpcError<"..name.."> in encoding result:\n"..result
+				return error(msg)
 			else
 				return result
 			end
+		elseif type(result) == "number" or type(result) == "boolean" or type(result) == "nil" then
+			return json.encode_compliant(result)
 		else
 			return tostring(result)
 		end
@@ -57,6 +60,25 @@ end
 
 IpcHandlers.Register("getstate", function(key)
 	return GetState(key)
+end)
+
+IpcHandlers.Register("forcecrash", function()
+	local function crash()
+		error("Lua force crash")
+	end
+
+	return crash()
+end)
+
+IpcHandlers.Register("getconfig", function(param)
+	print("GetConfig---->", param.key)
+	return Persistant.Config:Get(param.key)
+end)
+
+IpcHandlers.Register("setconfig", function(param)
+	print("SetConfig--->", param.key, param.value)
+	Persistant.Config:SetAndSave(param.key, param.value)
+	return Persistant.Config:Get(param.key)
 end)
 
 -- ipc util functions:

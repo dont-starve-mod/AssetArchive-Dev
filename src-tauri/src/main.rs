@@ -1,10 +1,12 @@
-use std::fs;
+use std::{fs, result};
 use std::path::PathBuf;
 use std::process;
 use std::error::Error;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Mutex;
 
+use ffmpeg_sidecar::event::FfmpegEvent;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil, Value};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 // use include_lua::{include_lua, ContextExt};
@@ -15,7 +17,10 @@ mod image;
 mod filesystem;
 mod algorithm;
 mod misc;
+mod ffmpeg;
+mod unzip;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
+use crate::ffmpeg::FfmpegManager;
 
 use fmod;
 use include_lua::ContextExt;
@@ -37,7 +42,7 @@ struct LuaEnv {
     lua: Mutex<Lua>,
     state: Mutex<HashMap<String, String>>,
     interrupt_flag: Mutex<bool>,
-    init_errors: Mutex<HashMap<String, String>>,
+    init_error: Mutex<String>,
 }
 
 impl LuaEnv {
@@ -50,7 +55,19 @@ impl LuaEnv {
             lua: Mutex::new(lua),
             state: Mutex::new(HashMap::new()), 
             interrupt_flag: Mutex::new(false),
-            init_errors: Mutex::new(HashMap::new()),
+            init_error: Mutex::new(String::new()),
+        }
+    }
+}
+
+struct Ffmpeg {
+    inner: Mutex<FfmpegManager>,
+}
+
+impl Ffmpeg {
+    fn new() -> Self {
+        Ffmpeg {
+            inner: Mutex::new(FfmpegManager::new())
         }
     }
 }
@@ -58,19 +75,32 @@ impl LuaEnv {
 fn main() {
     tauri::Builder::default()
         .manage(LuaEnv::new())
+        .manage(Ffmpeg::new())
         .setup(|app| {
             lua_init(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            app_init,
             lua_console, 
             lua_call, 
-            lua_call_async,
             lua_interrupt,
         ])
-        .menu(menu())
+        // .menu(menu())
         .run(tauri::generate_context!())
         .expect("Failed to launch app");
+}
+
+#[tauri::command(async)]
+fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>) -> Result<String, String> {
+    let init_error = String::from_str(&state.init_error.lock().unwrap()).unwrap();
+    if init_error.len() > 0 {
+        Err(init_error)
+    }
+    else {
+        lua_call(app, window, state, String::from("appinit"), String::new())
+            .map(|b|"TODO:".to_string())
+    }
 }
 
 /// debug function which runs Lua script in console
@@ -87,25 +117,37 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
     }
 }
 
-#[tauri::command(async)]
-async fn lua_call_async(state: tauri::State<'_, LuaEnv>, api: String, param: String) -> Result<String, String> {
-    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String>{
-        let ipc = lua_ctx.globals().get::<_, Table>("IpcHandlers")?;
-        let api_func = match ipc.get::<_, Function>(api.clone()) {
-            Ok(f) => f,
-            _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
-        };
-        let result = api_func.call::<_, String>(param)?;
-        Ok(result)
-    }).map_err(
-        |e|format!("{:?}", e)
-    )
+enum LuaBytes{
+    Utf8(String),
+    Bytes(Vec<u8>),
+}
+
+impl LuaBytes {
+    fn from(s: LuaString) -> Self {
+        if let Ok(s) = s.to_str() {
+            LuaBytes::Utf8(s.to_string())
+        }
+        else {
+            LuaBytes::Bytes(s.as_bytes().to_vec())
+        }
+    }
+}
+
+impl serde::Serialize for LuaBytes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer {
+        match self {
+            LuaBytes::Bytes(b)=> b.serialize(serializer),
+            LuaBytes::Utf8(s)=> s.serialize(serializer),
+        }
+    }
 }
 
 #[tauri::command(async)]
 fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
-    api: String, param: String) -> Result<String, String> {
-    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<String> {
+    api: String, param: String) -> Result<LuaBytes, String> {
+    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<LuaBytes> {
         let globals = lua_ctx.globals();
         let ipc = globals.get::<_, Table>("IpcHandlers")?;
         let api_func = match ipc.get::<_, Function>(&api[..]) {
@@ -113,7 +155,7 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
             _ => return Err(LuaError::RuntimeError(format!("lua ipc handler not found: `{}`", api))),
         };
         // `app` cannot be shared between threads safely, so use `lua_ctx.scope()`
-        lua_ctx.scope(|scope| -> LuaResult<String>{
+        lua_ctx.scope(|scope| -> LuaResult<LuaBytes>{
             // register ipc util functions
             globals.set("IpcEmitEvent", scope.create_function(|_,(event, payload): (String, String)|{
                 app.emit_all(&event, payload).unwrap();
@@ -126,14 +168,25 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
             globals.set("IpcInterrupted", scope.create_function(|_, ()|{
                 Ok(*state.interrupt_flag.lock().unwrap())
             })?)?;
+
             // reset flag before ipc call
             *state.interrupt_flag.lock().unwrap() = false;
             // do call
-            let result = api_func.call::<_, String>(param)?;
-            Ok(result)
+            let result = api_func.call::<_, LuaString>(param)?;
+            Ok(LuaBytes::from(result))
         })
     }).map_err(
-        |e|format!("{:?}", e)
+        |e|match e {
+            LuaError::RuntimeError(e)=> {
+                if e.contains("IPC_INTERRUPTED") {
+                    "IPC_INTERRUPTED".to_string()
+                }
+                else {
+                    e
+                }
+            },
+            other=> format!("{:?}", other),
+        }
     )
 }
 
@@ -184,12 +237,6 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         else {
             globals.set("PLATFORM", "UNKNOWN")?;
         }
-
-        // // 获取地址 未完成qwq
-        // globals.set("addr", lua_ctx.create_function(|_, (obj): (Table)|{
-        //     dbg!(obj);
-        //     Ok(())
-        // })?)?;
 
         let init_error = |name: &'static str|{
             move |err|{
@@ -258,16 +305,23 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         let (success, err) = lua_ctx.load("
             local success, err
             success = xpcall(require, function(e)
-                err = e .. \"\\n\" .. debug.traceback()
+                err = tostring(e) .. \"\\n\" .. debug.traceback()
                 print(err)
             end, \"main\")
-            return success, err
+            return success, tostring(err)
         ").set_name("[CORE]")?.eval::<(bool, Value)>()?;
         if !success {
             match err {
-                Value::String(s)=> eprintln!("Error init lua: {:?}", s.to_str().unwrap()),
-                // TODO: push error string to frontend
-                _ => ()
+                Value::String(s)=> {
+                    let mut s = bstr::BString::new(s.as_bytes().to_vec()).to_string();
+                    s.push('\n');
+                    eprintln!("Error init lua: {:?}", &s);
+                    state.init_error.lock().unwrap().push_str(&s);
+                },
+                _ => {
+                    eprintln!("Error init lua: unknown error");
+                    state.init_error.lock().unwrap().push_str("unknown error");
+                }
             }
         }
         Ok(())

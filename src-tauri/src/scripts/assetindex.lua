@@ -13,6 +13,10 @@ end)
 function AssetIndex:DoIndex(ignore_cache)
 	local t = now()
 	print("Index assets ...")
+	-- start flag
+	IpcEmitEvent("root", self.root:as_string())
+	IpcEmitEvent("index_progress", tostring(0))
+
 	local animzip = (self.root/"anim"):iter_file_with_extension(".zip")
 	local animdyn = self.root.databundles["anim/dynamic/"]
 	local animzip_total = #animzip
@@ -21,7 +25,6 @@ function AssetIndex:DoIndex(ignore_cache)
 	local bar = ProgressBar(total)
 	local function OnProgress(i)
 		if IpcInterrupted() then
-			print(ERROR.IPC_INTERRUPTED)
 			return error(ERROR.IPC_INTERRUPTED)
 		end
 		bar:set_position(i)
@@ -123,6 +126,8 @@ function AssetIndex:DoIndex(ignore_cache)
 	self.indexcache:Save()
 	Persistant.Hash:Update(HashLib.map_string):Save()
 
+	IpcEmitEvent("hashmap", HashLib:Dumps())
+
 	local t = now() - t
 	if t > 200 then
 		print(("USE TIME: %d ms"):format(t))
@@ -152,7 +157,13 @@ function AssetIndex:AddAnim(name, info)
 end
 
 function AssetIndex:GetBuildFile(buildname)
-	return self.buildinfo[buildname] and self.buildinfo[buildname].file
+	if self.buildinfo[buildname] then
+		return self.buildinfo[buildname].file
+	elseif buildname:endswith(".dyn") and self.root:Exists(buildname:sub(1, #buildname - 4)..".zip") then
+		return buildname:sub(1, #buildname - 4)..".zip"
+	elseif self.root:Exists(buildname) then
+		return buildname
+	end
 end
 
 function AssetIndex:GetAnimFileList(bankhash, animname)

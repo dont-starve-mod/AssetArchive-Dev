@@ -60,7 +60,7 @@ pub mod lua_algorithm {
         else {
             let mut result = Vec::<u8>::with_capacity(cw*ch*4);
             for py in y..y + ch {
-                let start = py* width* 4 + x;
+                let start = (py* width + x)* 4;
                 result.extend_from_slice(&bytes[start..start+cw*4]);
             }
             assert!(result.len() == cw*ch*4);

@@ -58,6 +58,14 @@ function HashLib:Size()
     return GetTableSize(self.map_number)
 end
 
+function HashLib:Dumps()
+    local temp = {}
+    for k,v in pairs(self.map_string)do
+        table.insert(temp, {k, v})
+    end
+    return json.encode_compliant(temp)
+end
+
 function HashLib:ParseFile(f)
     local n = f:read_u32() or 0
     if n > 0 then

@@ -22,8 +22,11 @@ local DST_DataRoot = Class(function(self, suggested_root)
 	if self:SearchGame() then
 		return
 	end
-
 end)
+
+function DST_DataRoot:IsValid()
+	return self.root ~= nil and self.root:is_dir()
+end
 
 function DST_DataRoot:ResolvePath(path)
 	assert(type(path) == "userdata") -- FileSystem.Path
@@ -182,6 +185,12 @@ function DST_DataRoot:__div(path)
 	return self.root/path
 end
 
+function DST_DataRoot:as_string()
+	assert(self.root ~= nil and self.root:is_dir())
+	return self.root:as_string()
+end
+
+
 local function CalcIndex(w, h, args)
 	local rw, rh = args.rw, args.rh
 	local index = {}
@@ -205,16 +214,17 @@ local Provider = Class(function(self, root, static)
 	self.alldynfile = {}
 	self.allxmlfile = {}
 	self.alltexelement = {}
-	self.allfevfile = {}
 
 	self.loaders = {
 		xml = {},
 		tex = {},
 		atlas = {},
+		build = {},
+		animbin = {},
+		-- animation = {},
 	}
 
 	self.static = static
-	self:ListAsset()
 end)
 
 function Provider:DoIndex(ignore_cache)
@@ -231,7 +241,7 @@ function Provider:ListAsset()
 	for _,v in ipairs((self.root/"anim"/"dynamic"):iter_file_with_extension(".dyn"))do
 		local name = v:name()
 		local zipname = name:sub(1, #name - 4)..".zip"
-		if not self.root:Exists("anim/dynamic/"..zipname, "anim/dynamic") then
+		if not self.root:Exists("anim/dynamic/"..zipname, "anim/dynamic") then -- TODO: 测试windows分隔符是否有效
 			print("Warning: dyn file without build zip: "..name)
 		else
 			table.insert(self.alldynfile, Asset("animdyn", {file = "anim/dynamic/"..v:name()}))
@@ -247,7 +257,7 @@ function Provider:ListAsset()
 				else
 					local xml = XmlLoader(f)
 					if not xml.error then
-						local texname = xml.tex
+						local texname = xml.texname
 						local _,_, parent = string.find(v, "^(.*/)[^/]+$")
 						local texpath = parent and parent .. texname
 						if not self.root:Exists(texpath) then
@@ -274,9 +284,18 @@ function Provider:ListAsset()
 			end
 		end
 	end
+
+	IpcEmitEvent("assets", json.encode{
+		allzipfile = self.allzipfile,
+		alldynfile = self.alldynfile,
+		allxmlfile = self.allxmlfile,
+		alltexelement = self.alltexelement,
+	})
 end
 
-function Provider:Fetch(type, args)
+function Provider:Load(args)
+	timeit(1)
+	local type = args.type
 	if type == "build" then
 		return self:GetBuild(args)
 	elseif type == "animation" then
@@ -285,28 +304,60 @@ function Provider:Fetch(type, args)
 		return self:GetAtlas(args)
 	elseif type == "image" then
 		return self:GetImage(args)
+		-- local r = self:GetImage(args)
+		-- print("Load image use time: ", timeit(), #r)
+		-- return r
+	elseif type == "xml" then
+		return self:GetXml(args)
+	elseif type == "symbol_element" then
+		return self:GetSymbolElement(args)
+	elseif type == "animbin" then
+		return self:GetAnimBin(args)
 	elseif type == "show" then
 		--
 	end
 end
 
 function Provider:GetBuild(args)
+	local path = nil 
+	if type(args.file) == "string" then
+		path = args.file
+	end
 	if type(args.name) == "string" then
-		local path = self.index:GetBuildFile(args.name)
-		local build = path and self:LoadBuild(path)
-		return build and build.builddata
+		path = self.index:GetBuildFile(args.name)
+	end
+	if path ~= nil then
+		if path:endswith(".dyn") then
+			-- check build file for dyn
+			local path_build = path:sub(1, #path - 4) .. ".zip"
+			if self.root:Exists(path_build) then
+				local build = self:LoadBuild(path_build)
+				return build and build.builddata
+			end
+		else
+			local build = self:LoadBuild(path)
+			return build and build.builddata
+		end
 	end
 end
 
--- TODO: add lru_cache 
 function Provider:LoadBuild(path)
+	if self.loaders.build[path] then
+		return self.loaders.build[path]
+	end
+
 	local fs = self.root:Open(path)
 	if fs ~= nil then
 		local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.BUILD)
 		if not zip.error then
 			local build_raw = zip:Get("build.bin")
+			if build_raw == nil then
+				self.loaders.build[path] = false
+				return false
+			end
 			local build = build_raw and BuildLoader(CreateBytesReader(build_raw))
 			if build and not build.error then
+				self.loaders.build[path] = build
 				return build
 			end
 		end
@@ -323,9 +374,11 @@ function Provider:GetAnimation(args)
 			local result = {}
 			for k in pairs(paths) do
 				local anim = self:LoadAnim(k)
-				for _,v in ipairs(anim.animlist)do
-					if v.name == args.name and v.bankhash == bank then
-						table.insert(result, v) -- TODO: v.assetpath ?
+				if anim then
+					for _,v in ipairs(anim.animlist)do
+						if v.name == args.name and v.bankhash == bank then
+							table.insert(result, v) -- TODO: v.assetpath ?
+						end
 					end
 				end
 			end
@@ -334,32 +387,47 @@ function Provider:GetAnimation(args)
 	end
 end
 
+function Provider:GetAnimBin(args)
+	if type(args.file) == "string" then
+		local anim = self:LoadAnim(args.file)
+		if not anim then
+			return false
+		else
+			return anim.animlist
+		end
+	end
+end
+
 function Provider:LoadAnim(path)
+	if self.loaders.animbin[path] ~= nil then
+		return self.loaders.animbin[path]
+	end
 	local fs = self.root:Open(path)
 	if fs ~= nil then
 		local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ANIM)
 		if not zip.error then
 			local anim_raw = zip:Get("anim.bin")
-			local anim = anim_raw and AnimLoader(CreateBytesReader(anim_raw))
+			if anim_raw == nil then
+				self.loaders.animbin[path] = false 
+				return false
+			end
+			local anim = AnimLoader(CreateBytesReader(anim_raw))
 			if anim and not anim.error then
+				self.loaders.animbin[path] = anim
 				return anim
 			end
 		end
 	end
 end
 
-function Provider:GetAtlas(args)
-	if type(args.name) == "string" then
-		if args.n == nil then
-			args.n = 0 -- note: atlas sampler index starts at 0
-		end
-		if type(args.n) ~= "number" then
-			return
-		end
-
-		local atlaslist = self:LoadAtlas(args.name)
+function Provider:GetAtlas(args)	
+	if args.sampler == nil then
+		args.sampler = 0 -- note: atlas sampler index starts at 0
+	end
+	if type(args.build) == "string" then
+		local atlaslist = self:LoadAtlas(args.build)
 		if atlaslist then
-			local atlas = atlaslist[args.n]
+			local atlas = atlaslist[args.sampler]
 			if atlas ~= nil then
 				local w, h = atlas:GetSize()
 				local index = CalcIndex(w, h, args)
@@ -369,12 +437,18 @@ function Provider:GetAtlas(args)
 					return atlas:GetImage(index)
 				elseif args.format == "png" then
 					return atlas:GetImage(index):save_png_bytes()
+				elseif args.format == "copy" then
+					if atlas.is_dyn then
+						return DYN_ENCRYPT
+					else
+						return Clipboard.WriteImage_Bytes(atlas:GetImageBytes(0), w, h)
+					end
 				end
 			end
 		end
 	end
 end
-			
+
 function Provider:LoadAtlas(name) --> atlaslist
 	if self.loaders.atlas[name] then
 		return self.loaders.atlas[name]
@@ -382,7 +456,7 @@ function Provider:LoadAtlas(name) --> atlaslist
 
 	local path = self.index:GetBuildFile(name)
 	local build = path and self:LoadBuild(path)
-	if build ~= nil then
+	if build then
 		local atlas = build.atlas
 		local zippath = self.root/path
 		if path:startswith("anim/dynamic") then
@@ -403,6 +477,8 @@ function Provider:LoadAtlas(name) --> atlaslist
 			zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL)
 		elseif sig == DYN_SIG then
 			zip = DynLoader(fs)
+			zip.is_dyn = true
+			build.is_dyn = true
 		else
 			print("Warning: LoadAtlas: invalid file sig")
 			return
@@ -417,11 +493,60 @@ function Provider:LoadAtlas(name) --> atlaslist
 				local tex = TexLoader(CreateBytesReader(raw))
 				if not tex.error then
 					tex.n = i - 1
+					tex.is_dyn = zip.is_dyn
 					atlaslist[i - 1] = tex
 				end
 			end
 		end
+		self.loaders.atlas[name] = atlaslist
 		return atlaslist
+	end
+end
+
+local function unsigned(v) 
+	return math.max(0, math.floor(v + 0.5)) 
+end
+
+function Provider:GetSymbolElement(args)
+	if type(args.build) == "string" then
+		if args.imghash == nil and args.imgname ~= nil then
+			args.imghash = smallhash(args.imgname)
+		end
+		args.build = self.index:GetBuildFile(args.build) -- TODO: 这里的逻辑太糟糕了，得优化
+		local build = self:LoadBuild(args.build)
+		local atlaslist = self:LoadAtlas(args.build)
+		if build and atlaslist then
+			local symbol = build.symbol_map[args.imghash]
+			if symbol ~= nil then
+				local i, j = BinSearch(symbol.imglist, function(img) return img.index - args.index end, nil, args.index + 1)
+				if i == nil then
+					return
+				end
+				if j ~= nil and args.fill_gap ~= true then -- if fill gap, then redirect xxxx-1 to xxxx-0 (0, 2, 4, ...)
+					return
+				end
+				local img = symbol.imglist[i]
+				local atlas = atlaslist[img.sampler]
+				local w, h = atlas:GetSize()
+				local x_scale = w / img.cw
+				local y_scale = h / img.ch
+				local bbx, bby, subw, subh = 
+					unsigned(img.bbx * x_scale),
+					unsigned(img.bby * y_scale),
+					unsigned(img.w * x_scale),
+					unsigned(img.h * y_scale)
+
+				if args.format == "png" then
+					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh)):save_png_bytes()
+				elseif args.format == "copy" then
+					if atlas.is_dyn then
+						return DYN_ENCRYPT
+					else
+						return Clipboard.WriteImage(atlas:GetImage(0):crop(bbx, bby, subw, subh))
+					end
+				end
+			end
+		end
 	end
 end
 
@@ -429,48 +554,40 @@ function Provider:GetImage(args)
 	if type(args.xml) == "string" and type(args.tex) == "string" and type(args.format) == "string" then
 		local xml = self:LoadXml(args.xml)
 		if xml ~= nil then
-			table.foreach(xml.imgs, print)
 			local info = xml:Get(args.tex)
 			if info == nil then
 				if args.tex:startswith("@ATLAS") then
 					info = {u1 = 0, u2 = 1, v1 = 0, v2 = 1}
 				else
-					return
+					error("invalid tex element name: "..args.tex.." in xml: "..args.xml)
 				end
 			end
 			local u1, u2, v1, v2 = info.u1, info.u2, info.v1, info.v2
-			local tex = xml.tex
-			local _, _, parent = string.find(args.xml, "^(.*/)[^/]+$")
-			if parent == nil then
-				error("Failed to get parent path of: "..xml.tex)
-			end
-			local tex = self:LoadTex(parent..tex)
-			if tex ~= nil then
-				local w, h = tex:GetSize()
-				local ew = math.min(w, floor(w*u2)+1) - math.max(0, floor(w*u1))
-				local eh = math.min(h, floor(h*(1-v1))+1) - math.max(0, floor(h*(1-v2)))
-				local index = CalcIndex(ew, eh, args)
-				local bytes = tex:GetImageBytes(index)
-				local w, h = tex:GetSize(index)
-				local rect = {
-					math.max(0, floor(w*u1)), math.max(0, floor(h*(1-v2))), 
-					math.min(w, floor(w*u2)+1), math.min(h, floor(h*(1-v1))+1)
-				}
-				local ew, eh = rect[3] - rect[1], rect[4] - rect[2]
-
-				bytes = CropBytes(bytes, w, h, rect[1], rect[2], ew, eh)
-				if args.format == "rgba" then
-					return { width = ew, height = eh, bytes = bytes }
-				elseif args.format == "img" then
-					return Image.From_RGBA(bytes, ew, eh)
-				elseif args.format == "png" then
-					return Image.From_RGBA(bytes, ew, eh):save_png_bytes()
-				end
+			local _, tex = self:LoadXmlWithTex(args.xml) -- tex must be valid, otherwise error()
+			local w, h = tex:GetSize()
+			local ew = math.min(w, floor(w*u2)+1) - math.max(0, floor(w*u1))
+			local eh = math.min(h, floor(h*(1-v1))+1) - math.max(0, floor(h*(1-v2)))
+			local index = CalcIndex(ew, eh, args)
+			local bytes = tex:GetImageBytes(index)
+			local w, h = tex:GetSize(index)
+			local rect = {
+				math.max(0, floor(w*u1)), math.max(0, floor(h*(1-v2))), 
+				math.min(w, floor(w*u2)+1), math.min(h, floor(h*(1-v1))+1)
+			}
+			local ew, eh = rect[3] - rect[1], rect[4] - rect[2]
+			bytes = CropBytes(bytes, w, h, rect[1], rect[2], ew, eh)
+			if args.format == "rgba" then
+				return { width = ew, height = eh, bytes = bytes }
+			elseif args.format == "img" then
+				return Image.From_RGBA(bytes, ew, eh)
+			elseif args.format == "png" then
+				return Image.From_RGBA(bytes, ew, eh):save_png_bytes()
+			elseif args.format == "copy" then
+				return Clipboard.WriteImage_Bytes(bytes, ew, eh)
 			end
 		end
 	end
 end
-
 
 function Provider:LoadXml(path)
 	if self.loaders.xml[path] ~= nil then
@@ -498,6 +615,60 @@ function Provider:LoadTex(path)
 		if not tex.error then
 			self.loaders.tex[path] = tex
 			return tex
+		end
+	end
+end
+
+function Provider:LoadXmlWithTex(xmlpath)
+	local xml = self:LoadXml(xmlpath)
+	if xml ~= nil then
+		if xml.tex ~= nil then
+			return xml, xml.tex
+		end
+		-- link tex to xml
+		local texname = xml.texname
+		local _, _, parent = string.find(xmlpath, "^(.*/)[^/]+$")
+		if parent == nil then
+			error("Failed to get parent path of: "..xmlpath)
+		end
+		local tex = self:LoadTex(parent..texname)
+		if tex == nil then
+			error("Failed to load texture that xml references to: "..xmlpath.." -> "..texname)
+		end
+		xml.tex = tex
+		return xml, tex
+	end
+end
+
+
+function Provider:GetXml(args)
+	if type(args.file) == "string" then
+		local xml = self:LoadXml(args.file)
+		if xml ~= nil then
+			-- this api will also load .tex file
+			local _, tex = self:LoadXmlWithTex(args.file)
+			local w, h = tex:GetSize()
+			local get_id = TexElementIdGetter(args.file)
+			local result = {
+				xml = args.file,
+				width = w,
+				height = h,
+				elements = {}
+			}
+			for k,info in pairs(xml.imgs)do
+				local u1, u2, v1, v2 = info.u1, info.u2, info.v1, info.v2
+				-- element width/height
+				local ew = math.min(w, floor(w*u2)+1) - math.max(0, floor(w*u1))
+				local eh = math.min(h, floor(h*(1-v1))+1) - math.max(0, floor(h*(1-v2)))
+				table.insert(result.elements, {
+					name = k, 
+					uv = { u1, u2, v1, v2 },
+					width = ew, 
+					height = eh,
+					id = get_id(k)
+				})
+			end
+			return result
 		end
 	end
 end

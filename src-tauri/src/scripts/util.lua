@@ -21,6 +21,17 @@ function table.extend(t1, t2)
 	end
 end
 
+function table.contains(table, element)
+    if table == nil then return false end
+
+    for _, value in pairs(table) do
+        if value == element then
+          return true
+        end
+    end
+    return false
+end
+
 function string.startswith(str, neddle)
     return str:sub(1, #neddle) == neddle
 end
@@ -48,6 +59,45 @@ end
 
 function math.clamp(n, min, max)
 	return math.max(math.min(n, max), min)
+end
+
+-- find item by binary search, return item index
+-- t = {1, 2, 3, 5, 6, 7}
+-- BinSearch(t, function(v) return v - 3 end) --> 3, nil
+-- BinSearch(t, function(v) return v - 4 end) --> 3, 4
+-- BinSearch(t, function(v) return v - 9 end) --> nil (not found)
+function BinSearch(t, fn, i, j)
+	print("BinSearch", json.encode(t))
+	i = i or 1 -- start index
+	j = j and math.min(#t, j) or #t -- end index
+	local left = fn(t[i])
+	local right = fn(t[j])
+	while true do
+		if left == 0 then
+			return i
+		elseif right == 0 then
+			return j
+		end
+		if i + 1 == j then
+			if left < 0 and right > 0 then
+				return i, j
+			else
+				return nil
+			end
+		end
+		local k = math.floor((i+j)/2)
+		local mid = fn(t[k])
+		if mid == 0 then
+			return k
+		elseif mid < 0 then
+			i = k
+			left = mid
+		else
+			j = k
+			right = mid
+		end
+		print(i, j, k)
+	end
 end
 
 --- debug ---

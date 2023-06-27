@@ -1,5 +1,5 @@
 [workspace]
-members = ["fmod", "include_lua", "include_lua_macro"]
+members = ["fmod", "include_lua", "include_lua_macro", "ffmpeg-sidecar"]
 
 [package]
 name = "asset-archive"
@@ -12,26 +12,27 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-
-
 [build-dependencies]
 tauri-build = { version = "1.2", features = [] }
 
 [dependencies]
-tauri = { version = "1.2", features = ["dialog-all", "notification-all", "shell-open"] }
+tauri = { version = "1.2", features = ["clipboard-all", "dialog-all", "notification-all", "shell-open", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-start-dragging", "window-unmaximize"] }
 bstr = "1.4.0"
+clippers = "0.1.2"
 indicatif = "0.17.3"
-zune-inflate= { version="0.2.54",default-features=false,feature= ["zlib"] }
-zip = "0.6.4"
+zune-inflate= { version="0.2.54",default-features=false,features= ["zlib"] }
+# zip = "0.6.4"
 bcndecode = "0.2.0"
 num-traits = "0.2.15"
 serde = { version = "1.0", features = ["derive"] }
 rlua = { version = "^0.19.4", default-features = false, features = ["lua-no-oslib", "builtin-lua51"] }
 image = "0.24.6"
+curl = { version = "0.4.44", features = ["rustls"] }
 
 fmod = { path = "./fmod" }
 include_lua = { path = "./include_lua" }
 include_lua_macro = { path = "./include_lua_macro" }
+ffmpeg-sidecar = { path = "./ffmpeg-sidecar" }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

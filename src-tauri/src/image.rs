@@ -150,7 +150,8 @@ pub mod lua_image {
 
     use super::*;
     pub struct Image {
-        width: u32, height: u32,
+        pub width: u32, 
+        pub height: u32,
         img: DynamicImage,
     }
 
@@ -167,6 +168,11 @@ pub mod lua_image {
             println!("dimensions {:?}", img.dimensions());
             println!("{:?}", img.color());
             Some(Self::from_img(img))  
+        }
+
+        #[inline]
+        pub fn as_bytes(&self) -> &[u8]{
+            self.img.as_bytes()
         }
 
         fn from_rgba(bytes: Vec<u8>, width: u32, height: u32) -> Option<Self> {
