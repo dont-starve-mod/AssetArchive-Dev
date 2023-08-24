@@ -6,29 +6,31 @@ require "constants"
 require "debugprint"
 require "class"
 require "persistant"
+require "affine"
 require "hashlib"
 require "filesystem"
 require "asset"
+require "facing"
 require "assetloader"
 local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot
 local Provider =  require "assetprovider".Provider
+
+if Args then
+	require "cli"
+end
 
 GLOBAL = {
 	root = nil,
 	prov = nil,
 }
 
---[[
-/Users/wzh/DST/data的替身
-/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents
-]]
-
 IpcHandlers.Register("appinit", function()
 	-- Events:
 	--   allconfig
 	--   root
 	--   index_progress 0..100
+	--   hash
 	--   assets
 	
 	IpcEmitEvent("allconfig", Persistant.Config:Dumps()) -- get config first
@@ -61,7 +63,7 @@ IpcHandlers.Register("load", function(param)
 	-- type     build|animation|atlas|image|xml|symbol_element
 	-- rw       <number>
 	-- rh       <number>
-	-- format   rgba|img|png|copy
+	-- format   rgba|img|png|copy|save
 	-- 
 	-- xml[type=image]
 	-- tex[type=image]
@@ -75,6 +77,6 @@ IpcHandlers.Register("copy", function(text)
 end)
 
 IpcHandlers.Register("debug_analyze", function()
-	local main = (require "compiler.amain").main
+	local main = require("compiler.amain").main
 	main(GLOBAL)
 end)

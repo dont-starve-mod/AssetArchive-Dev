@@ -1,10 +1,17 @@
 use image::io::Reader as ImageReader;
+use image::codecs::gif::GifEncoder;
+use image::Frame;
 use rlua::{Value, FromLua, Context};
-use rlua::prelude::{LuaResult};
-use std::error::Error;
+use rlua::prelude::{LuaResult, LuaError, LuaString};
 use std::ops::{Index};
+use std::sync::{Arc, Mutex};
+use std::fs::File;
+#[cfg(unix)]
+use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
+#[cfg(windows)]
+use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
 
-/// 重采样方法
+
 #[repr(C)]
 #[derive(Debug)]
 pub enum Resampler {
@@ -23,7 +30,8 @@ impl<'lua> FromLua<'lua> for Resampler {
     }
 }
 
-/// 代表一个饥荒仿射矩阵
+/// dontstarve affine transform
+/// a, b, c, d, tx, ty
 #[derive(Debug)]
 struct AffineTransform {
     a: f64,
@@ -35,7 +43,7 @@ struct AffineTransform {
 }
 
 impl AffineTransform {
-    /// 构造一个identity矩阵
+    /// build an identity affine transform
     fn new() -> Self {
         AffineTransform {
             a: 1.0, b: 0.0,
@@ -43,7 +51,8 @@ impl AffineTransform {
             tx: 0.0, ty: 0.0
         }
     }
-    /// 从数组构造矩阵
+
+    /// build a transform from vec
     fn from_vec(vec: Vec<f64>) -> Self {
         AffineTransform {
             a: vec[0], 
@@ -54,7 +63,8 @@ impl AffineTransform {
             ty: vec[5],
         }
     }
-    /// 执行平移
+
+    /// apply a translate x/y, return the result
     fn translate(&self, tx: f64, ty: f64) -> Self {
         AffineTransform { 
             tx: self.tx + tx,  
@@ -62,18 +72,9 @@ impl AffineTransform {
             ..*self 
         }
     }
-    /// 和另一个矩阵相乘
+    /// apply a matrix multiply, return the result
     fn mult_with(&self, other: &AffineTransform) -> Self {
         let (a, b) = (self, other);
-        // AffineTransform {
-        //     a: a[0]*b[0]+a[1]*b[2],
-        //     b: a[0]*b[1]+a[1]*b[3],
-        //     c: a[2]*b[0]+a[3]*b[2],
-        //     d: a[2]*b[1]+a[3]*b[3],
-        //     tx: a[0]*b[4]+a[1]*b[5]+a[4],
-        //     ty: a[2]*b[4]+a[3]*b[5]+a[5],
-        // }
-        
         AffineTransform {
             a: a.a*b.a+a.b*b.c,
             b: a.a*b.b+a.b*b.d,
@@ -83,7 +84,8 @@ impl AffineTransform {
             ty: a.c*b.tx+a.d*b.ty+a.ty,
         }
     }
-    /// 计算逆向矩阵
+
+    /// calculate reverse matrix
     fn reverse(&self) -> Self {
         let j: f64 = self.d*self.a-self.b*self.c; // matrix adj
         AffineTransform { 
@@ -91,24 +93,24 @@ impl AffineTransform {
             b: self.b/-j, 
             c: self.c/-j, 
             d: self.a/j, 
-            tx: (self.b*self.ty-self.d*self.tx)/j, 
-            ty: (self.c*self.tx-self.a*self.ty)/j
+            tx: (self.c*self.ty-self.d*self.tx)/j, 
+            ty: (self.b*self.tx-self.a*self.ty)/j
         }
-        // v = m[3]*m[0]-m[1]*m[2]
-        // return [i/v for i in (m[3], -m[1], -m[2], m[0], 
-        //     m[1]*m[5]-m[4]*m[3], m[2]*m[4]-m[0]*m[5])]
-    }   
-    /// 将仿射矩阵施加在二维坐标上
+    }
+
+    /// apply affine transform on coord xy
     fn onpointxy(&self, px: f64, py: f64) -> (f64, f64) {
         (self.tx + self.a * px + self.c * py, 
          self.ty + self.b * px + self.d * py)
     }
-    /// 将仿射矩阵施加在二维坐标点上
+
+    /// apply affine transform on point
     fn onpoint(&self, point: Point) -> Point {
         let (x, y) = self.onpointxy(point.x, point.y);
         Point{x, y}
     }
-    /// check if any NAN in matrix
+
+    /// check if any NAN is not in matrix
     fn is_valid(&self) -> bool {
         f64::is_finite(self.a) &&
         f64::is_finite(self.b) &&
@@ -140,39 +142,39 @@ pub struct Point {
 
 pub mod lua_image {
     use std::io::Write;
+    use std::os::fd::AsRawFd;
+    use std::time::Duration;
 
-    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView};
+    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage};
     use image::ColorType;
     use rlua::{Context, AnyUserData};
     use rlua::Value::Nil;
-    use rlua::{Function, Lua, MetaMethod, Result, UserData, UserDataMethods, Variadic, Table};
-    use rlua::String as LuaString;
+    use rlua::Value;
+    use rlua::{Function, Lua, MetaMethod, UserData, UserDataMethods, Variadic, Table};
 
     use super::*;
     pub struct Image {
         pub width: u32, 
         pub height: u32,
-        img: DynamicImage,
+        inner: DynamicImage,
     }
 
     impl Image {
-        pub fn new(path: &str) -> Option<Self> {
+        pub fn open(path: &str) -> Result<Self, &'static str> {
             let reader = match ImageReader::open(&path) {
                 Ok(r)=> r,
-                Err(_)=> return None,
+                Err(_)=> return Err("Failed to open image file"),
             };
             let img = match reader.decode() {
                 Ok(r)=> r,
-                Err(_)=> return None,
+                Err(_)=> return Err("Failed to decode image data"),
             };
-            println!("dimensions {:?}", img.dimensions());
-            println!("{:?}", img.color());
-            Some(Self::from_img(img))  
+            Ok(Self::from_img(img))  
         }
 
         #[inline]
         pub fn as_bytes(&self) -> &[u8]{
-            self.img.as_bytes()
+            self.inner.as_bytes()
         }
 
         fn from_rgba(bytes: Vec<u8>, width: u32, height: u32) -> Option<Self> {
@@ -199,65 +201,72 @@ pub mod lua_image {
             }
         }
 
-        fn from_img(img: DynamicImage) -> Self {
+        fn from_img(inner: DynamicImage) -> Self {
             Image {
-                width: img.width(),
-                height: img.height(),
-                img
+                width: inner.width(),
+                height: inner.height(),
+                inner
             }
         }
 
         fn pixelformat(&self) -> &'static str {
-            match self.img.color() {
+            match self.inner.color() {
                 ColorType::Rgba8 => "RGBA",
                 ColorType::Rgb8 => "RGB",
                 _ => "other",
             }
         }
+
         fn get_pixel(&self, x: u32, y: u32) -> Option<Rgba<u8>> {
             if x >= self.width || y >= self.height {
                 None
             }
             else {
-                Some(unsafe { self.img.unsafe_get_pixel(x, y) })
+                Some(unsafe { self.inner.unsafe_get_pixel(x, y) })
             }
         }
-        fn get_pixel_f64(&self, x: u32, y: u32) -> Option<Vec<f64>> {
-            if x >= self.width || y >= self.height {
+
+        fn get_pixel_float(&self, x: f64, y: f64) -> Option<Rgba<u8>> {
+            if x < 0.0 || y < 0.0 || x >= self.width as f64 || y >= self.height as f64 {
                 None
             }
             else {
-                let color = unsafe { self.img.unsafe_get_pixel(x, y) };
-                Some(color.channels()
-                    .iter()
-                    .map(|i| *i as f64)
-                    .collect()
-                )
+                Some(unsafe {
+                    self.inner.unsafe_get_pixel(x as u32, y as u32)
+                })
             }
         }
-        /// 对两个像素颜色进行线性混合
-        fn merge_color(rgba_1: Option<Vec<f64>>, rgba_2: Option<Vec<f64>>, percent: f64) -> Option<Vec<f64>> {
-            match (rgba_1, rgba_2) {
-                (Some(c1), Some(c2))=> Some(c1.iter()
-                    .zip(c2)
-                    .map(|(x1, x2)|x1* percent + x2* (1.0-percent))
-                    .collect()),
+
+        fn set_pixel(&mut self, x: u32, y: u32, pixel: Rgba<u8>) {
+            unsafe { self.inner.unsafe_put_pixel(x, y, pixel) };
+        }
+        
+        /// merge two rgba colors
+        fn merge_color(c1: Option<Rgba<u8>>, c2: Option<Rgba<u8>>, percent: f64) -> Option<Rgba<u8>> {
+            match (c1, c2) {
+                (Some(c1), Some(c2))=> {
+                    let (a1, a2) = (c1[3] as f64, c2[3] as f64);
+                    let mut result = c1.map2(&c2, |v1, v2| Self::normalize(
+                        (v1 as f64 * a1 * percent + v2 as f64 * a2 * (1.0 - percent)) / (a1*0.5 + a2*0.5)));
+                    result[3] = Self::normalize((a1 * percent + a2 * (1.0 - percent)));
+                    Some(result)
+                },
                 (Some(c1), None)=> {
                     let mut c1 = c1.clone();
-                    c1[3]*= percent;
+                    c1[3]= Self::normalize(c1[3] as f64 * percent);
                     Some(c1)
                 },
                 (None, Some(c2))=> {
                     let mut c2 = c2.clone();
-                    c2[3]*= 1.0 - percent;
+                    c2[3]= Self::normalize(c2[3] as f64 * (1.0 - percent));
                     Some(c2)
                 },
                 (None, None)=> None,
             }
         }
         /// convert float color to u8 (0-255)
-        fn normalize(c: f64) -> u8 
-        {
+        #[inline]
+        fn normalize(c: f64) -> u8 {
            f64::clamp(c.round(), 0.0, 255.0) as u8
         }
         /// 对图片执行变换, 返回新的图片, 其中变换定义为一个闭包
@@ -269,50 +278,36 @@ pub mod lua_image {
             let mut imgbuf = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::new(width, height);
             let source_width = self.width;
             let source_height = self.height;
-            dbg!(&resampler);
             for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
-                // 计算采样点
+                // sampler point
                 let (sx, sy) = transformer(x, y);
-                if sx < -4.0 || sy < -4.0 || sx > source_width as f64 + 4.0 || sy > source_height as f64 + 4.0 {
-                    continue;
-                }
                 let sp = match resampler {
                     Resampler::Nearest => {
-                        // 四舍五入获取最近的点坐标
-                        let sx = f64::round(sx) as u32;
-                        let sy = f64::round(sy) as u32;
-                        self.get_pixel(sx, sy)
+                        let sx = f64::round(sx);
+                        let sy = f64::round(sy);
+                        self.get_pixel_float(sx, sy)
                     },
                     Resampler::Bilinear => {
-                        // 获取附近的四个点位
+                        if sx < -3.0 || sy < -3.0 || sx > source_width as f64 + 3.0 || sy > source_height as f64 + 3.0 {
+                            continue;
+                        }
+                        // left right top bottom
                         let sx_left = f64::floor(sx);
                         let sx_right = sx_left + 1.0;
                         let sy_top = f64::floor(sy);
                         let sy_bottom = sy_top + 1.0;
-                        // 左侧像素
                         let rgba_left = Image::merge_color(
-                            self.get_pixel_f64(sx_left as u32,  sy_top as u32),
-                            self.get_pixel_f64(sx_left as u32, sy_bottom as u32),
+                            self.get_pixel_float(sx_left,  sy_top),
+                            self.get_pixel_float(sx_left, sy_bottom),
                             1.0 - (sy - sy_top));
-                        // 右侧像素
                         let rgba_right = Image::merge_color(
-                            self.get_pixel_f64(sx_right as u32,  sy_top as u32),
-                            self.get_pixel_f64(sx_right as u32, sy_bottom as u32),
+                            self.get_pixel_float(sx_right,  sy_top),
+                            self.get_pixel_float(sx_right, sy_bottom),
                             1.0 - (sy - sy_top));
-                        // 合并
-                        let rgba = Image::merge_color(
+                        Image::merge_color(
                             rgba_left,
                             rgba_right,
-                            1.0 - (sx - sx_left));
-                        match rgba {
-                            Some(c)=> Some(Rgba([
-                                Image::normalize(c[0]),
-                                Image::normalize(c[1]),
-                                Image::normalize(c[2]),
-                                Image::normalize(c[3]),
-                            ])),
-                            None=> None
-                        }
+                            1.0 - (sx - sx_left))
                     }
                 };
                 if let Some(color) = sp {
@@ -323,92 +318,313 @@ pub mod lua_image {
         }
 
         /// 对图片执行仿射变换, 返回新的图片
-        fn affine_transform(&self, width: u32, height: u32, matrix: AffineTransform, resampler: Resampler) -> Self {
+        fn affine_transform(&self, width: u32, height: u32, matrix: AffineTransform, resampler: Resampler) -> Result<Self, &'static str> {
             // TODO: 进行渲染框优化
             let rev_matrix = matrix.reverse();
             if rev_matrix.is_valid() {
                 let transformer = |x, y|rev_matrix.onpointxy(x as f64, y as f64);
-                self.transform(width, height, transformer, resampler)
+                Ok(self.transform(width, height, transformer, resampler))
             }
             else {
-                // use a dummy transformer :)
-                self.transform(width, height, |_, _|(f64::MAX, f64::MAX), resampler)
+                Err("Invalid affine matrix: nan")
             }
         }
 
+        #[inline]
         pub fn save(&self, path: &str) -> image::ImageResult<()> {
-            self.img.save(path)?;
-            Ok(())
+            self.inner.save(path)
+        }
+
+        pub fn apply_filter(&mut self, filter: &Filter) {
+            match &mut self.inner {
+                DynamicImage::ImageRgba8(buffer)=> {
+                    buffer.pixels_mut().for_each(|pixel|{
+                        pixel[0] = filter.r[pixel[0] as usize];
+                        pixel[1] = filter.g[pixel[1] as usize];
+                        pixel[2] = filter.b[pixel[2] as usize];
+                        pixel[3] = filter.a[pixel[3] as usize];
+                    })
+                },
+                DynamicImage::ImageRgb8(buffer)=> {
+                    buffer.pixels_mut().for_each(|pixel|{
+                        pixel[0] = filter.r[pixel[0] as usize];
+                        pixel[1] = filter.g[pixel[1] as usize];
+                        pixel[2] = filter.b[pixel[2] as usize];
+                    })
+                },
+                _ => panic!("apply_filter only support rgb/rgba image")
+            }
+        }
+    }
+
+    pub struct GifWriter {
+        // width: Option<u32>,
+        // height: Option<u32>,
+        inner: GifEncoder<File>,
+        fd: Option<i32>,
+        duration: u64,
+    }
+
+    impl GifWriter {
+        fn new(path: &str) -> Result<Self, String> {
+            let f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(path)
+                .map_err(|e| e.to_string())?;
+            #[cfg(unix)]
+            let fd = f.as_raw_fd();
+            #[cfg(windows)]
+            let fd = f.as_raw_handle();
+            let mut encoder = GifEncoder::new(f);
+            encoder.set_repeat(image::codecs::gif::Repeat::Infinite).unwrap();
+            Ok(GifWriter {
+                inner: encoder,
+                fd: Some(fd as i32),
+                duration: 3 // ~30fps
+            })
+        }
+
+        #[inline]
+        fn is_closed(&self) -> bool {
+            self.fd.is_none()
+        }
+    }
+
+    impl UserData for GifWriter {
+        fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
+            // encode one frame into gif
+            _methods.add_method_mut("encode", |_, gif: &mut Self, img: AnyUserData|{
+                if gif.is_closed() {
+                    return Err(LuaError::RuntimeError("file is closed".to_string()));
+                }
+                match img.borrow::<Image>() {
+                    Ok(img)=> {
+                        let frame = Frame::from_parts(
+                            match image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
+                                img.width, img.height, img.as_bytes().to_vec()
+                            ){
+                                Some(buffer)=> buffer,
+                                None=> return Err(LuaError::RuntimeError("failed to create image frame buffer".to_string()))
+                            },
+                            0,0,
+                            Delay::from_saturating_duration(Duration::from_millis(gif.duration* 10))
+                        );
+                        gif.inner.encode_frame(frame)
+                            .map_err(|e|LuaError::RuntimeError(e.to_string()))
+                    },
+                    Err(e)=> return Err(e),
+                }
+            });
+            // encode one bytes frame
+            _methods.add_method_mut("encode_bytes", |_, gif: &mut Self, (bytes, width, height): (LuaString, u32, u32)|{
+                if gif.is_closed() {
+                    return Err(LuaError::RuntimeError("file is closed".to_string()));
+                }
+                let frame = Frame::from_parts(
+                    match image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
+                        width, height, bytes.as_bytes().to_vec()
+                    ){
+                        Some(buffer)=> buffer,
+                        None=> return Err(LuaError::RuntimeError("failed to create image frame buffer".to_string()))
+                    }, 
+                    0,0,
+                    Delay::from_saturating_duration(Duration::from_millis(gif.duration* 10))
+                );
+                gif.inner.encode_frame(frame)
+                    .map_err(|e|LuaError::RuntimeError(e.to_string()))
+            });
+            // close fd
+            _methods.add_method_mut("drop", |_, gif: &mut Self, ()|{
+                match gif.fd {
+                    Some(fd)=> {
+                        #[cfg(unix)]
+                        drop(unsafe { OwnedFd::from_raw_fd(fd) });
+                        #[cfg(windows)]
+                        drop(unsafe { OwnedHandle::from_raw_handle(fd)});
+                        // prevent second call for drop()
+                        gif.fd = None;
+                    },
+                    None => ()
+                }
+                Ok(())
+            });
+            // set frame per second
+            _methods.add_method_mut("set_duration", |_, gif: &mut Self, duration: f64|{
+                gif.duration = f64::round(duration / 10.0) as u64;
+                Ok(())
+            });
+        }
+        
+    }
+
+    pub struct Filter {
+        r: Vec<u8>,
+        g: Vec<u8>,
+        b: Vec<u8>,
+        a: Vec<u8>,
+    }
+
+    impl Filter {
+        fn from_lua(fr: Function, fg: Function, fb: Function, fa: Function) -> LuaResult<Self> {
+            let r = Filter::prepare_map(fr)?;
+            let g = Filter::prepare_map(fg)?;
+            let b = Filter::prepare_map(fb)?;
+            let a = Filter::prepare_map(fa)?;
+            Ok(Filter { r, g, b, a })
+        }
+
+        #[inline]
+        fn prepare_map(f: Function) -> LuaResult<Vec<u8>> {
+            let mut result = Vec::with_capacity(256);
+            for i in 0..256 {
+                result.push(f.call(i)?);
+            }
+            Ok(result)
+        }
+    }
+
+    impl UserData for Filter {
+        fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
+            
         }
     }
 
     impl UserData for Image {
         fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
-            // 获取图像分辨率, 返回2个数
+            // return width, height
             _methods.add_method("size", |_, img, ()|{
                 let mut size: [u32; 2] = [0, 0];
                 size[0] = img.width;
                 size[1] = img.height;
                 Ok(Variadic::from_iter(size))
             });
-            // 获取图像的宽度
+            // get image width
             _methods.add_method("width", |_, img, ()|{
                 Ok(img.width)
             });
-            // 获取图像的高度
+            // get image height
             _methods.add_method("height", |_, img, ()|{
                 Ok(img.height)
             });
-            // 切割图像, 返回一个新的图像
+            // crop the image, return subregion (a new image userdata)
             _methods.add_method("crop", |_, img: &Self, 
                 (x, y, width, height): (u32, u32, u32, u32)|{
-                let img = img.img.crop_imm(x, y, width, height);
+                let img = img.inner.crop_imm(x, y, width, height);
                 Ok(Image::from_img(img))
             });
+            // apply an affine transform on image, return new image
             _methods.add_method("affine_transform", |_, img: &Self, 
                 (width, height, matrix, resampler): (u32, u32, Vec<f64>, Resampler)|{
                 let matrix = AffineTransform::from_vec(matrix);
-                let img = img.affine_transform(width, height, matrix, resampler);
-                Ok(img)
+                img.affine_transform(width, height, matrix, resampler)
+                    .map_err(|e|LuaError::RuntimeError(e.to_string()))
             });
-            // 获取图像某位置的像素
+            // get pixel rgba of coord (x, y) (starts from left-top)
             _methods.add_method("getpixel", |_, img: &Self, (x, y): (i64, i64)|{
                 if x < 0 || y < 0 || x > (u32::MAX as i64)|| y > (u32::MAX as i64) {
                     // out of type range
                     return Ok(Variadic::new());
                 }
-
                 let (x, y) = (x as u32, y as u32);
                 if x >= img.width || y >= img.height {
                     // out of image size range
                     Ok(Variadic::new())
                 }
                 else{
-                    let pixel = unsafe { img.img.unsafe_get_pixel(x as u32, y as u32) };
+                    let pixel = unsafe { img.inner.unsafe_get_pixel(x as u32, y as u32) };
                     let rgba = pixel.channels();
                     Ok(Variadic::from_iter(rgba.iter().map(|i|*i)))
                 } 
             });
-            // 保存图片 (调试方法)
+            // save image to path
             _methods.add_method("save", |_, img: &Self, path: String|{
-                img.save(&path).unwrap_or_else(|err|{
+                if let Err(err) = img.save(&path) {
                     eprintln!("Failed to save image `{}` because of Error: {}", path, err);
-                });
-                Ok(())
+                    Ok(false)
+                }
+                else {
+                    Ok(true)
+                }
             });
-            // 转换为png序列 (调试方法)
+            // get png file bytes of image
             _methods.add_method("save_png_bytes", |lua: Context, img: &Self, ()|{
                 let mut writer = std::io::Cursor::new(Vec::<u8>::with_capacity(10000));
                 image::write_buffer_with_format(&mut writer, 
-                    img.img.as_bytes(), 
+                    img.inner.as_bytes(), 
                     img.width, img.height, 
-                    img.img.color(), 
+                    img.inner.color(), 
                     image::ImageFormat::Png).unwrap();
                 Ok(lua.create_string(writer.get_ref())?)
             });
             // convert to rgba sequence
             _methods.add_method("to_bytes", |lua: Context, img: &Self, ()|{
-                Ok(lua.create_string(img.img.as_bytes())?)
+                Ok(lua.create_string(img.inner.as_bytes())?)
+            });
+            // paste another image on this
+            _methods.add_method_mut("paste", |_, img: &mut Self, (other, px, py): (AnyUserData, i64, i64)|{
+                match other.borrow::<Image>() {
+                    Ok(other)=> {
+                        let (width, height) = (img.width as i64, img.height as i64);
+                        for (x, y, pixel) in other.inner.pixels() {
+                        let ox = px + x as i64;
+                            let oy = py + y as i64;
+                            if ox < 0 || oy < 0 || ox >= width || oy >= height {
+                                continue;
+                            }
+                            let background = img.get_pixel(ox as u32, oy as u32).unwrap();
+                            let merge = match pixel[3] {
+                                255=> pixel,
+                                0=> background,
+                                n=> {
+                                    let a1: f64 = n as f64 / 255.0;
+                                    let a2: f64 = background[3] as f64 / 255.0;
+                                    let a1a2 = a1* a2;
+                                    let alpha = a1 + a2 - a1a2;
+                                    // rgb
+                                    let r1a1 = pixel[0] as f64 / 255.0 * a1;
+                                    let g1a1 = pixel[1] as f64 / 255.0 * a1;
+                                    let b1a1 = pixel[2] as f64 / 255.0 * a1;
+                                    let r2a2 = background[0] as f64 / 255.0 * a2;
+                                    let g2a2 = background[1] as f64 / 255.0 * a2;
+                                    let b2a2 = background[2] as f64 / 255.0 * a2;
+                                    Rgba::<u8>::from([
+                                        Image::normalize((r1a1 + r2a2 - r2a2* a1)/alpha* 255.0),
+                                        Image::normalize((g1a1 + g2a2 - g2a2* a1)/alpha* 255.0),
+                                        Image::normalize((b1a1 + b2a2 - b2a2* a1)/alpha* 255.0),
+                                        Image::normalize(alpha* 255.0)
+                                    ])
+                                }
+                            };
+                            if pixel[3] < 255 && pixel[3] > 0 {
+                                // println!("ALPHA: {:?} {:?} -> {:?}", pixel, background, merge);
+                            }
+                            img.set_pixel(ox as u32, oy as u32, merge);
+                        }
+                        Ok(())
+                    },
+                    Err(_)=> Err(LuaError::ToLuaConversionError { from: "(lua)", to: "Image", message: None })
+                }
+            });
+            // filter rgba channels by each map function
+            _methods.add_method_mut("apply_filter", |_, img: &mut Self, filter: Value|{
+                match filter {
+                    Value::Table(t)=> {
+                        let filter = Filter::from_lua(
+                            t.get(1)?, 
+                            t.get(2)?,
+                            t.get(3)?,
+                            t.get(4)?)?;
+                        img.apply_filter(&filter);
+                        Ok(true)
+                    },
+                    Value::UserData(u)=> {
+                        let filter = u.borrow::<Filter>()?;
+                        img.apply_filter(&filter);
+                        Ok(true)
+                    },
+                    _=> Err(LuaError::FromLuaConversionError { from: "(lua)", to: "table|Filter", message: None })
+                }
             });
             _methods.add_meta_method(MetaMethod::ToString, |_, img: &Self, ()|{
                 Ok(format!("Image<{}x{} {}>", img.width, img.height, img.pixelformat()))
@@ -418,17 +634,30 @@ pub mod lua_image {
 
     impl UserData for AffineTransform {
         fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
+            _methods.add_method("reverse", |_, matrix: &Self, ()|{
+                Ok(matrix.reverse())
+            });
+            _methods.add_method("point", |_, matrix: &Self, (x, y): (f64, f64)|{
+                let (x, y) = matrix.onpointxy(x, y);
+                Ok(Variadic::from_iter([x, y]))
+            });
             _methods.add_meta_method(MetaMethod::ToString, |_, matrix: &Self, ()|{
                 Ok(format!("Matrix<[{:.1}, {:.1}, {:.1}, {:.1}, {:.1}, {:.1}]>",
                     matrix.a, matrix.b, matrix.c, matrix.d, matrix.tx, matrix.ty))
-            })
+            });
+            _methods.add_meta_method(MetaMethod::Mul, |_, matrix: &Self, rhs: AnyUserData|{
+                match rhs.borrow::<AffineTransform>() {
+                    Ok(rhs)=> Ok(matrix.mult_with(&rhs)),
+                    Err(e)=> Err(e)
+                }
+            });
         }
     }
 
-    pub fn init(lua_ctx: Context) -> Result<()> {
+    pub fn init(lua_ctx: Context) -> LuaResult<()> {
         let table = lua_ctx.create_table()?;
-        table.set("Load", lua_ctx.create_function(|_, path: String|{
-            Ok(Image::new(&path))
+        table.set("Open", lua_ctx.create_function(|_, path: String|{
+            Image::open(&path).map_err(|e| LuaError::RuntimeError(e.to_string()))
         })?)?;  
         table.set("From_RGBA", lua_ctx.create_function(|_, (data, width, height): (LuaString, u32, u32)|{
             Ok(Image::from_rgba(Vec::from(data.as_bytes()), width, height))
@@ -436,8 +665,22 @@ pub mod lua_image {
         table.set("From_RGB", lua_ctx.create_function(|_, (data, width, height): (LuaString, u32, u32)|{
             Ok(Image::from_rgb(Vec::from(data.as_bytes()), width, height))
         })?)?;
+        table.set("Affine", lua_ctx.create_function(|_, vec: Vec<f64>|{
+            Ok(AffineTransform::from_vec(vec))
+        })?)?;
+        table.set("GifWriter", lua_ctx.create_function(|_, path: String|{
+            GifWriter::new(&path).map_err(|e|LuaError::RuntimeError(e.to_string()))
+        })?)?;
         table.set("NEAREST", Resampler::Nearest as u8)?;
         table.set("BILINEAR", Resampler::Bilinear as u8)?;
+        table.set("Filter", lua_ctx.create_function(|_, fns: Table|{
+            Ok(Filter::from_lua(
+                fns.get(1)?, 
+                fns.get(2)?,
+                fns.get(3)?,
+                fns.get(4)?
+            ))
+        })?)?;
 
         let globals = lua_ctx.globals();
         globals.set("Image", table)?;

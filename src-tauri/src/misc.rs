@@ -1,9 +1,8 @@
 pub mod lua_misc {
     use rlua::prelude::{LuaResult, LuaString, LuaError};
-    use rlua::{Nil, UserData, Context, Value};
+    use rlua::{Nil, UserData, Context, Value, MetaMethod};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
-    use clippers::{ClipperData, ClipperImage, Clipboard};
 
     struct Bar {
         inner: ProgressBar,
@@ -90,11 +89,15 @@ pub mod lua_misc {
         })?)?;
         globals.set("Clipboard", clipboard)?;
 
-        // // cmd args
-        // globals.set("Args", lua_ctx.create_table_from(std::env::args()
-        //     .map(|v|lua_ctx.create_string(&v).unwrap_or(Nil))
-        //     .enumerate()
-        // )?)?;
+        // process
+        globals.set("exit", lua_ctx.create_function(|_, code: Value| -> Result<(), LuaError>{
+            let code = match code {
+                Value::Nil=> 0,
+                Value::Number(n)=> n as i32,
+                _=> 1,
+            };
+            std::process::exit(code);
+        })?)?;
 
         Ok(())
     }

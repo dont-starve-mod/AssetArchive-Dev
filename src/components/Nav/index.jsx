@@ -13,7 +13,7 @@ export default function Nav() {
   const [qstr, setQueryString] = useState("")
   const [result, setSearchResult] = useState([])
   const [focus, setFocus] = useState(false)
-  const [wholeWord, setWholeWord] = useState(false) // TODO: 这个应当为config
+  const [wholeWord, setWholeWord] = useState(false) // TODO: 这个应当为可保存的config
   const resultRef = useRef()
   // const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -22,7 +22,7 @@ export default function Nav() {
   
   useEffect(()=> {
     const onMessage = ({data})=> {
-      if (data && data.result){
+      if (data && data.result && data.source === "components/nav"){
         setSearchResult(data.result)
       }
     }
@@ -33,8 +33,7 @@ export default function Nav() {
   useEffect(()=> {
     const token = requestAnimationFrame(()=> {
       if (showResult) {
-        worker.postMessage({msg: "search", qstr, wholeWord})
-        // const result = Search(qstr, false) // TODO: whole world?
+        worker.postMessage({msg: "search", source: "components/nav", qstr, wholeWord})
       }
     })
     return ()=> cancelAnimationFrame(token)
@@ -52,7 +51,8 @@ export default function Nav() {
   }
 
   const toResultPage = ()=> {
-    navigate(`/search?s=${encodeURIComponent(qstr)}`)
+    appWindow.emit("search", {qstr, wholeWord})
+    navigate(`/search?s=${encodeURIComponent(qstr)}&w=${wholeWord}`)
   }
 
   const handleKey = useCallback(event=> {
@@ -62,8 +62,11 @@ export default function Nav() {
         event.target.select()
       }
     else if (event.keyCode === 13 && qstr.length > 0) {
-      event.target.value = ""
       toResultPage()
+      setFocus(false)
+    }
+    else {
+      setFocus(true)
     }
   }, [isWindows, isMacOS, isLinux, qstr])
 

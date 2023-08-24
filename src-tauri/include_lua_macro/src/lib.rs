@@ -47,10 +47,13 @@ impl IncludeLua {
 
         let add_files = modules.map(|(module, path)| {
             let module = LitStr::new(&module, Span::call_site().into());
-            let real_path = LitStr::new(&PathBuf::from(self.0.value()).join(&path).to_string_lossy(), Span::call_site().into());
+            let real_path = LitStr::new(&PathBuf::from(&lua_dir).join(&path).to_string_lossy(), Span::call_site().into());
             let virtual_path = LitStr::new(&path.to_string_lossy(), Span::call_site().into());
             quote! {
-                files.insert(#module.to_string(), (include_str!(#real_path).to_string(), #virtual_path.to_string()))
+                // files.insert(#module.to_string(), (include_str!(#real_path).to_string(), #virtual_path.to_string()))
+                files.insert(#module.to_string(), 
+                    (String::from_utf8(include_crypt_bytes::include_bytes_obfuscate!(#real_path).expect("Failed to decrypt lua script")).unwrap(), 
+                    #virtual_path.to_string()))
             }
         });
 

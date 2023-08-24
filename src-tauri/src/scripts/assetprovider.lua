@@ -6,11 +6,12 @@ local smallhash = Algorithm.SmallHash_Impl
 local CropBytes = Algorithm.CropBytes
 local floor = math.floor
 
-local DST_DataRoot = Class(function(self, suggested_root)
+local DST_DataRoot = Class(function(self, explicit_path)
 	self.game = "DST"
 	self.databundles = {}
 
-	if suggested_root ~= nil and self:SetRoot(suggested_root) then
+	if explicit_path ~= nil then
+		self:SetRoot(explicit_path, true)
 		return
 	end
 
@@ -72,7 +73,7 @@ end
 
 -- set the root if the path is a valid dst `data` folder
 -- return `true` on success
-function DST_DataRoot:SetRoot(path)
+function DST_DataRoot:SetRoot(path, explicit)
 	if type(path) == "string" then
 		path = FileSystem.Path(path)
 	end
@@ -85,7 +86,6 @@ function DST_DataRoot:SetRoot(path)
 	end
 
 	self.root = path
-	print("Set game root: ", path)
 	local databundles = self.root/"databundles"
 	if databundles:is_dir() then
 		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts"}do
@@ -101,8 +101,12 @@ function DST_DataRoot:SetRoot(path)
 		end
 	end
 
-	Config:SetAndSave("last_dst_root", self.root:as_string())
-	return true
+	if explicit == true then
+		return true
+	else
+		Config:SetAndSave("last_dst_root", self.root:as_string())
+		return true
+	end
 end
 
 function DST_DataRoot:SearchGame()
@@ -443,6 +447,15 @@ function Provider:GetAtlas(args)
 					else
 						return Clipboard.WriteImage_Bytes(atlas:GetImageBytes(0), w, h)
 					end
+				elseif args.format == "save" then
+					if atlas.is_dyn then
+						return DYN_ENCRYPT
+					else
+						local img = atlas:GetImage(0)
+						if img ~= nil then
+							return img:save(args.path) and args.path
+						end
+					end
 				end
 			end
 		end
@@ -544,6 +557,15 @@ function Provider:GetSymbolElement(args)
 					else
 						return Clipboard.WriteImage(atlas:GetImage(0):crop(bbx, bby, subw, subh))
 					end
+				elseif args.format == "save" then
+					if atlas.is_dyn then
+						return DYN_ENCRYPT
+					else
+						local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh))
+						if img ~= nil then
+							return img:save(args.path) and args.path
+						end
+					end
 				end
 			end
 		end
@@ -584,6 +606,11 @@ function Provider:GetImage(args)
 				return Image.From_RGBA(bytes, ew, eh):save_png_bytes()
 			elseif args.format == "copy" then
 				return Clipboard.WriteImage_Bytes(bytes, ew, eh)
+			elseif args.format == "save" then
+				local img = Image.From_RGBA(bytes, ew, eh)
+				if img ~= nil then
+					return img:save(args.path) and args.path
+				end
 			end
 		end
 	end

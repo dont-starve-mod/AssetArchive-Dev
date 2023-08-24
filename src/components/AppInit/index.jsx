@@ -33,6 +33,7 @@ export default function AppInit() {
               list.forEach(a=> window.assets_map[a.id] = a)
             })
             worker.postMessage({assets})
+            worker._ready = true
           }),
           await globalListenOnce("hashmap", ({payload})=> {
             JSON.parse(payload).forEach(([k,v])=> {

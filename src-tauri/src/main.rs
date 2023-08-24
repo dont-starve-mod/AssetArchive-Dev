@@ -1,3 +1,4 @@
+use std::os::unix::process::CommandExt;
 use std::{fs, result};
 use std::path::PathBuf;
 use std::process;
@@ -19,6 +20,7 @@ mod algorithm;
 mod misc;
 mod ffmpeg;
 mod unzip;
+mod args;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use crate::ffmpeg::FfmpegManager;
 
@@ -73,10 +75,11 @@ impl Ffmpeg {
 }
 
 fn main() {
+    
     tauri::Builder::default()
         .manage(LuaEnv::new())
         .manage(Ffmpeg::new())
-        .setup(|app| {
+        .setup(move|app| {
             lua_init(app)?;
             Ok(())
         })
@@ -85,6 +88,7 @@ fn main() {
             lua_console, 
             lua_call, 
             lua_interrupt,
+            select_file_in_folder,
         ])
         // .menu(menu())
         .run(tauri::generate_context!())
@@ -115,6 +119,17 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
         Ok(_) => (),
         Err(e) => eprintln!("Lua exec error: {:?}", e),
     }
+}
+
+#[tauri::command]
+fn select_file_in_folder(path: String) -> bool {
+    use std::process;
+    #[cfg(unix)]
+    process::Command::new("/usr/bin/open")
+        .arg("-R")
+        .arg(path)
+        .status()
+        .is_ok()
 }
 
 enum LuaBytes{
@@ -250,6 +265,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         filesystem::lua_filesystem::init(lua_ctx).unwrap_or_else(init_error("lua_filesystem"));
         algorithm::lua_algorithm::init(lua_ctx).unwrap_or_else(init_error("lua_algorithm"));
         misc::lua_misc::init(lua_ctx).unwrap_or_else(init_error("lua_misc"));
+        args::lua_args::init(lua_ctx).unwrap_or_else(init_error("lua_args"));
 
         // delete some functions
         globals.set("dofile", Nil)?;
@@ -324,6 +340,13 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
                 }
             }
         }
+
+        // exit in cli mode
+        match globals.raw_get::<_, Value>("Args")? {
+            Value::UserData(_)=> std::process::exit(0),
+            _ => ()
+        }
+        
         Ok(())
     })
 

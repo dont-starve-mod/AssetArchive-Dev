@@ -1,6 +1,7 @@
 import { OverlayToaster, Position } from "@blueprintjs/core"
 import React, { useEffect, useRef } from 'react'
 import { appWindow } from "@tauri-apps/api/window"
+import { invoke } from "@tauri-apps/api"
 
 export default function AppToaster() {
   const ref = useRef()
@@ -11,6 +12,14 @@ export default function AppToaster() {
         ref.current.show({message: payload})
       }
       else {
+        if (payload.savepath) {
+          payload.action = {
+            // icon: "flow-review",
+            text: "查看", 
+            onClick: async ()=> invoke("select_file_in_folder", {path: payload.savepath})
+          }
+          payload.timeout = 10*1000
+        }
         ref.current.show(payload)
       }
     })

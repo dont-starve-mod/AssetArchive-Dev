@@ -67,7 +67,6 @@ end
 -- BinSearch(t, function(v) return v - 4 end) --> 3, 4
 -- BinSearch(t, function(v) return v - 9 end) --> nil (not found)
 function BinSearch(t, fn, i, j)
-	print("BinSearch", json.encode(t))
 	i = i or 1 -- start index
 	j = j and math.min(#t, j) or #t -- end index
 	local left = fn(t[i])
