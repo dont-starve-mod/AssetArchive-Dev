@@ -12,21 +12,34 @@ pub mod lua_args {
 
     impl Args {
         fn new() -> Self { 
+            let generic_args = [
+                Arg::new("verbose")
+                    .value_name("LEVEL")
+                    .short('v')
+                    .value_parser(["2", "1", "0"])
+                    .default_value("1")
+                    .help("输出信息详细程度, 2: 详细, 1: 默认, 0: 无"),
+                Arg::new("game_data_directory")
+                    .value_name("PATH")
+                    .long("game-data-directory")
+                    .help("显式指定游戏资源根目录路径")
+            ];
             let matches = clap::Command::new("Asset Archive CLI")
                 .author("老王天天写bug")
                 .version("0.0")
                 .about("饥荒资源档案 - 命令行工具")
-                .arg(arg!(-v --verbose <LEVEL> "输出信息详细程度, 2: 详细, 1: 默认, 0:无输出")
-                    .value_parser(["0", "1", "2"])
-                    .default_value("1"))
-                .arg(Arg::new("game_data_directory")
-                    .value_name("PATH")
-                    .long("game-data-directory")
-                    .help("显式指定游戏资源根目录路径"))
-                .subcommand(clap::Command::new("dummy").visible_aliases(["d"]))
+                .subcommand(clap::Command::new("dummy")
+                    .about("快速测试路径参数")
+                    .visible_aliases(["d"])
+                    .args(generic_args.clone()))
+                .subcommand(clap::Command::new("compile")
+                    .about("编译词条信息")
+                    .visible_aliases(["c"])
+                    .args(generic_args.clone()))
                 .subcommand(clap::Command::new("render-animation")
                     .about("渲染动画, 生成图片序列/视频/动图")
                     .visible_aliases(["animation", "anim", "a", "r"])
+                    .args(generic_args.clone())
                     .args([
                         arg!(--bank <BANK> "SetBank, 设置动画库名").required(true),
                         arg!(--build <BUILD> "SetBuild, 设置材质名").required(true),

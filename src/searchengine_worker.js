@@ -1,3 +1,5 @@
+import { LRUCache } from "lru-cache"
+
 function workerScript() {
 /* start of script */
 
@@ -128,7 +130,7 @@ self.onmessage = event=> {
   const {data} = event
   if (data.msg === "search") {
     const result = Search(data.qstr, data.wholeWord)
-    self.postMessage({result})
+    self.postMessage({result, ...data})
   }
   else if (data.assets) {
     self.assets = data.assets
@@ -141,6 +143,24 @@ self.onmessage = event=> {
 let script = workerScript.toString()
 script = script.substring(script.indexOf("{") + 1, script.lastIndexOf("}"))
 let blob = new Blob([script], {type: "application/javascript"})
-let worker = new Worker(URL.createObjectURL(blob))
+export let worker = new Worker(URL.createObjectURL(blob))
+
+worker._ready = false
+let history = new LRUCache({max: 10})
+worker.addEventListener("message", ({data})=> {
+  if (data.msg === "search") {
+    const {qstr, wholeWord, result} = data
+    history.set(`${qstr}@${wholeWord}`, result)
+  }
+})
+
+export function startSearching(qstr, wholeWord, source){
+  if (!qstr) return "skip"
+  if (!worker._ready) return "pending"
+  let h = history.get(`${qstr}@${wholeWord}`)
+  if (h) return h
+  worker.postMessage({msg: "search", qstr, wholeWord, source})
+  return "submitted"
+}
 
 export default worker

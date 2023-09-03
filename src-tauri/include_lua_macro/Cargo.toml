@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 syn = "2.0.17"
 quote = "^1.0"
+include-crypt-bytes = "^0.1"
 walkdir = "2.3.3"
 
 [lib]

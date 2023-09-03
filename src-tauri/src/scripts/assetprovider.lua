@@ -218,6 +218,7 @@ local Provider = Class(function(self, root, static)
 	self.alldynfile = {}
 	self.allxmlfile = {}
 	self.alltexelement = {}
+	self.alltexture = {}
 
 	self.loaders = {
 		xml = {},
@@ -252,6 +253,9 @@ function Provider:ListAsset()
 		end
 	end
 
+	local texpath_refs = {}
+	local texpath_all = {}
+
 	for _, folder in ipairs{"minimap", "images", "bigportraits"}do
 		for _,v in ipairs(self.root:Iter(folder.."/") or {}) do
 			if v:endswith(".xml") then
@@ -270,6 +274,7 @@ function Provider:ListAsset()
 									v, "->", texpath)
 							end
 						else
+							texpath_refs[texpath] = true
 							table.insert(self.allxmlfile, Asset("xml", {
 								file = v,
 								texname = texname,
@@ -285,7 +290,21 @@ function Provider:ListAsset()
 						end
 					end
 				end
+			elseif v:endswith(".tex") then
+				texpath_all[v] = true
 			end
+		end
+	end
+
+	for _, v in ipairs(self.root:Iter("levels/textures/"))do
+		if v:endswith(".tex") then
+			texpath_all[v] = true
+		end
+	end
+
+	for k in pairs(texpath_all)do
+		if not texpath_refs[k] then
+			table.insert(self.alltexture, Asset("tex_no_ref", { file = k }))
 		end
 	end
 
@@ -294,7 +313,49 @@ function Provider:ListAsset()
 		alldynfile = self.alldynfile,
 		allxmlfile = self.allxmlfile,
 		alltexelement = self.alltexelement,
+		alltexture = self.alltexture,
 	})
+end
+
+function Provider:ResolveInvImage(file)
+	for n = 1, 5 do
+		local path = "images/inventoryimages"..n..".xml"
+		local xml = self:LoadXml(path)
+		if xml ~= nil then
+			local info = xml:GetLoosely(file)
+			if info ~= nil then
+				return path, info.name
+			end
+		else
+			break
+		end
+	end
+	for _, spice in ipairs{"garlic", "sugar", "salt", "chili"} do -- 忽略所有香料
+		if file:endswith("spice_"..spice) then return end
+	end
+	if file:endswith("oversized_rot") then return end -- 忽略腐烂的巨大农作物
+	if file:find("tomato") or file:find("onion") then return end -- 忽略暴食作物（和游戏本体共用图片素材）
+	if file:startswith("yotc_carrat_gym") or file:startswith("yotr_decor") then return end
+	if file == "abigail_flower_wilted" or file == "kullkelp_root" then return end -- depricated prefabs
+
+	print("Warning: failed to resolve inventoryimage: "..file)
+end
+
+function Provider:ResolveMinimapImage(file)
+	for _, n in ipairs{"", "1", "2", "3"}do
+		local path = "minimap/minimap_data"..n..".xml"
+		local xml = self:LoadXml(path)
+		if xml ~= nil then
+			local info = xml:GetLoosely(file)
+			if info ~= nil then
+				return path, info.name
+			end
+		end
+	end
+
+	if file == "moon_device" then return end -- what's this?
+	
+	print("Warning: failed to resolve minimap image: "..file)
 end
 
 function Provider:Load(args)
@@ -311,6 +372,8 @@ function Provider:Load(args)
 		-- local r = self:GetImage(args)
 		-- print("Load image use time: ", timeit(), #r)
 		-- return r
+	elseif type == "texture" then
+		return self:GetTexture(args)
 	elseif type == "xml" then
 		return self:GetXml(args)
 	elseif type == "symbol_element" then
@@ -616,17 +679,39 @@ function Provider:GetImage(args)
 	end
 end
 
+function Provider:GetTexture(args)
+	if type(args.file) == "string" and type(args.format) == "string" then
+		local tex = self:LoadTex(args.file)
+		if tex ~= nil then
+			local w, h = tex:GetSize(0)
+			if args.format == "rgba" then
+				return { width = w, height = h, bytes = tex:GetImageBytes(0)}
+			elseif args.format == "img" then
+				return tex:GetImage(0)
+			elseif args.format == "png" then
+				return tex:GetImage(0):save_png_bytes()
+			elseif args.format == "copy" then
+				return Clipboard.WriteImage_Bytes(tex:GetImageBytes(0), w, h)
+			elseif args.format == "save" then
+				return tex:GetImage(0):save(args.path) and args.path
+			end
+		end
+	end
+end
+
 function Provider:LoadXml(path)
 	if self.loaders.xml[path] ~= nil then
 		return self.loaders.xml[path]
 	end
 
-	local fs = self.root:Open(path)
-	if fs ~= nil then
-		local xml = XmlLoader(fs)
-		if not xml.error then
-			self.loaders.xml[path] = xml
-			return xml
+	if self.root:Exists(path) then
+		local fs = self.root:Open(path)
+		if fs ~= nil then
+			local xml = XmlLoader(fs)
+			if not xml.error then
+				self.loaders.xml[path] = xml
+				return xml
+			end
 		end
 	end
 end

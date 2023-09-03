@@ -1,8 +1,9 @@
 pub mod lua_misc {
     use rlua::prelude::{LuaResult, LuaString, LuaError};
-    use rlua::{Nil, UserData, Context, Value, MetaMethod};
+    use rlua::{Nil, UserData, Context, Value};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
+    use webbrowser;
 
     struct Bar {
         inner: ProgressBar,
@@ -88,6 +89,11 @@ pub mod lua_misc {
             }
         })?)?;
         globals.set("Clipboard", clipboard)?;
+
+        // webbrowser
+        globals.set("OpenURL", lua_ctx.create_function(|_, url: String|{
+            Ok(webbrowser::open(url.as_str()).is_ok())
+        })?)?;
 
         // process
         globals.set("exit", lua_ctx.create_function(|_, code: Value| -> Result<(), LuaError>{

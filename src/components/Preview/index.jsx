@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useIntersectionObserver, useLuaCall } from '../../hooks'
 import { Spinner } from '@blueprintjs/core'
+
 /**
  * a simple preview widget that rendered only when into view
  * need a static width and height
  */
-export default function Preview(props) {
-  return <></>
-}
+const Preview = {}
 
 function useCanvasPreviewSetup(props, [defaultWidth, defaultHeight]) {
   const {width = defaultWidth, height = defaultHeight} = props
@@ -282,3 +281,5 @@ Preview.SymbolElement = SymbolElement
 //   // return 233
 //   return <ImagePreview {...props}/>
 // }
+
+export default Preview

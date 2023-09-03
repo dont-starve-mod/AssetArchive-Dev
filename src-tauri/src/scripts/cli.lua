@@ -1,9 +1,9 @@
 -- app cli handlers
 
 local verbose = tonumber(Args.verbose)
-local print_debug = verbose >= 2 and print or function() end
-local print_info  = verbose >= 1 and print or function() end
-local print_error = verbose >= 0 and print or function() end
+print_debug = verbose >= 2 and print or function() end
+print_info  = verbose >= 1 and print or function() end
+print_error = verbose >= 0 and print or function() end
 
 local env = {}
 
@@ -50,7 +50,6 @@ local function render_animation()
 end
 
 local function compile()
-	local main = require("compiler.amain").main
 	local Provider =  require "assetprovider".Provider
 	local root = env.root
 	local prov = Provider(root)
@@ -58,8 +57,11 @@ local function compile()
 	prov:ListAsset()
 	env.prov = prov
 
-	print_info("[INFO] compile.main()")
-	main(env)
+	print_info("[INFO] 资源目录加载完成, 开始读取")
+	-- TODO: --force-reindex
+	
+	-- require("compiler.amain").main(env)
+	require("compiler.cmain").main(env)
 end
 
 local function cli_main()
@@ -67,7 +69,7 @@ local function cli_main()
 	if name == "render-animation" then
 		load_root()
 		render_animation()
-	elseif nama == "compile" then
+	elseif name == "compile" then
 		load_root()
 		compile()
 	elseif name == "dummy" then

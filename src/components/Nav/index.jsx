@@ -15,6 +15,7 @@ export default function Nav() {
   const [focus, setFocus] = useState(false)
   const [wholeWord, setWholeWord] = useState(false) // TODO: 这个应当为可保存的config
   const resultRef = useRef()
+  const [isCompisiting, setCompositing] = useState(false)
   // const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -32,12 +33,12 @@ export default function Nav() {
 
   useEffect(()=> {
     const token = requestAnimationFrame(()=> {
-      if (showResult) {
+      if (showResult && !isCompisiting) {
         worker.postMessage({msg: "search", source: "components/nav", qstr, wholeWord})
       }
     })
     return ()=> cancelAnimationFrame(token)
-  }, [showResult, qstr, wholeWord])
+  }, [showResult, qstr, wholeWord, isCompisiting])
 
   const handleDrag = ({target})=> {
     if (target.localName === "input") return
@@ -70,6 +71,9 @@ export default function Nav() {
     }
   }, [isWindows, isMacOS, isLinux, qstr])
 
+  const handleCompositionStart = ()=> setCompositing(true)
+  const handleCompositionEnd = ()=> setCompositing(false)
+
   return <Navbar style={{backgroundColor: "transparent", boxShadow: "none", width: "100%"}}
     onMouseDown={handleDrag}>
     <Navbar.Group align={Alignment.LEFT}>
@@ -83,6 +87,8 @@ export default function Nav() {
       <div style={{position: "relative"}}>
         <InputGroup type="search" placeholder={"搜索"} leftIcon="search" autoComplete="off" spellCheck="false" className='allow-input' 
           onChange={handleSearch} onKeyDown={handleKey}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
           onFocus={(event)=> { setFocus(true); setQueryString(event.target.value.trim())} } 
           onBlur={()=> setFocus(false)}/>
           {
@@ -153,8 +159,10 @@ function QuickSearchItem(props) {
       (type === "xml") ? 
         <MatchText text={props.file} match={props.matches.file} /> :
       (type === "tex") ?
-        <MatchText text={props.tex} match={props.matches.tex} /> 
-        :<>{console.log(type)}</>
+        <MatchText text={props.tex} match={props.matches.tex} /> :
+      (type == "tex_no_ref") ? 
+        <MatchText text={props.file} match={props.matches.file} /> :
+      <></>
     }
   </div>
 }

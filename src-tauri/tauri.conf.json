@@ -85,8 +85,8 @@
         "title": "asset-archive",
         "width": 800,
         "height": 600,
-        "minWidth": 300,
-        "minHeight": 200,
+        "minWidth": 500,
+        "minHeight": 400,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
       }

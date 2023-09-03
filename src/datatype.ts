@@ -29,4 +29,9 @@ export interface IDynData extends IBasicAssetItem {
   file: string,
 }
 
-export type AllAssetTypes = ITexData | IXmlData | IAnimData | IDynData
+export interface ITexNoRefData extends IBasicAssetItem {
+  type: "tex_no_ref",
+  file: string,
+}
+
+export type AllAssetTypes = ITexData | IXmlData | IAnimData | IDynData | ITexNoRefData

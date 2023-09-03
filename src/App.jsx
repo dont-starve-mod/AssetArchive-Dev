@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Spinner } from "@blueprintjs/core"
-import { useLocation, useRoutes, useSearchParams } from 'react-router-dom'
-import { MainRouteList } from './routelist'
+import { Routes, useLocation, useNavigate, useRoutes, useSearchParams } from 'react-router-dom'
 import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen } from '@tauri-apps/api/event' 
 import "./App.css"
@@ -10,16 +9,24 @@ import Nav from './components/Nav'
 import MainMenu from './components/MainMenu'
 import Footer from './components/Footer'
 import AppToaster from './components/AppToaster'
+import KeepAlivePage from './components/KeepAlive'
 
 import AppInit from './components/AppInit'
 import { useLuaCall } from './hooks'
 import { FocusStyleManager } from "@blueprintjs/core"
 import Preview from './components/Preview'
+import cacheContext from './components/KeepAlive/cacheContext'
+import MainRoutes from './mainRoutes'
+
 FocusStyleManager.onlyShowFocusOnTabs()
 
 export default function App() {
 	let url = useLocation()
-	let main_routes = useRoutes(MainRouteList)
+	// let mainroute = useRoutes(MainRouteList)
+	// console.log(mainroute)
+	const navigate = useNavigate()
+
+	const { setScrollableWidget } = useContext(cacheContext)
 
 	let compile = useLuaCall("debug_analyze")
 
@@ -27,28 +34,28 @@ export default function App() {
 	const [systemTheme, setSystemTheme] = useState("light")
 	const [configTheme, setConfigTheme] = useState()
 
-	useEffect(()=> {
+	// useEffect(()=> {
 		
-		appWindow.theme().then(
-			theme=> {
-				setSystemTheme(theme)
-			}
-		)
-	}, [setSystemTheme])
+	// 	appWindow.theme().then(
+	// 		theme=> {
+	// 			setSystemTheme(theme)
+	// 		}
+	// 	)
+	// }, [setSystemTheme])
 
-	useEffect(()=> {
+	// useEffect(()=> {
 		
-		const configListener = appWindow.listen("colortheme", ({payload: theme})=> {
-			setConfigTheme(theme)
-		})
-		const systemListener = appWindow.onThemeChanged(({payload: theme})=> {
-			setSystemTheme(theme)
-		})
-		return ()=> {
-			configListener.then(f=> f())
-			systemListener.then(f=> f())
-		}
-	}, [systemTheme, setSystemTheme, configTheme, setConfigTheme])
+	// 	const configListener = appWindow.listen("colortheme", ({payload: theme})=> {
+	// 		setConfigTheme(theme)
+	// 	})
+	// 	const systemListener = appWindow.onThemeChanged(({payload: theme})=> {
+	// 		setSystemTheme(theme)
+	// 	})
+	// 	return ()=> {
+	// 		configListener.then(f=> f())
+	// 		systemListener.then(f=> f())
+	// 	}
+	// }, [systemTheme, setSystemTheme, configTheme, setConfigTheme])
 
 	const isDarkMode = useMemo(()=> {
 		if (configTheme === "auto") {
@@ -58,17 +65,6 @@ export default function App() {
 			return configTheme === "dark"
 		}
 	}, [systemTheme, configTheme])
-
-	const articleRef = useRef()
-
-	useEffect(()=> {
-		let unlisten = appWindow.listen("reset_scroll", ()=> {
-			if (articleRef.current) {
-				articleRef.current.scrollTop = 0
-			}
-		})
-		return ()=> unlisten.then(f=> f())
-	}, [])
 
   return (<div className={isDarkMode ? "bp4-dark": null}>
 		<header>
@@ -81,14 +77,18 @@ export default function App() {
 			<menu>
 				<MainMenu/>
 			</menu>
-			<article ref={articleRef}>
+			<article ref={(node)=> setScrollableWidget(node)}>
+				<MainRoutes/>
 				{
-					main_routes
+					// KeepAliveRouteList
 				}
+				{/* <KeepAlivePage path="/search"/> */}
+				{/* <CacheRouteComponent /> */}
 				
 				<div style={{height: 300}}></div>
 				<br/>
 				<Button onClick={()=> compile()}> compile </Button>
+				<Button onClick={()=> navigate("/test")}></Button>
 				
 				
 			</article>

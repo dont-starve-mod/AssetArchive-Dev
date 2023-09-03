@@ -13,6 +13,7 @@ function ToIndexTable(table)
 	for _,v in ipairs(table)do
 		t[v] = true
 	end
+	return t
 end
 
 function table.extend(t1, t2)
@@ -30,6 +31,16 @@ function table.contains(table, element)
         end
     end
     return false
+end
+
+function table.merge(...)
+	local result = {}
+	for i = 1, select("#", ...) do
+		for k,v in pairs(select(i, ...))do
+			result[k] = v
+		end
+	end
+	return result
 end
 
 function string.startswith(str, neddle)

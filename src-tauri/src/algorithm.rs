@@ -29,6 +29,16 @@ pub mod lua_algorithm {
     }
 
     #[inline]
+    fn dxt1_decompress(compressed_data: &[u8], width: usize, height: usize) -> Vec<u8> {
+        match bcndecode::decode(compressed_data, width, height,
+            bcndecode::BcnEncoding::Bc1, // DXT1
+            bcndecode::BcnDecoderFormat::RGBA) {
+            Ok(buf)=> buf,
+            Err(_)=> vec![]
+        }
+    }
+
+    #[inline]
     fn flip_bytes(bytes: &[u8], linewidth: usize) -> Vec<u8> {
         bytes.rchunks_exact(linewidth)
             .collect::<Vec<&[u8]>>()
@@ -132,6 +142,10 @@ pub mod lua_algorithm {
         table.set("DXT5_Decompress", lua_ctx.create_function(|lua_ctx: Context, 
             (compressed_data, width, height): (LuaString, usize, usize)|{
             Ok(lua_ctx.create_string(&dxt5_decompress(compressed_data.as_bytes(), width, height)))
+        })?)?;
+        table.set("DXT1_Decompress", lua_ctx.create_function(|lua_ctx: Context,
+            (compressed_data, width, height): (LuaString, usize, usize)|{
+            Ok(lua_ctx.create_string(&dxt1_decompress(compressed_data.as_bytes(), width, height)))
         })?)?;
         table.set("SmallHash_Impl", lua_ctx.create_function(|_, s: LuaString|{
             Ok(kleihash(s.as_bytes()))

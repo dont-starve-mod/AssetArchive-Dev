@@ -1,0 +1,22 @@
+.search-item-box {
+  position: relative;
+  display: flex;
+  padding: 10px 0;
+  padding-top: 4px;
+  min-height: 30px;
+  background-color: pink;
+}
+
+.search-item-box h3 {
+  font-size: 1em!important;
+  font-weight: 700;
+}
+
+.search-item-box .preview {
+  width: 30px;
+  height: 30px;
+}
+
+.search-item-box .info {
+  padding-left: 10px;
+}

@@ -2,6 +2,7 @@ local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
 local Deflate = Algorithm.Deflate
 local DXT5_Decompress = Algorithm.DXT5_Decompress
+local DXT1_Decompress = Algorithm.DXT1_Decompress
 local FlipBytes = Algorithm.FlipBytes
 local DivAlpha = Algorithm.DivAlpha
 local slaxdom = require "slaxdom"
@@ -374,6 +375,21 @@ function XmlLoader:Get(name)
     return self.imgs[name]
 end
 
+function XmlLoader:GetLoosely(name)
+    if self.error then
+        return nil
+    end
+    if self.imgs[name] then
+        return self.imgs[name]
+    end
+    if self.imgs[name..".png"] then
+        return self.imgs[name..".png"]
+    end
+    if self.imgs[name..".tex"] then
+        return self.imgs[name..".tex"]
+    end
+end
+
 function XmlLoader:__tostring()
     if self.error then
         return string.format("Xml<error=%s>", self.error)
@@ -457,7 +473,7 @@ TexLoader = Class(function(self, f)
     self.pixelformat = pixelformat
     self.mipmaps = mipmaps
 
-    if pixelformat == 2 or pixelformat == 5 then -- DXT5 / RGB
+    if pixelformat == 0 or pixelformat == 2 or pixelformat == 5 then -- DXT1 / DXT5 / RGB
         for i = 1, nummips do
             local w, h, p, s = f:read_and_unpack("HHHI")
             if s == nil then
@@ -495,7 +511,7 @@ function TexLoader:GetImage(i)
     if bytes then
         if self.pixelformat == 5 then
             return Image.From_RGB(bytes, width, height)
-        elseif self.pixelformat == 2 then
+        elseif self.pixelformat == 2 or self.pixelformat == 0 then
             return Image.From_RGBA(bytes, width, height)
         end
     end
@@ -515,6 +531,10 @@ function TexLoader:GetImageBytes(i)
             return m.pixels, m.width, m.height
         elseif self.pixelformat == 2 then
             m.pixels = DXT5_Decompress(m.data, m.width, m.height)
+            m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
+            return m.pixels, m.width, m.height
+        elseif self.pixelformat == 0 then
+            m.pixels = DXT1_Decompress(m.data, m.width, m.height)
             m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
             return m.pixels, m.width, m.height
         else

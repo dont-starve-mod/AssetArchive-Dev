@@ -5,7 +5,9 @@ Asset = Class(function(self, type, data)
 	for k,v in pairs(data)do
 		self[k] = v
 	end
-	self.id = self:GetID()
+	if type:lower() == type then
+		self.id = self:GetID()
+	end
 end)
 
 function Asset:__newindex(k,v)
@@ -37,12 +39,59 @@ function Asset:GetID()
 	return id
 end
 
+function Asset.FromGame(type, file)
+	type = type:gsub("DYNAMIC_", "")
+	if type == "SCRIPT" or type == "IMAGE" or type == "Image" then
+		return
+	end
+	if type == "PKGREF" and file:startswith("movies/") then
+		return
+	end
+	if type == "PKGREF" or type == "ASSET_PKGREF" then
+		if file:endswith(".tex") then
+			return
+		elseif file:endswith(".bin") then
+			return
+		end
+	end
+	if (type == "ANIM" or type == "PKGREF") and file:endswith(".zip") then
+		return Asset("animzip", { file = file })
+	end
+	if type == "PKGREF" and file:endswith(".dyn") then
+		return Asset("animdyn", { file = file })
+	end
+	if type == "INV_IMAGE" or type == "MINIMAP_IMAGE" then
+		return Asset(type, { file = file })
+	end
+	if (type == "ATLAS" or type == "ATLAS_BUILD" or type == "FILE") and file:endswith(".xml") then
+		return Asset("xml", { file = file })
+	end
+	if type == "SOUND" or type == "SHADER" or type == "PKGREF" and file:endswith(".fsb") then
+		return
+	end
+
+			-- elif type == "SOUND":
+		-- 	# 暂时忽略，以后要加上
+		-- 	return None
+		-- elif type == "PKGREF" and file.endswith(".fsb"):
+		-- 	# 暂时忽略，以后要加上
+		-- 	return None
+		-- elif type == "SHADER" and file.endswith(".ksh"):
+		-- 	# 暂时忽略，以后的以后再加上
+		-- 	return None
+
+	print_error("无法解析的Asset: ", type, file)
+	-- body
+end
+
+
 Asset.ID_TYPES = {
 	animzip = "z",
 	animdyn = "d",
 	xml = "x",
 	tex = "t",
 	sound = "s",
+	tex_no_ref = "n"
 }
 
 function TexElementIdGetter(xml)

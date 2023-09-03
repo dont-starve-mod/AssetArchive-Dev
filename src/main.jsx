@@ -8,11 +8,18 @@ import "@blueprintjs/icons/lib/css/blueprint-icons.css"
 import "@blueprintjs/popover2/lib/css/blueprint-popover2.css"
 import "./styles.css"
 import { BrowserRouter } from "react-router-dom"
+import { KeepAliveProvider } from "./components/KeepAlive"
+import store from "./redux/store"
+import { Provider } from "react-redux"
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <Provider store={store}>
+        <KeepAliveProvider>
+          <App />
+        </KeepAliveProvider>
+      </Provider>
     </BrowserRouter>
   </React.StrictMode>
 );

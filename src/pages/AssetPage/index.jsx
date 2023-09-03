@@ -1,57 +1,81 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useLoaderData, useNavigate, useSearchParams } from 'react-router-dom'
+import React, { useEffect, useReducer, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox } from '@blueprintjs/core'
 import { Collapse, ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
-import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess } from '../../hooks'
+import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
-import { save } from '@tauri-apps/api/dialog'
 import style from './index.module.css'
 import Preview from '../../components/Preview'
 import ClickableTag from '../../components/ClickableTag'
 import Hash from '../../components/HumanHash'
 import FacingIcon from '../../components/FacingIcon'
+import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
+
+// export default function AssetPage() {
+//   const [param] = useSearchParams()
+//   const id = param.get("id")
+//   return (
+//     <KeepAlivePage key={id} cacheNamespace='assetPage'>
+//       ID: {id}
+//       <input></input>
+//     </KeepAlivePage>
+//   )
+// }
+function KeepAlive(props) {
+  return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
+}
 
 export default function AssetPage() {
   const [param] = useSearchParams()
   const id = param.get("id")
+  const [_, forceUpdate] = useReducer(v=> v + 1, 0)
+
+  // useEffect(()=> {
+  //   let key = id
+  //   appWindow.emit("restore_scroll", {key})
+  //   return ()=> appWindow.emit("cache_scroll", {key})
+  // }, [id])
 
   if (id === null) return <AssetInvalidPage type="null"/>
   const asset = window.assets_map[id]
   if (!asset) {
     if (Object.keys(window.assets).length === 0){
-      return <AssetInvalidPage type="waiting"/>
+      return <AssetInvalidPage type="waiting" forceUpdate={forceUpdate}/>
     }
     else {
+      console.warning("Invalid asset id: ", id)
       return <AssetInvalidPage type="invalid-id" id={id}/>
     }
   }
 
   const {type} = asset
   switch(type) {
-    case "tex": return <TexPage {...asset}/>
-    case "xml": return <XmlPage {...asset}/>
-    case "animzip": return <ZipPage {...asset}/>
-    case "animdyn": return <ZipPage {...asset}/>
+    case "tex": 
+      return <KeepAlive key={id}>
+        <TexPage {...asset} key={id}/>
+      </KeepAlive>
+    case "xml": 
+      return <KeepAlive key={id}>
+        <XmlPage {...asset} key={id}/>
+      </KeepAlive>
+    case "animzip": 
+      return <KeepAlive key={id}>
+        <ZipPage {...asset} key={id}/>
+      </KeepAlive>
+    case "animdyn":
+      return <KeepAlive key={id}>
+        <ZipPage {...asset} key={id}/>
+      </KeepAlive>
+    case "tex_no_ref":
+      return <KeepAlive key={id}>
+        <TexNoRefPage {...asset} key={id}/>
+      </KeepAlive>
+    default:
+      return <AssetInvalidPage type="invalid-type" typeName={type}/>
   }
-
-  return (
-    <div>
-      <h2>AssetPage</h2>
-    </div>
-  )
 }
-
-// function AssetType({type}) {
-//   return <div style={{display: "inline-block", verticalAlign: "middle"}}>
-//     <div style={{display: "flex", justifyContent: "center"}}>
-//       <Tag interactive={true} onClick={()=> window.alert("TODO:实现")}>
-//         {ASSET_TYPE[type]}
-//       </Tag>
-//     </div>
-//   </div>
-// }
 
 function AssetType(props) {
   return <ClickableTag {...props}/>
@@ -72,15 +96,12 @@ function Loading({loading}) {
 }
 
 function TexPage({id, xml, tex}) {
+  const navigate = useNavigate()
   const xmlDef = window.assets.allxmlfile.find(a=> a.file === xml)
   const atlasPath = xmlDef ? xmlDef.texpath : "获取失败"
   const ref = useRef()
   const [resolution, setResolution] = useState([0, 0])
   const [loading, setLoading] = useState(true)
-
-  useEffect(()=> {
-    appWindow.emit("reset_scroll")
-  }, [])
   
   const onImgLoad = ({target})=> {
     setResolution([target.width, target.height])
@@ -90,24 +111,21 @@ function TexPage({id, xml, tex}) {
   const call = useLuaCall("load", result=> {
     const array = Uint8Array.from(result)
     const blob = new Blob([array])
-    ref.current.src = URL.createObjectURL(blob)
-  }, {type: "image", xml, tex, format: "png"}, 
+    if (ref.current) ref.current.src = URL.createObjectURL(blob)
+  }, {type: "image", xml, tex, format: "png", debug:1}, 
     [id, xml, tex])
 
   useEffect(()=> {
-    setLoading(true)
+    // setLoading(true)
     call()
   }, [call])
 
-  const download = async ()=> {
-    const path = await save({
-      // defaultPath: "",
-      filters: [
-        {name: "Image", extensions: ["png"]}
-      ]
-    })
-    console.log(path)
-  }
+  const download = useSaveFileCall({
+    defaultParams: {type: "image", xml, tex, format: "save"},
+    deps: [id, xml, tex],
+    filters: "image",
+    defaultPath: tex + ".png",
+  })
 
   const copy = useCopyTexElement(xml, tex)
 
@@ -118,18 +136,79 @@ function TexPage({id, xml, tex}) {
       <img style={{maxWidth: "100%", maxHeight: "80vh", display: loading ? "none" : null}} 
         className='bp4-elevation-1' ref={ref} onLoad={onImgLoad}/>
       <div style={{height: 20}}></div>
-      <Button icon="download" intent='primary' onClick={download} disabled={loading}>
-        下载
-      </Button>
-      &nbsp;
       <Button icon="duplicate" onClick={()=> copy()} disabled={loading}>
         拷贝
+      </Button>
+      &nbsp;
+      <Button icon="download" intent='primary' onClick={download} disabled={loading}>
+        下载
       </Button>
       <H5>基本信息</H5>
       <Card elevation={1}>
       <p>分辨率: {resolution[0]}x{resolution[1]}</p>
-      <p>所属图集: {xml}</p>
-      <p>资源路径: {atlasPath}</p>
+      <p>所属图集: {xml} &nbsp;
+        <Button icon="link" minimal={true}/>
+        <Button icon="document-open" minimal={true}/>
+      </p>
+      <p>资源路径: {atlasPath} &nbsp;
+        <Button icon="document-open" minimal={true}/>
+      </p>
+      </Card>
+    </div>
+  </div>
+}
+
+function TexNoRefPage({id, file}) {
+  const ref = useRef()
+  const [resolution, setResolution] = useState([0, 0])
+  const [loading, setLoading] = useState(true)
+  
+  const onImgLoad = ({target})=> {
+    setResolution([target.width, target.height])
+    setLoading(false)
+  }
+
+  const call = useLuaCall("load", result=> {
+    const array = Uint8Array.from(result)
+    const blob = new Blob([array])
+    ref.current.src = URL.createObjectURL(blob)
+  }, {type: "texture", file, format: "png"}, 
+    [file])
+
+  useEffect(()=> {
+    // setLoading(true)
+    call()
+  }, [call])
+
+  const download = useSaveFileCall({
+    defaultParams: {type: "texture", file, format: "save"},
+    deps: [id, file],
+    filters: "image",
+    defaultPath: file + ".png",
+  })
+
+  const copy = useCopyTexture(file)
+
+  return <div>
+    <H3>{file} <AssetType type="tex_no_ref"/></H3>
+    <div className="bp4-running-text">
+      <Loading loading={loading}/>
+      <img style={{maxWidth: "100%", maxHeight: "80vh", display: loading ? "none" : null}} 
+        className='bp4-elevation-1' ref={ref} onLoad={onImgLoad}/>
+      <div style={{height: 20}}></div>
+      <Button icon="duplicate" onClick={()=> copy()} disabled={loading}>
+        拷贝
+      </Button>
+      &nbsp;
+      <Button icon="download" intent='primary' onClick={download} disabled={loading}>
+        下载
+      </Button>
+      <H5>基本信息</H5>
+      <Card elevation={1}>
+      <p>分辨率: {resolution[0]}x{resolution[1]}</p>
+      <p>资源路径: {file} &nbsp;
+        <Button icon="document-open" minimal={true}/>
+      </p>
       </Card>
     </div>
   </div>
@@ -144,12 +223,13 @@ function XmlPage({id, file, texpath, _numtex}) {
     result = JSON.parse(result)
     setData(result)
     setLoading(false)
+    requestAnimationFrame(()=> appWindow.emit("restore_scroll", {key: id}))
   }, {type: "xml", file},
     [file])
   
   useEffect(()=> {
     setData({})
-    setLoading(true)
+    // setLoading(true)
     call()
   }, [call])
 
@@ -260,7 +340,7 @@ const XmlPageDisplay = {
 
 function ZipPage({type, file, id}) {
   const [build, setBuildData] = useState(undefined)
-  const [unfoldSymbol, setUnfoldSymbol] = useState({})
+  const [foldSymbol, setFoldSymbol] = useState({})
   const [animList, setAnimList] = useState(undefined)
   const [atlas, setAtlas] = useState({})
 
@@ -355,11 +435,11 @@ function ZipPage({type, file, id}) {
               <tbody>
                 {
                   build.symbol.map(({imghash, imglist})=> <>
-                    <tr key={imghash} style={{fontWeight: unfoldSymbol[imghash] ? 700 : null}}>
-                      <td style={{cursor: "pointer"}} onClick={()=> setUnfoldSymbol(sym=> ({...sym, [imghash]: !sym[imghash]}))}>
+                    <tr key={imghash} style={{fontWeight: foldSymbol[imghash] ? 700 : null}}>
+                      <td style={{cursor: "pointer"}} onClick={()=> setFoldSymbol(sym=> ({...sym, [imghash]: !sym[imghash]}))}>
                         <Icon
                           style={{cursor: "inherit"}}
-                          icon={unfoldSymbol[imghash] ? "chevron-down" : "chevron-right"}
+                          icon={foldSymbol[imghash] ? "chevron-right" : "chevron-down"}
                           className='no-select'
                         /> 
                       </td>
@@ -370,7 +450,7 @@ function ZipPage({type, file, id}) {
                       <td>{imglist.length}</td>
                     </tr>
                     {
-                      unfoldSymbol[imghash] && 
+                      !foldSymbol[imghash] && 
                       imglist.map(img=> 
                         <tr key={imghash + "-" + img.index}>
                           <td></td>
@@ -433,39 +513,45 @@ function ZipPage({type, file, id}) {
   </div>
 }
 
-function AssetInvalidPage({type, id}) {
-  const navigate = useNavigate()
-  const url = location.href.substring(location.origin.length)
-  
+function AssetInvalidPage({type, typeName, id, forceUpdate}) {
+  const navigate = useNavigate()  
   useEffect(()=> {
     const token = setInterval(()=> {
       if (type === "waiting"){
-        console.log("RELOAD: " + url)
-        navigate(url)
+        forceUpdate()
       }
     }, 500)
     return ()=> clearInterval(token)
-  }, [])
+  }, [type])
 
   if (type === "waiting"){
     return <NonIdealState title="正在加载" layout='vertical'>
       <Spinner/>
-      <Button onClick={()=> navigate(url)}>刷新</Button>
+      <Button onClick={()=> forceUpdate()}>刷新</Button>
     </NonIdealState>
   }
-  return <div style={{marginTop: 30}}>
-    <NonIdealState title="加载失败" icon="search" layout="vertical"
-      description={<>
-        <p>{"原因：资源地址无效" + 
-          (type === "null" ? "（id = null）" : `（${id}）`)}
-        </p>
-        <p>这是一个bug，不应该出现这个页面！</p>
-        <hr/>
-        <Button icon="envelope" onClick={()=> navigate("/report-bug")}>反馈</Button>
-        &nbsp;&nbsp;&nbsp;&nbsp;
-        <Button onClick={()=> navigate("/home")}>回到首页</Button>
-      </>}
-      style={{maxWidth: 500, width: 500}}
-    />
-  </div>
+  else{
+    return <div style={{marginTop: 30}}>
+      <NonIdealState title="加载失败" icon="search" layout="vertical"
+        description={<>
+          {
+            type === "invalid-id" && 
+            <p>{"错误信息: 资源地址无效" + 
+              (id === "null" ? "（id = null）" : `（${id}）`)}
+            </p>
+          }
+          {
+            type === "invalid-type" && 
+            <p>{"错误信息: 资源类型无效（type = " + typeName + "）"}</p>
+          }
+          <p>这是一个bug，不应该出现这个页面！</p>
+          <hr/>
+          <Button icon="envelope" onClick={()=> navigate("/report-bug")}>反馈</Button>
+          &nbsp;&nbsp;&nbsp;&nbsp;
+          <Button onClick={()=> navigate("/home")}>回到首页</Button>
+        </>}
+        style={{maxWidth: 500, width: 500}}
+      />
+    </div>
+  }
 }

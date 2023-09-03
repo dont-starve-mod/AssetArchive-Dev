@@ -17,8 +17,10 @@ tauri-build = { version = "1.2", features = [] }
 
 [dependencies]
 tauri = { version = "1.2", features = ["clipboard-all", "dialog-all", "notification-all", "shell-open", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-start-dragging", "window-unmaximize"] }
+clap = "4.3.10"
 bstr = "1.4.0"
 clippers = "0.1.2"
+walkdir = "2.3.3"
 indicatif = "0.17.3"
 zune-inflate= { version="0.2.54",default-features=false,features= ["zlib"] }
 # zip = "0.6.4"
@@ -28,10 +30,12 @@ serde = { version = "1.0", features = ["derive"] }
 rlua = { version = "^0.19.4", default-features = false, features = ["lua-no-oslib", "builtin-lua51"] }
 image = "0.24.6"
 curl = { version = "0.4.44", features = ["rustls"] }
+webbrowser = { version = "0.8.11", features = ["hardened"] }
 
 fmod = { path = "./fmod" }
 include_lua = { path = "./include_lua" }
 include_lua_macro = { path = "./include_lua_macro" }
+include-crypt-bytes = "^0.1"
 ffmpeg-sidecar = { path = "./ffmpeg-sidecar" }
 
 [features]

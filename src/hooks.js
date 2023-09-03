@@ -1,8 +1,22 @@
 import { invoke } from "@tauri-apps/api"
 import { useCallback, useEffect, useState, useMemo } from "react"
 import { appWindow } from "@tauri-apps/api/window"
+import { save } from "@tauri-apps/api/dialog"
 
 console.log("User Agent: ", navigator.userAgent)
+
+const DYN_ENCRYPT = "DYN_ENCRYPT"
+
+function checkEncryptResult(result){
+  if (result === DYN_ENCRYPT){
+    appWindow.emit("alert", {
+      icon: "disable",
+      title: "提示",
+      message: "这是一个加密的皮肤材质，无法拷贝或保存。",
+    })
+  }
+  return result === DYN_ENCRYPT
+}
 
 export function useOS() {
   return useMemo(()=> {
@@ -20,7 +34,9 @@ export function useOS() {
  */
 export function useLuaCall(api, fn, defaultParams = {}, deps = []) {
   return useCallback((param={})=> {
-    console.log({...defaultParams, ...param})
+    if (defaultParams.debug){
+      console.log({...defaultParams, ...param})
+    }
     invoke("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
       response=> fn(response),
       error=> appWindow.emit("lua_call_error", error)
@@ -49,15 +65,9 @@ export function useCopySuccess(type) {
 export function useGenericHandleImageCopy() {
   const onSuccess = useCopySuccess("image")
   const fn = result=> {
-    console.log(result)
-    if (result === "true")
-      onSuccess()
-    else if (result === "DYN_ENCRYPT")
-      appWindow.emit("alert", {
-        icon: "disable",
-        title: "提示",
-        message: "这是一个加密的皮肤材质，无法拷贝或保存。",
-      })
+    if (!checkEncryptResult(result)){
+      if (result === "true") onSuccess()
+    }
   }
   return fn
 }
@@ -82,6 +92,16 @@ export function useCopyBuildAtlas(build) {
   return fn
 }
 
+/** copy texture to clipboard
+ * need `file`
+ */
+export function useCopyTexture(file) {
+  const onCopy = useGenericHandleImageCopy()
+  const fn = useLuaCall("load", onCopy, {type: "texture", file, format: "copy"},
+    [file])
+  return fn
+}
+
 /** copy symbol element to clipborad 
  * need `build` and `imghash` and `index`
 */
@@ -90,6 +110,50 @@ export function useCopySymbolElement(build) {
   const fn = useLuaCall("load", onCopy, {type: "symbol_element", build, format: "copy"},
     [build])
   return fn
+}
+
+const SAVE_FILTERS = {
+  IMAGE: [
+    {name: "Image", extensions: ["png"]}
+  ],
+}
+
+/** common file save dialog */
+export function useSaveFileDialog(saveFn, filters, defaultPath) {
+  const fn = useCallback(async ()=> {
+    const filepath = await save({
+      filters: typeof filters === "string" ? SAVE_FILTERS[filters.toUpperCase()] : filters,
+      defaultPath,
+    })
+    if (filepath)
+      saveFn({path: filepath})
+  }, [saveFn])
+  return fn
+}
+
+export function useSaveSuccess(type) {
+  let message = (type === "image" ? "图片" : "") 
+    + "保存成功"
+  return (savepath)=> appWindow.emit("toast", { message, icon: "saved", intent: "success", savepath})
+}
+
+export function useGenericSaveFileCb(filters) {
+  let type = filters // alias
+  const onSuccess = useSaveSuccess(type)
+  const fn = result=> {
+    if (!checkEncryptResult(result)){
+      onSuccess(result)
+    }
+  }
+  return fn
+}
+
+/** wrap `useSaveFile` and `useLuaCall` */
+export function useSaveFileCall({api = "load", defaultParams, deps, filters, defaultPath}) {
+  const cb = useGenericSaveFileCb(filters) // callback fn when backend return message
+  const saveFn = useLuaCall(api, cb, defaultParams, deps) // backend query
+  const dialog = useSaveFileDialog(saveFn, filters, defaultPath) // get filepath from frontend 
+  return dialog
 }
 
 /** basic config getter&setter */
