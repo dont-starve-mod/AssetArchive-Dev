@@ -37,13 +37,13 @@ pub mod lua_filesystem {
     }
 
     trait ReadStreamTrait: Read {
-        /// 跳过len个字节
+        /// skip bytes of exact length
         fn seek_forward(&mut self, len: i64) -> io::Result<u64>;
 
-        /// 设置指针位置
+        /// set cursor position
         fn seek_to(&mut self, _: u64) -> () { }
 
-        /// reset file cursor
+        /// reset cursor
         fn rewind(&mut self) -> io::Result<()>;
 
         /// 查找下一个标志符, 注意该方法可能有性能问题
@@ -71,7 +71,7 @@ pub mod lua_filesystem {
             }
         }
 
-        /// 获取文件描述符, 该函数用于手动释放文件
+        /// get file description (for drop)
         #[cfg(unix)]
         fn get_fd(&self) -> Option<RawFd> {
             None
@@ -410,6 +410,11 @@ pub mod lua_filesystem {
             self.inner.is_file()
         }
 
+        #[inline]
+        fn exists(&self) -> bool {
+            self.inner.exists()
+        }
+
         fn create_dir(&self) -> bool {
             if self.is_dir() {
                 true
@@ -464,11 +469,23 @@ pub mod lua_filesystem {
     
     impl UserData for Path {
         fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
+            _methods.add_method("exists", |_, path: &Self, ()|{
+                Ok(path.exists())
+            });
             _methods.add_method("is_file", |_, path: &Self, ()|{
                 Ok(path.is_file())
             });
             _methods.add_method("is_dir", |_, path: &Self, ()|{
                 Ok(path.is_dir())
+            });
+            _methods.add_method("read_to_string", |_, path: &Self, ()|{
+                fs::read_to_string(&path.inner).map_err(|e| LuaError::RuntimeError("Failed to read file".to_string()))
+            });
+            _methods.add_method("write", |_, path: &Self, content: LuaString|{
+                fs::write(&path.inner, content.as_bytes()).map_err(|e| LuaError::RuntimeError("Failed to write file".to_string()))
+            });
+            _methods.add_method("delete", |_, path: &Self, ()|{
+                fs::remove_file(&path.inner).map_err(|e| LuaError::RuntimeError("Failed to delete file".to_string()))
             });
             _methods.add_method("create_dir", |_, path: &Self, ()|{
                 Ok(path.create_dir())
@@ -597,6 +614,9 @@ pub mod lua_filesystem {
         })?)?;
         table.set("Path", lua_ctx.create_function(|_: Context, path: String|{
             Ok(Path::from(&path))
+        })?)?;
+        table.set("Filenamify", lua_ctx.create_function(|_, path: String|{
+            Ok(filenamify::filenamify(path))
         })?)?;
         table.set("DynLoader_Ctor", lua_ctx.create_function(|lua: Context, (loader, fs): (Table, AnyUserData)|{
             fs.borrow_mut::<ReadStream>().and_then(|mut fs|{

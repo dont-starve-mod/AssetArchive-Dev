@@ -314,6 +314,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
             std::path::MAIN_SEPARATOR))?;
 
         // static scripts loading
+        #[allow(non_upper_case_globals)]
         let module = include_lua_macro::include_lua!("scripts");
         lua_ctx.add_modules(module)?;
 

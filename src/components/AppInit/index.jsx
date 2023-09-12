@@ -49,6 +49,7 @@ export default function AppInit() {
           })
         ]
         await invoke("app_init")
+        window.app_init = true
         return handlers
       }
       catch(error) {

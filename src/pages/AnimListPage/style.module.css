@@ -1,0 +1,98 @@
+.recent-project-list {
+  min-height: 100px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.recent-project-item {
+  display: inline-block;
+  /* background-color: pink; */
+  padding: 2px 0px;
+  height: 30px;
+}
+
+.recent-project-item:hover {
+  /* background-color: #eee; */
+}
+
+.recent-project-item .link {
+  font-weight: 500;
+  vertical-align: middle;
+  line-height: 20px;
+  color: var(--primary-color-1);
+  cursor: pointer;
+  display: inline-block;
+  max-width: 400px!important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-project-item .edit-icon {
+  visibility: hidden;
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+.recent-project-item:hover .link {
+  text-decoration: underline;
+}
+
+.recent-project-item:hover .edit-icon {
+  visibility: visible;
+}
+
+.popover-content {
+  padding: 10px;
+}
+
+.popover-content h5 input, 
+.popover-content h5 :global(.bp4-editable-text-content) {
+  max-width: 250px!important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-content hr {
+  margin-top: 8px;
+}
+.popover-content .mtime {
+  font-size: 80%;
+  color: #aaa;
+  margin-bottom: 0;
+}
+
+.template-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.template-list .template-card {
+  width: 100px;
+  margin: 10px;
+  /* background-color: pink; */
+  border-radius: 2px;
+  cursor: pointer;
+  box-sizing: content-box;
+  border: 1px transparent solid;
+  box-shadow: 0 0 0 1px rgba(17,20,24,.15);
+}
+
+.template-card-empty {
+  border: 1px #ccc dashed!important;
+  box-shadow: none!important;
+}
+
+.template-list .template-card > div {
+  position: relative;
+}
+
+.grid-name {
+  width: 100%;
+  line-height: 25px;
+  margin-bottom: 5px;
+  text-align: center;
+  word-wrap: break-word;
+}

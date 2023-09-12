@@ -22,6 +22,7 @@ bstr = "1.4.0"
 clippers = "0.1.2"
 walkdir = "2.3.3"
 indicatif = "0.17.3"
+filenamify = "0.1.0"
 zune-inflate= { version="0.2.54",default-features=false,features= ["zlib"] }
 # zip = "0.6.4"
 bcndecode = "0.2.0"

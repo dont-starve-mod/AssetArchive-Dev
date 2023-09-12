@@ -27,7 +27,7 @@ export const FACING_ALIAS_MAP = {
   "all"       : FACING_ALL,
 }
 
-export const facing2byte = (facing: string | null | undefined | number)   => {
+export const facing2byte = (facing: string | null | undefined | number) => {
   if (facing === null || facing === undefined || typeof facing === "number"){
     return facing
   }
@@ -45,7 +45,7 @@ export const facing2byte = (facing: string | null | undefined | number)   => {
 }
 
 const _cache = {}
-export const byte2facing = (byte: number) => {
+export const byte2facing = (byte: number): string => {
   if (typeof _cache[byte] === "string") return _cache[byte]
 
   for (const facing in FACING_ALIAS_MAP){

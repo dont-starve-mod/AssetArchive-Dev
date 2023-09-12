@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Spinner } from "@blueprintjs/core"
 import { Routes, useLocation, useNavigate, useRoutes, useSearchParams } from 'react-router-dom'
-import { appWindow } from '@tauri-apps/api/window'
+import { appWindow, getCurrent } from '@tauri-apps/api/window'
 import { listen as globalListen } from '@tauri-apps/api/event' 
 import "./App.css"
 
@@ -9,7 +9,6 @@ import Nav from './components/Nav'
 import MainMenu from './components/MainMenu'
 import Footer from './components/Footer'
 import AppToaster from './components/AppToaster'
-import KeepAlivePage from './components/KeepAlive'
 
 import AppInit from './components/AppInit'
 import { useLuaCall } from './hooks'
@@ -17,18 +16,33 @@ import { FocusStyleManager } from "@blueprintjs/core"
 import Preview from './components/Preview'
 import cacheContext from './components/KeepAlive/cacheContext'
 import MainRoutes from './mainRoutes'
+import SubRoutes from './subRoutes'
 
 FocusStyleManager.onlyShowFocusOnTabs()
 
+declare global {
+	interface Window {
+		app_init?: boolean,
+		config: any,
+	}
+}
+
 export default function App() {
+	const isSubwindow = getCurrent().label !== "main"
+	return !isSubwindow ? <AppMain/> : <AppSub/>
+}
+
+function AppMain() {
 	let url = useLocation()
 	// let mainroute = useRoutes(MainRouteList)
 	// console.log(mainroute)
 	const navigate = useNavigate()
-
+	const articleRef = useRef(null)
 	const { setScrollableWidget } = useContext(cacheContext)
 
-	let compile = useLuaCall("debug_analyze")
+	useEffect(()=> {
+		setScrollableWidget({node: articleRef.current})
+	}, [])
 
 	// TODO: 注意这里的颜色模式切换并不是启动即时的，可能有点问题需要优化
 	const [systemTheme, setSystemTheme] = useState("light")
@@ -66,7 +80,7 @@ export default function App() {
 		}
 	}, [systemTheme, configTheme])
 
-  return (<div className={isDarkMode ? "bp4-dark": null}>
+  return (<div className={isDarkMode ? "bp4-dark": undefined}>
 		<header>
 			<div onMouseDown={async()=> await appWindow.startDragging()}></div>
 			<div>
@@ -77,20 +91,13 @@ export default function App() {
 			<menu>
 				<MainMenu/>
 			</menu>
-			<article ref={(node)=> setScrollableWidget(node)}>
+			<article ref={articleRef} id="app-article">
 				<MainRoutes/>
-				{
-					// KeepAliveRouteList
-				}
-				{/* <KeepAlivePage path="/search"/> */}
-				{/* <CacheRouteComponent /> */}
-				
+
 				<div style={{height: 300}}></div>
 				<br/>
-				<Button onClick={()=> compile()}> compile </Button>
 				<Button onClick={()=> navigate("/test")}></Button>
-				
-				
+	
 			</article>
 		</div>
 		<footer>
@@ -100,9 +107,12 @@ export default function App() {
 		<AppInit/>
 		<AppToaster/>
 		
-		
 		{/* <Local/> */}
   </div>)
+}
+
+function AppSub() {
+	return <SubRoutes/>
 }
 
 function Local() {

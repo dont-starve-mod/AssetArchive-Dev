@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api"
-import { useCallback, useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { appWindow } from "@tauri-apps/api/window"
 import { save } from "@tauri-apps/api/dialog"
 
@@ -7,7 +7,7 @@ console.log("User Agent: ", navigator.userAgent)
 
 const DYN_ENCRYPT = "DYN_ENCRYPT"
 
-function checkEncryptResult(result){
+function checkEncryptResult(result: string | object){
   if (result === DYN_ENCRYPT){
     appWindow.emit("alert", {
       icon: "disable",
@@ -22,23 +22,76 @@ export function useOS() {
   return useMemo(()=> {
     const ua = navigator.userAgent.toLocaleLowerCase()
     return {
-      isMacOS: ua.indexOf("mac") != -1,
-      isWindows: ua.indexOf("win") != -1,
-      isLinux: ua.indexOf("linux") != -1,
+      isMacOS: ua.indexOf("mac") !== -1,
+      isWindows: ua.indexOf("win") !== -1,
+      isLinux: ua.indexOf("linux") !== -1,
     }
   }, [])
+}
+
+export function useMouseDrag(onMoveCb: (x: number, y: number)=> void) {
+  const down = useRef(false)
+  const onMouseMove = useCallback((e: MouseEvent)=> {
+    if (down.current){
+      const {movementX: x, movementY: y} = e
+      onMoveCb(x, y)
+    }
+  }, [])
+  const onMouseUp = useCallback(()=> {
+    down.current = false
+  }, [])
+  useEffect(()=> {
+    document.addEventListener<"mousemove">("mousemove", onMouseMove)
+    document.addEventListener<"mouseup">("mouseup", onMouseUp)
+    return ()=> {
+      document.removeEventListener<"mousemove">("mousemove", onMouseMove)
+      document.removeEventListener<"mouseup">("mouseup", onMouseUp)
+    }
+  },[])
+  const onMouseDown = ()=> {
+    down.current = true
+  }
+  return [onMouseDown]
+}
+
+export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true):
+[(e: React.WheelEvent)=> void, (e: React.MouseEvent)=> void, (e: React.MouseEvent)=> void]
+{
+  const [hover, setHover] = useState(false)
+  const onScroll = useCallback((e: React.WheelEvent)=> {
+    onScrollCb(e.deltaY)
+  }, [])
+
+  const onMouseEnter = useCallback(()=> setHover(true), [])
+  const onMouseLeave = useCallback(()=> setHover(false), [])
+
+  useEffect(()=> {
+    if (!lockGlobal) return ()=> {} /* do nothing */
+
+    const nodes = [
+      document.getElementById("app-article") as HTMLElement, // article
+       document.getElementsByTagName("body")[0], // body
+    ]
+// @ts-ignore 
+    nodes.forEach(({style})=> style.overflow = hover ? "hidden" : null)
+// @ts-ignore 
+    return ()=> nodes.forEach(({style})=> style.overflow = null)
+  }, [hover])
+
+  return [onScroll, onMouseEnter, onMouseLeave]
 }
 
 /** a strict lua ipc hook
  * error will auto emit to window
  */
-export function useLuaCall(api, fn, defaultParams = {}, deps = []) {
+type rLuaAPI = "appinit" | "load" | "setroot" | "copy" | "animproject" | "setconfig" | "getconfig"
+export function useLuaCall<T>(api: rLuaAPI, fn, defaultParams = {}, deps: any[] = []) {
   return useCallback((param={})=> {
-    if (defaultParams.debug){
-      console.log({...defaultParams, ...param})
+    if ((defaultParams as any).debug){
+      console.log("useLuaCall", {...defaultParams, ...param})
     }
-    invoke("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
-      response=> fn(response),
+    invoke<T>("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
+      (response: T)=> fn(response),
       error=> appWindow.emit("lua_call_error", error)
     )
   }, deps)
@@ -47,7 +100,7 @@ export function useLuaCall(api, fn, defaultParams = {}, deps = []) {
 /** an unstrict lua ipc hook 
  * error will print to console
 */
-export function useLuaCallLax(api, fn, defaultParams = {}, deps = []) {
+export function useLuaCallLax(api: rLuaAPI, fn, defaultParams = {}, deps = []) {
   return useCallback((param={})=> {
     invoke("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
       response=> fn(response),
@@ -75,7 +128,7 @@ export function useGenericHandleImageCopy() {
 /** copy tex element to clipborad
  * need `xml` and `tex`
  */
-export function useCopyTexElement(xml, tex) {
+export function useCopyTexElement(xml: string, tex: string) {
   const onCopy = useGenericHandleImageCopy()
   const fn = useLuaCall("load", onCopy, {type: "image", xml, tex, format: "copy"},
     [xml, tex])
@@ -85,7 +138,7 @@ export function useCopyTexElement(xml, tex) {
 /** copy atlas to clipborad
  * need `build` and `sampler`
  */
-export function useCopyBuildAtlas(build) {
+export function useCopyBuildAtlas(build: string) {
   const onCopy = useGenericHandleImageCopy()
   const fn = useLuaCall("load", onCopy, {type: "atlas", build, format: "copy"},
     [build])
@@ -95,7 +148,7 @@ export function useCopyBuildAtlas(build) {
 /** copy texture to clipboard
  * need `file`
  */
-export function useCopyTexture(file) {
+export function useCopyTexture(file: string) {
   const onCopy = useGenericHandleImageCopy()
   const fn = useLuaCall("load", onCopy, {type: "texture", file, format: "copy"},
     [file])
@@ -105,7 +158,7 @@ export function useCopyTexture(file) {
 /** copy symbol element to clipborad 
  * need `build` and `imghash` and `index`
 */
-export function useCopySymbolElement(build) {
+export function useCopySymbolElement(build: string) {
   const onCopy = useGenericHandleImageCopy()
   const fn = useLuaCall("load", onCopy, {type: "symbol_element", build, format: "copy"},
     [build])
@@ -119,7 +172,7 @@ const SAVE_FILTERS = {
 }
 
 /** common file save dialog */
-export function useSaveFileDialog(saveFn, filters, defaultPath) {
+export function useSaveFileDialog(saveFn, filters, defaultPath?: string) {
   const fn = useCallback(async ()=> {
     const filepath = await save({
       filters: typeof filters === "string" ? SAVE_FILTERS[filters.toUpperCase()] : filters,

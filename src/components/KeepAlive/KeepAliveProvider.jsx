@@ -1,15 +1,21 @@
-import { useReducer, useCallback } from "react"
+import { useReducer, useCallback, useRef } from "react"
 import { cacheActionTypes } from "./cacheActionTypes"
 import cacheContext from "./cacheContext"
+import { ResizableCache } from "./cacheCapacity"
 
 function cacheReducer(cacheStates, action) {
   let payload = action.payload
   let cacheId = payload.cacheId
   switch (action.type){
     case cacheActionTypes.SET_WIDGET:
-      return {
-        ...cacheStates,
-        ["@widget"]: payload.node,
+      if (cacheStates["@widget"] === payload.node){
+        return cacheStates
+      }
+      else {
+        return {
+          ...cacheStates,
+          ["@widget"]: payload.node,
+        }
       }
     case cacheActionTypes.CREATING:
       // console.log(Object.keys(cacheStates))
@@ -40,9 +46,9 @@ function cacheReducer(cacheStates, action) {
         }
       }
     case cacheActionTypes.DROP:
+      delete cacheStates[cacheId]
       return {
         ...cacheStates,
-        [cacheId]: undefined,
       }
     default:
       return cacheStates
@@ -50,8 +56,7 @@ function cacheReducer(cacheStates, action) {
 }
 
 export default function KeepAliveProvider(props) {
-  let [cacheStates, dispatch] = useReducer(cacheReducer, {})
-  window.cs = cacheStates
+  const [cacheStates, dispatch] = useReducer(cacheReducer, {})
   const setScrollableWidget = useCallback(({node})=> {
     dispatch({type: cacheActionTypes.SET_WIDGET, payload: {node}})
   }, [])
@@ -66,7 +71,14 @@ export default function KeepAliveProvider(props) {
   const drop = useCallback(({cacheId})=> {
     dispatch({type: cacheActionTypes.DROP, payload: {cacheId}})
   }, [])
-  return <cacheContext.Provider value={{cacheStates, setScrollableWidget, mount, cache, drop}}>
+  const cacheRecord = useRef({
+    assetPage: new ResizableCache(3, item=> item.forEach(cacheId=> drop({cacheId}))),
+    searchPage: new ResizableCache(3, item=> item.forEach(cacheId=> drop({cacheId}))),
+  }).current
+  const addRecord = useCallback(({namespace, cacheId})=> {
+    cacheRecord[namespace].set(cacheId, true)
+  }, [])
+  return <cacheContext.Provider value={{cacheStates, setScrollableWidget, mount, cache, drop, addRecord}}>
     {props.children}
     {
 

@@ -26,7 +26,7 @@ export default function AppToaster() {
     return ()=> unlisten.then(f=> f())
   }, [])
 
-  return <div style={{position: "fixed", top: 40, right: 30, backgroundColor: "pink"}}>
+  return <div style={{position: "fixed", top: 40, right: 30, backgroundColor: "pink", zIndex: 30}}>
     <OverlayToaster maxToasts={5} position={Position.TOP_RIGHT} ref={ref} usePortal={false}/>
   </div>
 }

@@ -18,6 +18,7 @@ require "entry"
 local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot
 local Provider =  require "assetprovider".Provider
+local AnimProjectManager = require "animproject".AnimProjectManager
 
 if Args then
 	require "cli"
@@ -46,6 +47,8 @@ IpcHandlers.Register("appinit", function()
 	GLOBAL.prov = Provider(GLOBAL.root)
 	GLOBAL.prov:DoIndex(false)
 	GLOBAL.prov:ListAsset()
+
+	GLOBAL.projectmanager = AnimProjectManager(APP_DATA_DIR/"animproject")
 
 	return {
 		success = true,
@@ -77,6 +80,10 @@ IpcHandlers.Register("copy", function(text)
 	if type(text) == "string" then
 		return Clipboard.WriteText(text)
 	end
+end)
+
+IpcHandlers.Register("animproject", function(param)
+	return GLOBAL.projectmanager:OnIpc(param)
 end)
 
 IpcHandlers.Register("debug_analyze", function()

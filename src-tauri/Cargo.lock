@@ -137,6 +137,7 @@ dependencies = [
  "clippers",
  "curl",
  "ffmpeg-sidecar",
+ "filenamify",
  "fmod",
  "image",
  "include-crypt-bytes",
@@ -1205,6 +1206,15 @@ checksum = "a3cf3a800ff6e860c863ca6d4b16fd999db8b752819c1606884047b73e468535"
 dependencies = [
  "memoffset 0.8.0",
  "rustc_version",
+]
+
+[[package]]
+name = "filenamify"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b781e8974b2cc71ac3c587c881c11ee5fe9a379f43503674e1e1052647593b4c"
+dependencies = [
+ "regex",
 ]
 
 [[package]]

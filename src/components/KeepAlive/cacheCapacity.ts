@@ -38,10 +38,11 @@ export class ResizableCache extends LRUCache<string, any> {
   private _capacity: number
   private _onDeleteItems? = (items: string[])=> {}
 
-  constructor(max: number) {
+  constructor(max: number, fn: (item: string[])=> any) {
     super({max: 9999})
     // this._size = 0
     this._capacity = max
+    this.setOnDeleteItemsFn(fn)
   }
   setOnDeleteItemsFn(fn: (item: string[])=> any) {
     this._onDeleteItems = fn
@@ -65,7 +66,6 @@ export class ResizableCache extends LRUCache<string, any> {
   }
 
   set(k: string, v: any, setOptions?: LRUCache.SetOptions<string, any, unknown> | undefined): this {
-    console.log("set", k, v)
     super.set(k, v, setOptions)
     this.checkCapacity()
     return this
@@ -81,24 +81,6 @@ export class ResizableCache extends LRUCache<string, any> {
   get capacity() {
     return this._capacity
   }
-}
-
-// const cache: {[K in pageCacheNameSpace]: ResizableCache} = {
-//   searchPage: new ResizableCache(9999),
-//   assetPage: new ResizableCache(9999),
-// }
-
-// export function setCacheCapacity(name: capacityChoice) {
-//   Object.entries(cache).forEach(([type, cache])=> {
-//     cache.resize(CAPACITY[name][type])
-//   })
-// }
-
-export function usePageCache(nameSpace: pageCacheNameSpace, deleteFn?: any) {
-  const max = CAPACITY["default"][nameSpace] && 1 /* TODO: use redux */
-  const cache = useRef(new ResizableCache(max)).current
-  cache.setOnDeleteItemsFn(deleteFn)
-  return { cache }
 }
 
 export function useCacheCapacity(nameSpace: pageCacheNameSpace, profile: capacityChoice) {
