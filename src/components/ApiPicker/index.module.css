@@ -1,0 +1,15 @@
+.box {
+  width: 320px;
+  height: 420px;
+  padding: 10px;
+  overflow: scroll;
+  overscroll-behavior: none;
+}
+
+.box h6 {
+  margin-top: 5px;
+}
+
+.api-group {
+  padding: 5px;
+}

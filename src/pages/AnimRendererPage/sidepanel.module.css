@@ -1,0 +1,28 @@
+.side-panel {
+  position: absolute;
+  top: 0;
+  background-color: pink;
+  min-width: 200px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100vh;
+  cursor: col-resize;
+  z-index: 20;
+  background-color: transparent;
+  transition: background-color .2s linear;
+}
+
+.divider:hover {
+  background-color: rgb(116, 43, 226);
+}
+
+.control-panel-container {
+  height: 100%;
+  overflow-y: auto;
+}

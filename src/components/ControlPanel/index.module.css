@@ -1,0 +1,17 @@
+.header {
+  position: relative;
+  padding: 4px;
+  background-color: rgb(236, 232, 238);
+  height: 28px;
+  cursor: pointer;
+}
+
+.header span {
+  font-weight: 500;
+}
+
+.content {
+  overflow-y: auto;
+  background-color: #eee;
+  padding: 0 10px;
+}

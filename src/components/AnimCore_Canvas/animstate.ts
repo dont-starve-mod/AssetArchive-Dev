@@ -6,7 +6,7 @@ type hash = string | number
 type percent = number
 type facing = string | number
 type ApiArgType = string | boolean | number | hash | percent | null
-export {hash, percent, facing, ApiArgType}
+export type {hash, percent, facing, ApiArgType}
 
 export interface BasicApi {
   name: string,
@@ -30,6 +30,11 @@ export interface SetBankAndPlayAnimation extends BasicApi {
   args: [hash, string],
 }
 
+export interface IgnoredApi extends BasicApi {
+  name: "SetPercent" | "Pause" | "Resume" | "SetDeltaTimeMultiplier",
+  args: any[],
+}
+
 export interface SymbolApi extends BasicApi {
   name: "OverrideSymbol" | "OverrideSkinSymbol",
   args: [hash, string, hash],
@@ -45,10 +50,10 @@ export interface SymbolColourApi extends BasicApi {
   args: [hash, percent, percent, percent, percent]
 }
 
-export type Api = SingleStringArgApi | SingleHashArgApi | SetBankAndPlayAnimation | SymbolApi | ColourApi | SymbolColourApi
+export type Api = SingleStringArgApi | SingleHashArgApi | SetBankAndPlayAnimation | SymbolApi | ColourApi | SymbolColourApi | IgnoredApi
 
 // group I
-enum SkeletonApi {
+export enum SkeletonApi {
   "SetBank",
   "SetBuild",
   "SetSkin",
@@ -57,7 +62,7 @@ enum SkeletonApi {
 }
 
 // group II
-enum SwapApi {
+export enum SwapApi {
   "Show", 
   "Hide", 
   "ShowSymbol", 
@@ -71,7 +76,7 @@ enum SwapApi {
 }
 
 // group III
-enum RenderApi {
+export enum RenderApi {
   "SetMultColour",
   "SetAddColour",
   "SetSymbolMultColour",
@@ -79,9 +84,9 @@ enum RenderApi {
 }
 
 const ALL_API = {
-  ...RenderApi,
   ...SkeletonApi,
   ...SwapApi,
+  ...RenderApi,
 }
 
 const compareHash = (a: hash, b: hash)=> {

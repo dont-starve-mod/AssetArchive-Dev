@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState, useReducer, useMemo } 
 import { Alert, Button, ButtonGroup, Card, H3, H5, Icon, PopoverInteractionKind } from '@blueprintjs/core'
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
 import { useLuaCall } from '../../hooks'
-// @ts-ignore
 import style from './style.module.css'
 import { Popover2 } from '@blueprintjs/popover2'
 import { EditableText } from '@blueprintjs/core'

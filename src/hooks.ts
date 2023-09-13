@@ -29,12 +29,12 @@ export function useOS() {
   }, [])
 }
 
-export function useMouseDrag(onMoveCb: (x: number, y: number)=> void) {
+export function useMouseDrag(onMoveCb: (x: number, y: number, px: number, py: number)=> void) {
   const down = useRef(false)
   const onMouseMove = useCallback((e: MouseEvent)=> {
     if (down.current){
-      const {movementX: x, movementY: y} = e
-      onMoveCb(x, y)
+      const {movementX: x, movementY: y, clientX: px, clientY: py} = e
+      onMoveCb(x, y, px, py)
     }
   }, [])
   const onMouseUp = useCallback(()=> {

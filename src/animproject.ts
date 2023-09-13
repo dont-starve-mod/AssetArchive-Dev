@@ -1,5 +1,5 @@
 import { Api } from "./components/AnimCore_Canvas/animstate"
-export { Api }
+export type { Api }
 
 export interface AnimProject {
   id: string,
