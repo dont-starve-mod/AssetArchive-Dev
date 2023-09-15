@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { Children, useState } from 'react'
 import { Button, ButtonGroup, ButtonProps, Collapse, H5, Icon, IconName } from '@blueprintjs/core'
 import style from './index.module.css'
 import ApiPicker from '../ApiPicker'
+import ApiList from '../ApiList'
 import { Popover2 } from '@blueprintjs/popover2'
 
 interface ActionProps {
@@ -12,7 +13,8 @@ interface ActionProps {
 
 interface IProps {
   title: string,
-  actions?: Array<ActionProps | JSX.Element>,
+  actions?: Array<ActionProps | React.ReactNode>,
+  children?: React.ReactNode,
 }
 export default function ControlPanel(props: IProps) {
   const {title, actions} = props
@@ -44,10 +46,9 @@ export default function ControlPanel(props: IProps) {
       </div>
       <Collapse isOpen={unfold} keepChildrenMounted={true}>
         <div className={style["content"]}>
-          <p>2333</p>
-          <p>2333</p>
-          <p>2333</p>
-          <div style={{height: 300}}/>
+          {
+            props.children
+          }
         </div>
       </Collapse>
     </div>
@@ -60,13 +61,14 @@ function ApiPanel() {
       title="指令面板"
       actions={[
         {icon: "translate", cb: console.log},
-        {icon: "plus", cb: console.log},
         <div onClick={e=> e.stopPropagation()}>
           <Popover2 minimal position='right' content={<ApiPicker />} >
             <SmallButton icon={"plus"}/>
           </Popover2>
         </div>
-      ]}/>
+      ]}>
+      <ApiList />
+    </ControlPanel>
   </>
 }
 

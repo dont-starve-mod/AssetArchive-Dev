@@ -239,6 +239,7 @@ end
 
 
 function Provider:ListAsset()
+	timeit(true)
 	for _,v in ipairs((self.root/"anim"):iter_file_with_extension(".zip"))do
 		table.insert(self.allzipfile, Asset("animzip", {file = "anim/"..v:name()}))
 	end
@@ -315,6 +316,8 @@ function Provider:ListAsset()
 		alltexelement = self.alltexelement,
 		alltexture = self.alltexture,
 	})
+	print("List assets ->")
+	timeit()
 end
 
 function Provider:ResolveInvImage(file)

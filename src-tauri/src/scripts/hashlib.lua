@@ -57,12 +57,12 @@ function HashLib:Size()
     return GetTableSize(self.map_number)
 end
 
-function HashLib:Dumps()
-    local temp = {}
+function HashLib:Serialize()
+    local result = {}
     for k,v in pairs(self.map_string)do
-        table.insert(temp, {k, v})
+        table.insert(result, {k, v})
     end
-    return json.encode_compliant(temp)
+    return result
 end
 
 function HashLib:ParseFile(f)

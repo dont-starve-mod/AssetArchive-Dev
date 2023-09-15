@@ -19,12 +19,12 @@ export default function SidePanel(props: IProps) {
     <div style={{position: "relative"}}>
       <div className={style["side-panel"]} style={{width}}>
         <div className={style["divider"]} 
-          style={{width: 4, left: width - 2}}
+          style={{width: 6, left: width - 3}}
           onMouseDown={onMouseDown}
         />
         <div className={style["control-panel-container"]}>
           <ControlPanel.ApiPanel/>
-          <ControlPanel.ApiPanel/>
+          {/* <ControlPanel.ApiPanel/> */}
         </div>
 
       </div>

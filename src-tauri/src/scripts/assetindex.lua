@@ -126,7 +126,8 @@ function AssetIndex:DoIndex(ignore_cache)
 	self.indexcache:Save()
 	Persistant.Hash:Update(HashLib.map_string):Save()
 
-	IpcEmitEvent("hashmap", HashLib:Dumps())
+	IpcEmitEvent("anim_predictable_data", json.encode(
+		self:Ipc_GetPredictableData()))
 
 	local t = now() - t
 	if t > 200 then
@@ -174,6 +175,35 @@ function AssetIndex:GetAnimFileList(bankhash, animname)
 	if data ~= nil then
 		return data.files
 	end
+end
+
+function AssetIndex:ListBuildNames()
+	local result = {}
+	for k in pairs(self.buildinfo)do
+		table.insert(result, k)
+	end
+	return result
+end
+
+function AssetIndex:ListAnimations()
+	local result = {}
+	for k,v in pairs(self.animinfo)do
+		local bank = {bank = k, animation = {}}
+		table.insert(result, bank)
+		for name, data in pairs(v) do
+			table.insert(bank.animation, {name = name, facings = table.getkeys(data.facings)})
+		end
+	end
+	return result
+end
+
+-- return a list of build name, bank name, bank hash & animation name, helpful for renderer
+function AssetIndex:Ipc_GetPredictableData()
+	return {
+		build = self:ListBuildNames(), -- build[]
+		animation = self:ListAnimations(), -- {bank, animation: {name, facings: byte[] }[] }[]
+		hashmap = HashLib:Serialize(), -- [string, hash][]
+	}
 end
 
 return AssetIndex

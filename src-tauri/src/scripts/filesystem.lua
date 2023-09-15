@@ -18,7 +18,7 @@
 --
 --   read(len) -> string | nil
 --     read a string from file with almost length
---     note: the returned string may not have enough length as `len1`
+--     note: the result string may not have enough length as `len1`
 --     return nil if reach EOF
 --
 --   read_exact(len) -> string | nil 

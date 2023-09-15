@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import SidePanel from './sidepanel'
 import AnimationPanel from './animationpanel'
 import { useParams } from 'react-router-dom'
+import AppRendererInit from '../../components/AppRendererInit'
 
 interface IProps {
   
@@ -24,6 +25,7 @@ export default function AnimRendererPage(props: IProps) {
         <SidePanel width={panelWidth} onChangeWidth={(v)=> setPanelWidth(v)}/>
         <AnimationPanel left={panelWidth}/>
       </div>
+      <AppRendererInit/>
     </>
   )
 }

@@ -11,7 +11,7 @@
 }
 
 .content {
-  overflow-y: auto;
+  overflow: auto;
   background-color: #eee;
   padding: 0 10px;
 }

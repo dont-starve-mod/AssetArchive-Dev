@@ -35,8 +35,10 @@ export default function AppInit() {
             worker.postMessage({assets})
             worker._ready = true
           }),
-          await globalListenOnce("hashmap", ({payload})=> {
-            JSON.parse(payload).forEach(([k,v])=> {
+          await globalListenOnce("anim_predictable_data", ({payload})=> {
+            const data = JSON.parse(payload)
+            const {hashmap} = data
+            hashmap.forEach(([k,v])=> {
               window.hash.set(v, k)
             })
           }),
@@ -62,7 +64,6 @@ export default function AppInit() {
       }
     }
     let handlers = init()
-    console.log(handlers)
     return ()=> handlers.then(fns=> fns.forEach(f=> f()))
   }, [])
 
@@ -81,7 +82,7 @@ export default function AppInit() {
   </>
 }
 
-function ErrorHandler(){
+export function ErrorHandler(){
   const [initError, setInitError] = useState()
   const [luaError, setLuaError] = useState()
   const [alert, setAlertData] = useState({})
@@ -176,3 +177,5 @@ function ErrorHandler(){
     </Alert>
   </>
 }
+
+export {}

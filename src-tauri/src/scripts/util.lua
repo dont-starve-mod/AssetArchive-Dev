@@ -43,6 +43,14 @@ function table.merge(...)
 	return result
 end
 
+function table.getkeys(t)
+	local result = {}
+	for k in pairs(t)do
+		table.insert(result, k)
+	end
+	return result
+end
+
 function string.startswith(str, neddle)
     return str:sub(1, #neddle) == neddle
 end

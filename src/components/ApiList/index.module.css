@@ -1,0 +1,15 @@
+.api-list {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.input {
+  margin: 5px 0;
+  margin-right: 10px;
+  display: inline-block!important;
+  /* width: 85%; */
+}
+
+.inline {
+  display: inline-block!important;
+}

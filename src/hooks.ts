@@ -84,8 +84,8 @@ export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true
 /** a strict lua ipc hook
  * error will auto emit to window
  */
-type rLuaAPI = "appinit" | "load" | "setroot" | "copy" | "animproject" | "setconfig" | "getconfig"
-export function useLuaCall<T>(api: rLuaAPI, fn, defaultParams = {}, deps: any[] = []) {
+type rLuaAPI = "appinit" | "load" | "setroot" | "copy" | "animproject.init" | "animproject" | "setconfig" | "getconfig"
+export function useLuaCall<T>(api: rLuaAPI, fn: (response: T)=> void, defaultParams = {}, deps: any[] = []) {
   return useCallback((param={})=> {
     if ((defaultParams as any).debug){
       console.log("useLuaCall", {...defaultParams, ...param})

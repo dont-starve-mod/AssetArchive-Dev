@@ -12,7 +12,7 @@
 }
 
 .recent-project-item:hover {
-  /* background-color: #eee; */
+  background-color: transparent;
 }
 
 .recent-project-item .link {

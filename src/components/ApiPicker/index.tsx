@@ -11,7 +11,8 @@ interface IProps {
 export default function ApiPicker(props: IProps) {
   return (
     <div className={style["box"]}>
-      <InputGroup placeholder='...' 
+      <InputGroup placeholder='TODO:还没写好代码的输入框...' 
+        inputRef={ref=> ref?.select()}
         round small 
         leftIcon={"search"} spellCheck={false}
         style={{width: "80%", marginBottom: 10}}
@@ -57,8 +58,17 @@ export default function ApiPicker(props: IProps) {
 }
 
 function ApiButton(props: {name: Api["name"]}) {
+  const onDragStart = (e: React.DragEvent)=> {
+    e.dataTransfer.setData("plain/text", JSON.stringify({name: props.name}))
+    // console.log(e.dataTransfer)
+    // console.log(e.dataTransfer.getData("plain/text"))
+  }
   return (
-    <div style={{display: "inline-block", margin: 2}}>
+    <div style={{display: "inline-block", margin: 2}}
+      draggable={true}
+      onDragStart={onDragStart}
+      
+    >
       <Tag interactive minimal>
         <span className='bp4-monospace-text'>
           {props.name}

@@ -34,7 +34,7 @@ IpcHandlers.Register("appinit", function()
 	--   allconfig
 	--   root
 	--   index_progress 0..100
-	--   hash
+	--   anim_predictable_data
 	--   assets
 	
 	IpcEmitEvent("allconfig", Persistant.Config:Dumps()) -- get config first
@@ -80,6 +80,12 @@ IpcHandlers.Register("copy", function(text)
 	if type(text) == "string" then
 		return Clipboard.WriteText(text)
 	end
+end)
+
+IpcHandlers.Register("animproject.init", function(param)
+	return {
+		anim_predictable_data = GLOBAL.prov.index:Ipc_GetPredictableData(),
+	}
 end)
 
 IpcHandlers.Register("animproject", function(param)

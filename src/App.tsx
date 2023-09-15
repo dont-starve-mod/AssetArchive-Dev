@@ -18,7 +18,7 @@ import cacheContext from './components/KeepAlive/cacheContext'
 import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 
-FocusStyleManager.onlyShowFocusOnTabs()
+// FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
@@ -123,3 +123,4 @@ function Local() {
 	}, [plus])
 	return <p>{JSON.stringify(window.config)}</p>
 }
+
