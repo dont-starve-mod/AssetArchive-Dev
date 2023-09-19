@@ -19,7 +19,7 @@ interface IProps {
 export default function ControlPanel(props: IProps) {
   const {title, actions} = props
   const [showTools, setShowTools] = useState(false)
-  const [unfold, setUnfold] = useState(false)
+  const [unfold, setUnfold] = useState(true)
   return (
     <div style={{"overscrollBehavior": "none"}} onMouseEnter={()=> setShowTools(true)} onMouseLeave={()=> setShowTools(false)}>
       <div className={style["header"]} onClick={()=> setUnfold(v=> !v)}>

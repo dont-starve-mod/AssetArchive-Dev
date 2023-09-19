@@ -1,11 +1,10 @@
 import React from 'react'
-import { Menu, Button, MenuDivider, MenuItem } from '@blueprintjs/core'
+import { Menu, MenuDivider, MenuItem, IconName } from '@blueprintjs/core'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-function MenuNavLink(props) {
+function MenuNavLink(props: {icon: IconName, text: string, to: string}) {
   const navigate = useNavigate()
   const path = useLocation().pathname
-
   const { icon, text, to } = props
   return <MenuItem
     icon={icon}
@@ -23,9 +22,8 @@ export default function MainMenu() {
     <MenuNavLink icon="build" to="/modtools" text="模组工具" />
     <MenuNavLink icon="bug" to="/report-bug" text="反馈bug" />
     <MenuDivider />
-
     <MenuNavLink icon="cog" to="/settings" text="设置"/>
-    <MenuNavLink icon="heart" to="/about" text="关于"/>
+    {/* <MenuNavLink icon="heart" to="/about" text="关于"/> */}
     {/* <MenuItem text="Settings..." icon="cog" intent="primary" >
       <MenuItem icon="tick" text="Save on edit" />
       <MenuItem icon="blank" text="Compile on edit" />

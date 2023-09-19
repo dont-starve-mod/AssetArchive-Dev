@@ -234,3 +234,25 @@ export function useIntersectionObserver({ref, threshold = 0, rootMargin = "100px
 
   return { visible, appeared }
 }
+
+/** dragger utils */
+type dragDataKey = "source" | "payload"
+const getDragData = async (key: dragDataKey)=> {
+  return invoke<string>("get_drag_data", { key })
+}
+
+const setDragData = async (key: dragDataKey, value: string)=> {
+  return invoke("set_drag_data", { key, value })
+}
+
+const clearDragData = async ()=> {
+  return invoke("clear_drag_data")
+}
+
+export function useDragData() {
+  return {
+    get: getDragData, 
+    set: setDragData,
+    clear: clearDragData,
+  }
+}

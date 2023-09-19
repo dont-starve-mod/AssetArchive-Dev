@@ -15,13 +15,16 @@
     "@blueprintjs/select": "4.9.24",
     "@reduxjs/toolkit": "^1.9.5",
     "@tauri-apps/api": "^1.2.0",
+    "@types/uuid": "^9.0.4",
+    "comlink": "^4.4.1",
     "fuse.js": "^6.6.2",
     "lru-cache": "^10.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^8.1.2",
     "react-router-dom": "^6.11.2",
-    "redux": "^4.2.1"
+    "redux": "^4.2.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.2.3",
@@ -31,6 +34,7 @@
     "@vitejs/plugin-react": "^3.0.0",
     "prop-types": "^15.8.1",
     "typescript": "^4.9.5",
-    "vite": "^4.2.1"
+    "vite": "^4.2.1",
+    "vite-plugin-comlink": "^3.0.5"
   }
 }

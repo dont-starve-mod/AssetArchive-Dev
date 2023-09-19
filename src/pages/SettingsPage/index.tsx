@@ -20,6 +20,8 @@ export default function Settings() {
     setVolume,
     setVolume)
   
+  const [numResults, setNumResults] = useState(100)
+  
   const [resolution, setResolution] = useState()
   const [getResolutionConfig, setResolutionConfig] = useConfig("resolution",
     setResolution,
@@ -55,13 +57,15 @@ export default function Settings() {
     <H4>搜索</H4>
     <RadioGroup
       label="搜索结果的最大显示数量"
-      selectedValue={"1000"}
+      onChange={e=> setNumResults(Number(e.currentTarget.value))}
+      selectedValue={numResults}
       inline={true}
     >
-      <Radio label="500" value="500"/>
-      <Radio label="1000" value="1000"/>
+      <Radio label="100" value={100}/>
+      <Radio label='500' value={500}/>
+      <Radio label="1000" value={1000}/>
       <Radio label={<Tooltip2 content={"展示太多搜索结果会导致卡顿，请谨慎开启"} placement="right">
-        <>无上限 <Icon icon="small-info-sign"/></></Tooltip2>} value="inf"/>
+        <>无上限 <Icon icon="small-info-sign"/></></Tooltip2>} value={-1}/>
     </RadioGroup>
     <hr/>
     <H4>画质</H4>

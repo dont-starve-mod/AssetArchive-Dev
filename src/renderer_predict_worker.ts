@@ -1,32 +1,41 @@
-import Searcher from "./asyncsearcher"
-import { PredictHelper } from "./renderer_predict"
+/// <reference lib="webworker" />
+declare const self: DedicatedWorkerGlobalScope
 
-type EventType = "init" | "build" | "bank" | "animation"
-// let PredictHelper = require("./renderer_predict")
+import { PredictHelper, PredictableData } from "./renderer_predict"
+
 let predict: PredictHelper | null = null
 
-self.onmessage = (event: {data: {type: EventType, payload: any}}) => {
-  const {type, payload}  = event.data
-  if (type === "init") {
-    predict = new PredictHelper(payload) // TODO: init by pre-generated index
+export const init = (data: PredictableData)=> {
+  predict = new PredictHelper(data)
+}
+
+export const search = (
+  type: "build" | "bank" | "animation", 
+  value: string | {bank: "string", animation: "string"})=> {
+  
+  if (predict === null)
+    return []
+
+  switch (type) {
+    case "build":
+      return predict.predictBuild(value as string)
+    case "bank":
+      return predict.predictBank(value as string)
+    case "animation":
+      const {bank, animation} = value as any
+      return predict.predictAnimation(bank, animation)
   }
-  else if (predict === null) {
-    throw Error("PredictHelper is null")
-  }
-  // else if (type === "build" || type === "bank" || type == "animation" ){
-  else if (type === "build") {
-    const result = predict.predictBuild(payload as string)
-    self.postMessage(result)
-  }
-  else if (type === "bank") {
-    const result = predict.predictBank(payload as string)
-    self.postMessage(result)
-  }
-  else if (type === "animation") {
-    const result = predict.predictAnimation(payload.bank, payload.animation)
-    self.postMessage(result)
-  }
-  else {
-    throw Error("Invalid message type: " + type)
-  }
+}
+
+export const test = () => "Worker works!"
+
+const sleep = (time: number)=> new Promise(
+  (resolve)=> setTimeout(resolve, time))
+
+export const timeout = async ()=> {
+  console.log("timeout")
+  await sleep(2000)
+  console.log("tick1")
+  await sleep(2000)
+  console.log("tick2")
 }

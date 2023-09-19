@@ -11,13 +11,6 @@ export default function AnimationPanel(props: IProps) {
     <div className={style["animation-panel"]} style={{left, width: `calc(100vw - ${left}px)`}}>
       Animation233
 
-      <Suggest2 
-      // items={[...window.predict.build]}
-      items={[...new Array(1000)].map(v=> ({value: v}))}
-      onItemSelect={(v)=> console.log("SELECT", v)}
-      itemRenderer={Item}
-      
-      />
     </div>
   )
 }

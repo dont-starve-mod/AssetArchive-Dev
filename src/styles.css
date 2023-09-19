@@ -14,10 +14,6 @@
   -webkit-text-size-adjust: 100%;
 }
 
-body {
-  overscroll-behavior: none;
-}
-
 :root {
   /* indigo */
   --primary-color-1: #5642A6;

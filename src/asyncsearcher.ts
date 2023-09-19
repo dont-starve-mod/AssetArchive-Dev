@@ -1,37 +1,52 @@
+import * as Comlink from "comlink"
+
 interface WorkerExt {
-  isTerminated?: boolean
+  isTerminated?: boolean,
+  init?: (data: any)=> void,
+  search?: any,
 }
 
+type WorkerFileName = "renderer_predict_worker"
+
 export default class Searcher {
-  url: string
+  url: WorkerFileName
   worker: Worker & WorkerExt
   state: "init" | "idle" | "working" | "terminated" | "error" 
   timeout: number
-  intervalTimer: any
 
   initPayload?: ()=> any
 
-  constructor(url: string, timeout?: number) {
+  constructor(url: WorkerFileName, timeout?: number) {
     this.url = url
     this.state = "init"
-    this.timeout = timeout || 10*1000
-    this.intervalTimer = -1
+    this.timeout = timeout || 10*1000 // do not work actually...
   }
 
-  getWorker(): Worker & WorkerExt {
+  newWorker(): Worker & WorkerExt {
+    if (this.url === "renderer_predict_worker"){
+      // const worker = new Worker(new URL("./renderer_predict_worker", import.meta.url), {type: "module"})
+      // this.worker = Comlink.wrap(worker)
+      this.worker = new ComlinkWorker(new URL("./renderer_predict_worker", import.meta.url)) as any
+    }
+    else {
+      throw Error("Invalid url: " + this.url)
+    }
+    this.worker.init(this.initPayload())
+    return this.worker
+  }
+
+  getWorker() {
+    return this.worker || this.newWorker()
+    // TODO: fix this
     if (this.state === "idle") {
       return this.worker
     }
     else if (this.state === "init" || this.state === "terminated") {
-      this.worker = new Worker(this.url, {type: "module"})
-      this.worker.postMessage({type: "init", payload: this.initPayload()})
-      return this.worker
+      return this.newWorker()
     }
     else if (this.state === "working" || this.state === "error") {
       this.termiate()
-      this.worker = new Worker(this.url, {type: "module"})
-      this.worker.postMessage({type: "init", payload: this.initPayload()})
-      return this.worker
+      return this.newWorker()
     }
   }
 
@@ -40,45 +55,38 @@ export default class Searcher {
   }
 
   async search(type: string, payload: any): Promise<any[]> {
-    return new Promise((resolve, reject)=> {
+    return new Promise(async (resolve, reject)=> {
       if (!this.ready) return resolve([])
-
-      let timer = 0
-      let loops = this.timeout / 100
       let worker = this.getWorker()
       this.state = "working"
-      worker.onerror = (e)=> {
-        clearInterval(timer)
-        console.error("Worker error:\n", e)
-        this.state = "error"
-        reject("Worker error")
-      }
-      worker.onmessage = (e)=> {
-        clearInterval(timer)
-        console.log("MESSAGE", type, payload, e)
-        this.state = "idle"
-        resolve(e)
-      }
-      worker.postMessage({type, payload})
+      setTimeout(()=> {
+        if (this.state === "working" && this.worker === worker) {
+          console.log("Worker timeout, terminate.")
+          this.termiate()
+          resolve([])
+        }
+      }, this.timeout)
 
-      timer = Number(setInterval(()=> {
-        if (worker.isTerminated) {
-          clearInterval(timer)
-          reject("Terminated")
+      worker.search(type, payload).then(
+        response=> { 
+          resolve(response)
+          this.state = "idle"
+        },
+        error=> {
+          reject(error)
+          console.error(error)
+          this.state = "error"
         }
-        loops -= 1
-        if (loops <= 0){
-          clearInterval(timer)
-          reject("Timeout")
-        }
-      }, 100))
+      )
     })
   }
 
   termiate() {
+    // TODO: it's hard to impl when using Comlink & Vite, do it if needed later
     if (this.worker) {
-      this.worker.terminate()
-      this.worker.isTerminated = true
+      console.log("Terminate", this.worker)
     }
   }
 }
+
+export const predict = new Searcher("renderer_predict_worker")

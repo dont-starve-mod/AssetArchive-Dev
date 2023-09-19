@@ -4,8 +4,8 @@ import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
 import { ErrorHandler} from '../AppInit'
 import { PredictableData } from '../../renderer_predict'
-import { PREDICT } from '../../workers'
 import { useLuaCall } from '../../hooks'
+import { predict } from '../../asyncsearcher'
 
 declare global {
   interface Window {
@@ -24,7 +24,7 @@ window.hash = new Map()
 export default function AppRendererInit() {
   const initCall = useLuaCall<string>("animproject.init", (result)=> {
     const data = JSON.parse(result)
-    PREDICT.initPayload = ()=> {
+    predict.initPayload = ()=> {
       return data.anim_predictable_data as PredictableData
     }
   })

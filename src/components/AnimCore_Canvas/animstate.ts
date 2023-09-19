@@ -1,6 +1,7 @@
 import { byte2facing, facing2byte } from "../../facing"
 import smallhash from "../../smallhash"
 import { FrameList, AnimationData, BuildData } from "./animcore"
+import { v4 as uuidv4 } from "uuid"
 
 type hash = string | number
 type percent = number
@@ -12,6 +13,7 @@ export interface BasicApi {
   name: string,
   args?: ApiArgType[],
   disabled?: true,
+  uuid?: string,
 }
 
 export interface SingleStringArgApi extends BasicApi {
@@ -167,8 +169,14 @@ export class AnimState {
   get facing(){ return this._facing }
   set facing(v) { this._facing = facing2byte(v) }
 
+  getApiList() {
+    return this.api_list
+  }
+
   // api handlers
   insert(api: Api, index?: number): this {
+    if (api.uuid === undefined)
+      api.uuid = uuidv4() // generate a new uuid  for React key
     if (typeof index == "number")
       this.api_list.splice(index, 0, api)
     else
@@ -192,14 +200,23 @@ export class AnimState {
   }
 
   rearrange(from: number, to: number): this {
+    console.log("rearrange!!", from, to)
+    if (from === to) return this
     const len = this.api_list.length
     if (from < 0 || to < 0)
-      throw Error(`Invalid index (must be positive, got ${from} & ${to}`)
-    if (from >= len || to >= len)
-      throw Error(`Invalid index (From = ${from}, To = ${to}`)
-    const [api] = this.api_list.splice(from, 1)
-    this.insert(api, to)
-    return this
+      throw Error(`Invalid index (must be positive, got ${from} & ${to})`)
+    if (from > len || to > len)
+      throw Error(`Invalid index (From = ${from}, To = ${to})`)
+    if (from > to) {
+      const [api] = this.api_list.splice(from, 1)
+      this.insert(api, to)
+      return this
+    }
+    else {
+      const [api] = this.api_list.splice(from, 1)
+      this.insert(api, to - 1)
+      return this
+    }
   }
 
   clear(): this {

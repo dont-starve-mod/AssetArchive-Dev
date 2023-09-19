@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Popover2 } from '@blueprintjs/popover2'
 import style from './index.module.css'
 import { H6, InputGroup, Tag } from '@blueprintjs/core'
 import { Api, SkeletonApi, SwapApi, RenderApi } from '../AnimCore_Canvas/animstate'
+import { useDragData } from '../../hooks'
+import { appWindow } from '@tauri-apps/api/window'
 
 interface IProps {
 
@@ -58,16 +60,23 @@ export default function ApiPicker(props: IProps) {
 }
 
 function ApiButton(props: {name: Api["name"]}) {
-  const onDragStart = (e: React.DragEvent)=> {
-    e.dataTransfer.setData("plain/text", JSON.stringify({name: props.name}))
-    // console.log(e.dataTransfer)
-    // console.log(e.dataTransfer.getData("plain/text"))
+  const dragData = useDragData()
+
+  const onDragStart = useCallback((e: React.DragEvent)=> {
+    dragData.set("source", "API_PICKER")
+    dragData.set("payload", JSON.stringify({name: props.name}))
+  }, [props.name])
+
+  const onClick = ()=> {
+    window.alert("CLICK")
   }
+
   return (
     <div style={{display: "inline-block", margin: 2}}
       draggable={true}
       onDragStart={onDragStart}
-      
+      onDragEnd={()=> appWindow.emit("global_dragend")}
+      onClick={onClick}
     >
       <Tag interactive minimal>
         <span className='bp4-monospace-text'>

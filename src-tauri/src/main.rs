@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::os::unix::process::CommandExt;
 use std::{fs, result};
 use std::path::PathBuf;
@@ -62,6 +63,11 @@ impl LuaEnv {
     }
 }
 
+#[derive(Default)]
+struct FE_Communi {
+    drag_data: Mutex<HashMap<String, String>>,
+}
+
 struct Ffmpeg {
     inner: Mutex<FfmpegManager>,
 }
@@ -79,6 +85,7 @@ fn main() {
     tauri::Builder::default()
         .manage(LuaEnv::new())
         .manage(Ffmpeg::new())
+        .manage(FE_Communi::default())
         .setup(move|app| {
             lua_init(app)?;
             Ok(())
@@ -89,6 +96,10 @@ fn main() {
             lua_call, 
             lua_interrupt,
             select_file_in_folder,
+            set_drag_data,
+            get_drag_data,
+            clear_drag_data,
+            get_drag_data_all,
         ])
         // .menu(menu())
         .run(tauri::generate_context!())
@@ -203,6 +214,28 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
             other=> format!("{:?}", other),
         }
     )
+}
+
+#[tauri::command(async)]
+fn get_drag_data(state: tauri::State<'_, FE_Communi>, key: String) -> Option<String> {
+    state.drag_data.lock().unwrap().get(&key).map(|s| s.to_string())
+}
+
+#[tauri::command(async)]
+fn get_drag_data_all(state: tauri::State<'_, FE_Communi>) -> HashMap<String, String> {
+    state.drag_data.lock().unwrap().clone()
+}
+
+#[tauri::command(async)]
+fn set_drag_data(state: tauri::State<'_, FE_Communi>, key: String, value: String) {
+    state.drag_data.lock().unwrap().insert(key, value);
+    ()
+}
+
+#[tauri::command(async)]
+fn clear_drag_data(state: tauri::State<'_, FE_Communi>) {
+    state.drag_data.lock().unwrap().clear();
+    ()
 }
 
 #[tauri::command]

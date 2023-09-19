@@ -1,6 +1,8 @@
 import Fuse from 'fuse.js'
 import smallhash from './smallhash'
 
+export type FuseResult<T> = Fuse.FuseResult<T>
+
 export type AnimationBank = {
   bank: number,
   animation: AnimationInfo[],
@@ -29,7 +31,7 @@ export class PredictHelper {
   searchOptions: Fuse.IFuseOptions<any> = {
     includeScore: true,
     includeMatches: true,
-    threshold: 0.3,
+    threshold: 0.5,
     ignoreLocation: true,
   }
 
@@ -43,12 +45,6 @@ export class PredictHelper {
       { ...this.searchOptions, keys: ["build"] }
     )
 
-    const lengths = {}
-    data.build.forEach(build=> lengths[build.length] = (lengths[build.length] || 0) + 1)
-    console.log(lengths)
-    console.log(data.build.length)
-    
-
     this.bankSearcher = new Fuse(
       data.animation.map(({bank})=> ({ bank: this.hashmap.get(bank) })),
       { ...this.searchOptions, keys: ["bank"] },
@@ -57,20 +53,21 @@ export class PredictHelper {
     this.animationSearcherMap = new Map()
   }
 
-  private value({item}) {
-    for (let name of ["bank", "build", "animation"]) {
-      if (typeof item[name] === "string"){
-        return item[name]
-      } 
-    }
-    throw Error("Failed to get value: " + JSON.stringify(item))
+  private value(item) {
+    return item.matches[0].value
+    // for (let name of ["bank", "build", "animation"]) {
+    //   if (typeof item[name] === "string"){
+    //     return item[name]
+    //   } 
+    // }
+    // throw Error("Failed to get value: " + JSON.stringify(item))
   }
 
   private compareFn(a: Fuse.FuseResult<any>, b: Fuse.FuseResult<any>) {
-    if (a.score !== b.score)
+    if (Math.abs(a.score - b.score) > 1e-6)
       return a.score - b.score
-    if (a.matches[0].indices[0][0] !== b.matches[0].indices[0][0])
-      return a.matches[0][0] - b.matches[0][0]
+    // if (a.matches[0].indices[0][0] !== b.matches[0].indices[0][0])
+    //   return a.matches[0][0] - b.matches[0][0]
     const va: string = this.value(a)
     const vb: string = this.value(b)
     if (va.length !== vb.length)
@@ -80,13 +77,14 @@ export class PredictHelper {
   }
 
   private sortResult(result: Fuse.FuseResult<any>[]) {
+    const MAX = 200
     if (result.length) {
       const bestMatch = result[0]
       if (bestMatch.score < 1e-6) {
-        return result.slice(0, 500)
+        return result.slice(0, MAX)
       }
       else {
-        return result.sort((a, b)=> this.compareFn(a, b)).slice(0, 500)
+        return result.sort((a, b)=> this.compareFn(a, b)).slice(0, MAX)
       }
     }
     else{
@@ -131,5 +129,6 @@ export class PredictHelper {
       const result = searcher.search(animation)
       return this.sortResult(result)
     }
+    return []
   }
 }

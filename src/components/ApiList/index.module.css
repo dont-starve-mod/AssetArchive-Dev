@@ -1,7 +1,40 @@
-.api-list {
+.api-list-container {
   padding-top: 4px;
   padding-bottom: 4px;
 }
+
+ul.api-list, ul.arg-list {
+  padding: 0;
+  margin: 0;
+  /* background-color: pink; */
+}
+
+ul.arg-list {
+  padding-left: 20px;
+}
+
+.arg-hover:hover {
+  color: #222;
+  font-weight: 700;
+}
+
+.insert-up, .insert-down {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #666;
+  display: none;
+}
+
+.insert-up {
+  top: 0;
+}
+
+.insert-down {
+  bottom: 0;
+}
+
 
 .input {
   margin: 5px 0;

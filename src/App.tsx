@@ -18,7 +18,8 @@ import cacheContext from './components/KeepAlive/cacheContext'
 import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 
-// FocusStyleManager.onlyShowFocusOnTabs()
+import { workerInstance, blockingFunc, randomIntFromInterval } from "./test_utils"
+FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
@@ -28,7 +29,13 @@ declare global {
 }
 
 export default function App() {
+	// return <>
+	// 	<button onClick={()=> workerInstance.someRPCFunc()}>1</button>
+	// 	<button onClick={()=> blockingFunc()}>222</button>
+	// 	<button onClick={()=> alert(randomIntFromInterval(1, 100))}>333</button>
+	// </>
 	const isSubwindow = getCurrent().label !== "main"
+	// const isSubwindow = true
 	return !isSubwindow ? <AppMain/> : <AppSub/>
 }
 
@@ -80,35 +87,35 @@ function AppMain() {
 		}
 	}, [systemTheme, configTheme])
 
-  return (<div className={isDarkMode ? "bp4-dark": undefined}>
-		<header>
-			<div onMouseDown={async()=> await appWindow.startDragging()}></div>
-			<div>
-				<Nav/>
+  return (
+		<div className={isDarkMode ? "bp4-dark": undefined}>
+			<header>
+				<div onMouseDown={()=> appWindow.startDragging()}></div>
+				<div>
+					<Nav/>
+				</div>
+			</header>
+			<div className='main'>
+				<menu>
+					<MainMenu/>
+				</menu>
+				<article ref={articleRef} id="app-article">
+					<MainRoutes/>
+
+					<div style={{height: 300}}></div>
+					<br/>
+				</article>
 			</div>
-		</header>
-		<div className='main'>
-			<menu>
-				<MainMenu/>
-			</menu>
-			<article ref={articleRef} id="app-article">
-				<MainRoutes/>
+			<footer>
+				<Footer/>
+			</footer>
 
-				<div style={{height: 300}}></div>
-				<br/>
-				<Button onClick={()=> navigate("/test")}></Button>
-	
-			</article>
+			<AppInit/>
+			<AppToaster/>
+			
+			{/* <Local/> */}
 		</div>
-		<footer>
-			<Footer/>
-		</footer>
-
-		<AppInit/>
-		<AppToaster/>
-		
-		{/* <Local/> */}
-  </div>)
+	)
 }
 
 function AppSub() {
