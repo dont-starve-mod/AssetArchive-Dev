@@ -1,6 +1,6 @@
 import { Icon, Tag } from "@blueprintjs/core"
 import { ASSET_TYPE } from "../../strings"
-import { AllAssetTypes } from "../../datatype"
+import { AllAssetTypes } from "../../searchengine"
 import React from "react"
 
 interface IProps {

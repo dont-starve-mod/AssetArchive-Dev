@@ -370,6 +370,8 @@ function Provider:Load(args)
 		return self:GetAnimation(args)
 	elseif type == "atlas" then
 		return self:GetAtlas(args)
+	elseif type == "atlas_preview" then
+		return self:GetAtlasPreview(args)
 	elseif type == "image" then
 		return self:GetImage(args)
 		-- local r = self:GetImage(args)
@@ -490,6 +492,46 @@ function Provider:LoadAnim(path)
 	end
 end
 
+function Provider:GetAtlasPreview(args)
+	if type(args.file) == "string" then
+		local file = self.index:GetBuildFile(args.file)
+		local build = file and self:LoadBuild(file)
+		if build then
+			if args.id == "list" then
+				local result = {}
+				for i = 1, build.numatlases do
+					table.insert(result, i - 1)
+				end
+				if build.swap_icon_0 ~= nil then
+					table.insert(result, "swap_icon")
+				end
+				return result
+			elseif args.id == "auto" then
+				args.id = build.swap_icon_0 ~= nil and "swap_icon" or 0
+				return self:GetAtlasPreview(args)
+			elseif args.id == "swap_icon" then
+				args.imghash = SWAP_ICON
+				args.index = 0
+				args.format = "png"
+				args.build = file
+				return self:GetSymbolElement(args)
+			elseif type(args.id) == "number" then
+				args.sampler = args.id
+				args.format = "png"
+				args.build = file
+				return self:GetAtlas(args)
+			end
+		else
+			-- pure animation package
+			if args.id == "list" then
+				return {} 
+			else
+				return ""
+			end
+		end
+	end
+end
+
 function Provider:GetAtlas(args)	
 	if args.sampler == nil then
 		args.sampler = 0 -- note: atlas sampler index starts at 0
@@ -548,6 +590,7 @@ function Provider:LoadAtlas(name) --> atlaslist
 		local fs = CreateReader(zippath)
 		if fs == nil then
 			print("Warning: LoadAtlas: failed to open: "..tostring(zippath))
+			return
 		end
 		local sig = fs:read_exact(6) or ""
 		local zip = nil
@@ -594,6 +637,7 @@ function Provider:GetSymbolElement(args)
 		args.build = self.index:GetBuildFile(args.build) -- TODO: 这里的逻辑太糟糕了，得优化
 		local build = self:LoadBuild(args.build)
 		local atlaslist = self:LoadAtlas(args.build)
+		local allow_copy = args.imghash == SWAP_ICON and args.index == 0
 		if build and atlaslist then
 			local symbol = build.symbol_map[args.imghash]
 			if symbol ~= nil then
@@ -616,18 +660,18 @@ function Provider:GetSymbolElement(args)
 					unsigned(img.h * y_scale)
 
 				if args.format == "png" then
-					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh)):save_png_bytes()
+					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh):save_png_bytes()
 				elseif args.format == "copy" then
-					if atlas.is_dyn then
+					if atlas.is_dyn and not allow_copy then
 						return DYN_ENCRYPT
 					else
 						return Clipboard.WriteImage(atlas:GetImage(0):crop(bbx, bby, subw, subh))
 					end
 				elseif args.format == "save" then
-					if atlas.is_dyn then
+					if atlas.is_dyn and not allow_copy then
 						return DYN_ENCRYPT
 					else
-						local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh))
+						local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
 						if img ~= nil then
 							return img:save(args.path) and args.path
 						end
@@ -687,16 +731,17 @@ function Provider:GetTexture(args)
 		local tex = self:LoadTex(args.file)
 		if tex ~= nil then
 			local w, h = tex:GetSize(0)
+			local index = CalcIndex(w, h, args)
 			if args.format == "rgba" then
-				return { width = w, height = h, bytes = tex:GetImageBytes(0)}
+				return { width = w, height = h, bytes = tex:GetImageBytes(index)}
 			elseif args.format == "img" then
-				return tex:GetImage(0)
+				return tex:GetImage(index)
 			elseif args.format == "png" then
-				return tex:GetImage(0):save_png_bytes()
+				return tex:GetImage(index):save_png_bytes()
 			elseif args.format == "copy" then
-				return Clipboard.WriteImage_Bytes(tex:GetImageBytes(0), w, h)
+				return Clipboard.WriteImage_Bytes(tex:GetImageBytes(index), w, h)
 			elseif args.format == "save" then
-				return tex:GetImage(0):save(args.path) and args.path
+				return tex:GetImage(index):save(args.path) and args.path
 			end
 		end
 	end

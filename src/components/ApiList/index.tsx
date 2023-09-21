@@ -300,7 +300,7 @@ function InitInput(props: {
       dispatch({type: field, payload: {value}})
       if (value !== "") {
         setLoading(true)
-        const result = await predict.search(field, value)
+        const result = await predict.search(field, value, false)
         setItems(result)
         setLoading(false)
       }
@@ -316,7 +316,7 @@ function InitInput(props: {
       dispatch({type: "animation", payload: {value}})
       if (value !== "") {
         setLoading(true)
-        const result = await predict.search("animation", {bank: bankValue, animation: value})
+        const result = await predict.search("animation", {bank: bankValue, animation: value}, false)
         setItems(result)
         setLoading(false)
       }

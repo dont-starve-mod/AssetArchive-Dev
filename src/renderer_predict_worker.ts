@@ -1,7 +1,5 @@
-/// <reference lib="webworker" />
-declare const self: DedicatedWorkerGlobalScope
-
 import { PredictHelper, PredictableData } from "./renderer_predict"
+import * as Comlink from "comlink"
 
 let predict: PredictHelper | null = null
 
@@ -12,7 +10,6 @@ export const init = (data: PredictableData)=> {
 export const search = (
   type: "build" | "bank" | "animation", 
   value: string | {bank: "string", animation: "string"})=> {
-  
   if (predict === null)
     return []
 
@@ -27,8 +24,6 @@ export const search = (
   }
 }
 
-export const test = () => "Worker works!"
-
 const sleep = (time: number)=> new Promise(
   (resolve)=> setTimeout(resolve, time))
 
@@ -39,3 +34,8 @@ export const timeout = async ()=> {
   await sleep(2000)
   console.log("tick2")
 }
+
+Comlink.expose({
+  init, 
+  search,
+})

@@ -15,7 +15,7 @@ export default function MainRoutes() {
     <Route path="/asset" element={<AssetPage/>}/>
     <Route path="/report-bug" element={<ReportBugPage/>} />
     <Route path="/anim-list" element={<AnimListPage/>} />
-    {/* <Route path="/search" element={<SearchResultPage_Alive/>} /> */}
+    <Route path="/search" element={<SearchResultPage/>} />
     <Route path="/modtools" element={<>什么都没有</>} />
     <Route path="/filter" element={<>什么都没有</>} />
     <Route path="/" element={<></>} />

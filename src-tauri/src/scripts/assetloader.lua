@@ -57,6 +57,7 @@ BuildLoader = Class(function(self, f, lazy)
     end
 
     self.buildname = name
+    self.numatlases = numatlases
     self.atlas = {}
     self.lazy = lazy
 
@@ -98,8 +99,8 @@ BuildLoader = Class(function(self, f, lazy)
                 table.insert(imgs.imglist, img)
                 table.insert(allimgs, img)
             end
-
-            if lazy then
+            
+            if imghash == SWAP_ICON then
                 if #imgs.imglist >= 1 and imgs.imglist[1].index == 0 then
                     self.swap_icon_0 = imgs.imglist[1]
                 else

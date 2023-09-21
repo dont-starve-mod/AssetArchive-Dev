@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Spinner } from "@blueprintjs/core"
-import { Routes, useLocation, useNavigate, useRoutes, useSearchParams } from 'react-router-dom'
+import { Routes, useLocation, useNavigate } from 'react-router-dom'
 import { appWindow, getCurrent } from '@tauri-apps/api/window'
 import { listen as globalListen } from '@tauri-apps/api/event' 
 import "./App.css"
@@ -11,14 +10,11 @@ import Footer from './components/Footer'
 import AppToaster from './components/AppToaster'
 
 import AppInit from './components/AppInit'
-import { useLuaCall } from './hooks'
 import { FocusStyleManager } from "@blueprintjs/core"
-import Preview from './components/Preview'
 import cacheContext from './components/KeepAlive/cacheContext'
 import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
-
-import { workerInstance, blockingFunc, randomIntFromInterval } from "./test_utils"
+import AppQuickSettings from './components/AppQuickSettings'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
@@ -29,11 +25,6 @@ declare global {
 }
 
 export default function App() {
-	// return <>
-	// 	<button onClick={()=> workerInstance.someRPCFunc()}>1</button>
-	// 	<button onClick={()=> blockingFunc()}>222</button>
-	// 	<button onClick={()=> alert(randomIntFromInterval(1, 100))}>333</button>
-	// </>
 	const isSubwindow = getCurrent().label !== "main"
 	// const isSubwindow = true
 	return !isSubwindow ? <AppMain/> : <AppSub/>
@@ -102,8 +93,8 @@ function AppMain() {
 				<article ref={articleRef} id="app-article">
 					<MainRoutes/>
 
-					<div style={{height: 300}}></div>
-					<br/>
+					{/* <div style={{height: 300}}></div> */}
+					{/* <br/> */}
 				</article>
 			</div>
 			<footer>
@@ -112,6 +103,7 @@ function AppMain() {
 
 			<AppInit/>
 			<AppToaster/>
+			<AppQuickSettings/>
 			
 			{/* <Local/> */}
 		</div>
@@ -130,4 +122,3 @@ function Local() {
 	}, [plus])
 	return <p>{JSON.stringify(window.config)}</p>
 }
-

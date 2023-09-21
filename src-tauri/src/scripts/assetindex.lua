@@ -6,8 +6,8 @@ local CreateBytesReader = FileSystem.CreateBytesReader
 local AssetIndex = Class(function(self, root)
 	self.root = root
 	self.animinfo = {}  -- [hash] = {idle_loop = {files, facings}}
-	self.buildinfo = {} -- swap_pitchfork = {file, icon}
-	self.indexcache = Persistant.IndexCache
+	self.buildinfo = {} -- swap_pitchfork = {file, icon, numatlases}
+	self.indexcache = Persistant.IndexCache 
 end)
 
 function AssetIndex:DoIndex(ignore_cache)
@@ -69,7 +69,8 @@ function AssetIndex:DoIndex(ignore_cache)
 				if not bl.error then
 					table.insert(info.build, {
 						name = bl.buildname,
-						swap_icon_0 = bl.swap_icon_0
+						numatlases = bl.numatlases,
+						swap_icon_0 = bl.swap_icon_0,
 					})
 				end
 			end
@@ -105,7 +106,8 @@ function AssetIndex:DoIndex(ignore_cache)
 						if not bl.error then
 							table.insert(info.build, {
 								name = bl.buildname,
-								swap_icon_0 = bl.swap_icon_0
+								numatlases = bl.numatlases,
+								swap_icon_0 = bl.swap_icon_0,
 							})
 							self.indexcache:Set(filename, info)
 							self:AddBuild(filename, info.build)
@@ -139,7 +141,8 @@ function AssetIndex:AddBuild(name, info)
 	for _, build in ipairs(info)do
 		self.buildinfo[build.name] = {
 			file = name,
-			icon = build.swap_icon_0
+			swap_icon_0 = build.swap_icon_0,
+			numatlases = build.numatlases
 		}
 	end
 end
@@ -165,7 +168,7 @@ function AssetIndex:GetBuildFile(buildname)
 	elseif self.root:Exists(buildname) then
 		return buildname
 	end
-end
+end	
 
 function AssetIndex:GetAnimFileList(bankhash, animname)
 	if type(bankhash) == "string" then

@@ -77,8 +77,8 @@
 
 .list-container .list-name {
   min-width: 80px;
-  max-width: 320px;
-  width: calc(100vw - 580px);
+  max-width: 400px;
+  width: calc(100vw - 530px);
   text-overflow: ellipsis;
   overflow: hidden;
   text-decoration: none;

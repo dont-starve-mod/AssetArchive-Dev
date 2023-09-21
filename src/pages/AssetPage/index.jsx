@@ -13,16 +13,6 @@ import Hash from '../../components/HumanHash'
 import FacingIcon from '../../components/FacingIcon'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 
-// export default function AssetPage() {
-//   const [param] = useSearchParams()
-//   const id = param.get("id")
-//   return (
-//     <KeepAlivePage key={id} cacheNamespace='assetPage'>
-//       ID: {id}
-//       <input></input>
-//     </KeepAlivePage>
-//   )
-// }
 function KeepAlive(props) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
 }
@@ -31,12 +21,6 @@ export default function AssetPage() {
   const [param] = useSearchParams()
   const id = param.get("id")
   const [_, forceUpdate] = useReducer(v=> v + 1, 0)
-
-  // useEffect(()=> {
-  //   let key = id
-  //   appWindow.emit("restore_scroll", {key})
-  //   return ()=> appWindow.emit("cache_scroll", {key})
-  // }, [id])
 
   if (id === null) return <AssetInvalidPage type="null"/>
   const asset = window.assets_map[id]
@@ -122,10 +106,9 @@ function TexPage({id, xml, tex}) {
 
   const download = useSaveFileCall({
     defaultParams: {type: "image", xml, tex, format: "save"},
-    deps: [id, xml, tex],
     filters: "image",
     defaultPath: tex + ".png",
-  })
+  }, [id, xml, tex])
 
   const copy = useCopyTexElement(xml, tex)
 
@@ -140,7 +123,7 @@ function TexPage({id, xml, tex}) {
         拷贝
       </Button>
       &nbsp;
-      <Button icon="download" intent='primary' onClick={download} disabled={loading}>
+      <Button icon="download" intent='primary' onClick={()=> download()} disabled={loading}>
         下载
       </Button>
       <H5>基本信息</H5>
@@ -182,10 +165,9 @@ function TexNoRefPage({id, file}) {
 
   const download = useSaveFileCall({
     defaultParams: {type: "texture", file, format: "save"},
-    deps: [id, file],
     filters: "image",
     defaultPath: file + ".png",
-  })
+  }, [id, file])
 
   const copy = useCopyTexture(file)
 
@@ -268,6 +250,11 @@ const XmlPageDisplay = {
   Grid({data, xml}) {
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
+    const download = useSaveFileCall({
+      defaultParams: {type: "image", xml, format: "save"},
+      filters: "image",
+      defaultPath: "image.png",
+    }, [xml])
     const skipButton = e=> e.target.className.indexOf("button-group") !== -1
     
     return <div className={style["grid-container"]}>
@@ -284,7 +271,7 @@ const XmlPageDisplay = {
             <div className={style['grid-button-group']} onClick={(e)=> skipButton(e) && navigate("/asset?id="+element.id)}>
               <div style={{margin: "0 auto", display: "block", width: 80}}>
                 <ButtonGroup vertical={true} fill={true}>
-                  <Button icon="download" intent='primary'>下载TODO:</Button>             
+                  <Button icon="download" onClick={()=> download({tex: element.name, defaultPath: element.name})} intent='primary'>下载</Button>             
                   <Button icon="duplicate" onClick={()=> copy({tex: element.name})}>拷贝</Button>                
                   {/* <Button icon="info-sign" onClick={()=> navigate("/asset?id="+element.id)}>详情</Button>                 */}
                 </ButtonGroup>
@@ -299,9 +286,14 @@ const XmlPageDisplay = {
   List({data, xml}) {
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
+    const download = useSaveFileCall({
+      defaultParams: {type: "image", xml, format: "save"},
+      filters: "image",
+      defaultPath: "image.png",
+    }, [xml])
     return <table className={style["list-container"]} border={0}>
       <thead>
-        <th><Checkbox inline={true} style={{marginRight: 0}} /></th>
+        {/* <th><Checkbox inline={true} style={{marginRight: 0}} /></th> */}
         <th>名字</th>
         <th>分辨率</th>
         <th>图片</th>
@@ -311,9 +303,9 @@ const XmlPageDisplay = {
       {
         data.elements.map((element, _)=> 
         <tr key={element.id}>
-          <td>
+          {/* <td>
             <Checkbox/>
-          </td>
+          </td> */}
           <td>
             <p className={style["list-name"] + " bp4-monospace-text"} onClick={()=> navigate("/asset?id="+element.id)}>
               {element.name}
@@ -325,7 +317,7 @@ const XmlPageDisplay = {
             <span style={{width: 8, display: "inline-block"}}/>
             <Button icon="duplicate" onClick={()=> copy({tex: element.name})}/>
             <span style={{width: 8, display: "inline-block"}}/>
-            <Button icon="download"/>
+            <Button icon="download" onClick={()=> download({tex: element.name, defaultPath: element.name})}/>
           </td>
         </tr>)
       }
@@ -458,7 +450,7 @@ function ZipPage({type, file, id}) {
                             <Hash hash={imghash}/>-{img.index}
                           </td>
                           <td>
-                            <Preview.SymbolElement atlas={atlas} data={img}/>
+                            <Preview.SymbolElement atlas={atlas} data={img} width={50} height={50}/>
                           </td>
                           <td>
                             <Button icon="duplicate" onClick={()=> copyElement({imghash, index: img.index})}/>

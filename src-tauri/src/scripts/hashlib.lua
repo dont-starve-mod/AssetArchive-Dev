@@ -1,4 +1,5 @@
 local smallhash = Algorithm.SmallHash_Impl
+
 UnsolvedHash = Class(function(self, h)
     assert(type(h) == "number")
     self.hash = h

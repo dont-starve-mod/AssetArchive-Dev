@@ -53,14 +53,8 @@ export class PredictHelper {
     this.animationSearcherMap = new Map()
   }
 
-  private value(item) {
+  private value(item: Fuse.FuseResult<any>) {
     return item.matches[0].value
-    // for (let name of ["bank", "build", "animation"]) {
-    //   if (typeof item[name] === "string"){
-    //     return item[name]
-    //   } 
-    // }
-    // throw Error("Failed to get value: " + JSON.stringify(item))
   }
 
   private compareFn(a: Fuse.FuseResult<any>, b: Fuse.FuseResult<any>) {
@@ -92,7 +86,7 @@ export class PredictHelper {
     }
   }
 
-  async predictBuild(build: string) {
+  predictBuild(build: string) {
     const result = this.buildSearcher.search(build)
     return this.sortResult(result)
   }
@@ -113,7 +107,7 @@ export class PredictHelper {
       const result = new Fuse(data.map(({name})=> name),
         {...this.searchOptions, keys: ["animation"]})
       if (data.length > 50){
-        // cache the searcher if item number is huge(?)
+        // cache the searcher if item number is huge
         this.animationSearcherMap.set(hash, result)
         return result
       }

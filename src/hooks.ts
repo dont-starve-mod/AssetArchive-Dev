@@ -85,22 +85,30 @@ export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true
  * error will auto emit to window
  */
 type rLuaAPI = "appinit" | "load" | "setroot" | "copy" | "animproject.init" | "animproject" | "setconfig" | "getconfig"
-export function useLuaCall<T>(api: rLuaAPI, fn: (response: T)=> void, defaultParams = {}, deps: any[] = []) {
+export function useLuaCall<T>(api: rLuaAPI, callback: (response: T, param?: any)=> void, defaultParams = {}, deps: React.DependencyList = []) {
   return useCallback((param={})=> {
     if ((defaultParams as any).debug){
       console.log("useLuaCall", {...defaultParams, ...param})
     }
     invoke<T>("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
-      (response: T)=> fn(response),
+      (response: T)=> callback(response, param),
       error=> appWindow.emit("lua_call_error", error)
     )
   }, deps)
 }
 
+/** useLuaCall and call function on change */
+export function useLuaCallOnce<T>(api: rLuaAPI, callback: (response: T, param?: any)=> void, defaultParams = {}, deps: React.DependencyList = []): void {
+  const fn = useLuaCall<T>(api, callback, defaultParams, deps)
+  useEffect(()=> {
+    fn()
+  }, [fn])
+}
+
 /** an unstrict lua ipc hook 
  * error will print to console
 */
-export function useLuaCallLax(api: rLuaAPI, fn, defaultParams = {}, deps = []) {
+export function useLuaCallLax(api: rLuaAPI, fn, defaultParams = {}, deps: React.DependencyList = []) {
   return useCallback((param={})=> {
     invoke("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
       response=> fn(response),
@@ -173,13 +181,13 @@ const SAVE_FILTERS = {
 
 /** common file save dialog */
 export function useSaveFileDialog(saveFn, filters, defaultPath?: string) {
-  const fn = useCallback(async ()=> {
+  const fn = useCallback(async (param?: {[K: string]: any})=> {
     const filepath = await save({
       filters: typeof filters === "string" ? SAVE_FILTERS[filters.toUpperCase()] : filters,
-      defaultPath,
+      defaultPath: param?.defaultPath || defaultPath,
     })
     if (filepath)
-      saveFn({path: filepath})
+      saveFn({...param, path: filepath})
   }, [saveFn])
   return fn
 }
@@ -187,7 +195,7 @@ export function useSaveFileDialog(saveFn, filters, defaultPath?: string) {
 export function useSaveSuccess(type) {
   let message = (type === "image" ? "图片" : "") 
     + "保存成功"
-  return (savepath)=> appWindow.emit("toast", { message, icon: "saved", intent: "success", savepath})
+  return (savepath: string)=> appWindow.emit("toast", { message, icon: "saved", intent: "success", savepath})
 }
 
 export function useGenericSaveFileCb(filters) {
@@ -202,7 +210,7 @@ export function useGenericSaveFileCb(filters) {
 }
 
 /** wrap `useSaveFile` and `useLuaCall` */
-export function useSaveFileCall({api = "load", defaultParams, deps, filters, defaultPath}) {
+export function useSaveFileCall({api = "load", defaultParams, filters, defaultPath}, deps: React.DependencyList) {
   const cb = useGenericSaveFileCb(filters) // callback fn when backend return message
   const saveFn = useLuaCall(api, cb, defaultParams, deps) // backend query
   const dialog = useSaveFileDialog(saveFn, filters, defaultPath) // get filepath from frontend 

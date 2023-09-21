@@ -5,7 +5,8 @@ import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
 import { Alert, H3 } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
-import worker from '../../searchengine_worker'
+// import { init as initSearchEngine } from '../../searchengine_worker'
+import { searchengine } from '../../asyncsearcher'
 
 window.config = {}
 window.assets = {}
@@ -32,8 +33,7 @@ export default function AppInit() {
             Object.values(assets).forEach(list=> {
               list.forEach(a=> window.assets_map[a.id] = a)
             })
-            worker.postMessage({assets})
-            worker._ready = true
+            searchengine.initPayload = ()=> assets
           }),
           await globalListenOnce("anim_predictable_data", ({payload})=> {
             const data = JSON.parse(payload)
