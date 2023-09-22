@@ -113,13 +113,17 @@ function RichText:Flatten()
 	local stack = {} -- some nonclosed styles
 
 	for i = 1, 100 do -- a strict checker
+		print(node)
 		node = node.next
 		if node == nil then
 			break
 		end
 	end
 
-	-- TODO
+	if node ~= nil then
+		print("Warning: RichText too long")
+		self:DebugPrintNode()
+	end
 end
 
 function RichText:DebugPrintNode()
@@ -234,3 +238,5 @@ local function Examples()
 end
 
 -- Examples()
+
+return RichText

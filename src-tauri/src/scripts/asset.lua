@@ -27,7 +27,7 @@ function Asset:GetID()
 	local id = assert(Asset.ID_TYPES[self.type], self.type)
 	local temp = {}
 	for k,v in pairs(self)do
-		if k ~= "type" and k:sub(1, 1) ~= "_" then
+		if k ~= "id" and k ~= "type" and k ~= "texname" and k:sub(1, 1) ~= "_" then
 			assert(type(v) == "string")
 			table.insert(temp, {k, v})
 		end

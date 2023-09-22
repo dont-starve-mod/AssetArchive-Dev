@@ -87,6 +87,7 @@ function DST_DataRoot:SetRoot(path, explicit)
 
 	self.root = path
 	local databundles = self.root/"databundles"
+
 	if databundles:is_dir() then
 		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts"}do
 			local zippath = databundles/(k..".zip")
@@ -242,6 +243,15 @@ function Provider:ListAsset()
 	timeit(true)
 	for _,v in ipairs((self.root/"anim"):iter_file_with_extension(".zip"))do
 		table.insert(self.allzipfile, Asset("animzip", {file = "anim/"..v:name()}))
+
+		-- mark character.zip as deprecated
+		local name = v:name()
+		local dynname = name:sub(1, #name - 4)..".dyn"
+		if self.root:Exists("anim/dynamic/"..dynname, false) then -- TODO: 测试win分隔符
+			self.allzipfile[#self.allzipfile]._depricated_redirect = {
+				Asset("animdyn", {file = "anim/dynamic/"..dynname}):GetID()
+			}
+		end
 	end
 
 	for _,v in ipairs((self.root/"anim"/"dynamic"):iter_file_with_extension(".dyn"))do
@@ -309,14 +319,39 @@ function Provider:ListAsset()
 		end
 	end
 
-	IpcEmitEvent("assets", json.encode{
+	-- mark deprecated assets
+	local temp = {}
+	local inventoryimages_new = {}
+	for _,v in ipairs(self.allxmlfile)do
+		if v.file == "images/inventoryimages.xml" then
+			table.insert(temp, v)
+		elseif v.file:startswith("images/inventoryimages") then
+			table.insert(inventoryimages_new, v:GetID())
+		end
+	end
+	for _,v in ipairs(self.alltexelement)do
+		if v.xml == "images/inventoryimages.xml" then
+			table.insert(temp, v)
+		end
+	end
+
+	table.foreach(temp, function(_, v) v._depricated_redirect = inventoryimages_new end)
+
+	self.assets = {	
 		allzipfile = self.allzipfile,
 		alldynfile = self.alldynfile,
 		allxmlfile = self.allxmlfile,
 		alltexelement = self.alltexelement,
 		alltexture = self.alltexture,
-	})
-	print("List assets ->")
+	}
+
+	timeit()
+
+if not Args then
+	IpcEmitEvent("assets", json.encode_compliant(self.assets))
+	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
+end
+
 	timeit()
 end
 

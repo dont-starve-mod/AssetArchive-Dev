@@ -118,6 +118,12 @@ function BinSearch(t, fn, i, j)
 	end
 end
 
+function NameOf(path)
+	return assert(
+		select(3, path:find("([^/.]+)%.?[a-z]*$")),
+		"Failed to get name of "..path)
+end
+
 --- debug ---
 local time = -1
 function timeit(silent)

@@ -595,7 +595,7 @@ ZipLoader = Class(function(self, f, name_filter)
         local name = f:read_string(name_len)
         local data_starts = f:tell()
         if name_filter ~= nil and name_filter(name) == true then
-            local compressed_data = f:read_string(compressed_len)
+            local compressed_data = f:read_exact(compressed_len)
             if compressed_data ~= nil then
                 if method == "stored" then
                     self.contents[name] = { raw_data = compressed_data, mtime = mtime }

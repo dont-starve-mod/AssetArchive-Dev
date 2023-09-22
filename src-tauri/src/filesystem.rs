@@ -8,6 +8,7 @@ pub mod lua_filesystem {
     use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
     #[cfg(windows)]
     use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
+    use image::EncodableLayout;
     use rlua::{Function, MetaMethod, UserData, UserDataMethods, Table, Context, AnyUserData};
     use rlua::Value;
     use rlua::Value::Nil;
@@ -207,7 +208,7 @@ pub mod lua_filesystem {
             self.data_mode = DataMode::BigEndian;
         }
 
-        fn read_exact(&mut self, len: usize) -> core::result::Result<Vec<u8>, std::io::Error> {
+        fn read_exact(&mut self, len: usize) -> Result<Vec<u8>, std::io::Error> {
             let mut buf = Vec::<u8>::new();
             buf.resize(len, 0);
             match self.inner.read_exact(&mut buf) {
@@ -217,7 +218,7 @@ pub mod lua_filesystem {
             }
         }
 
-        fn read(&mut self, len: usize) -> core::result::Result<Vec<u8>, std::io::Error> {
+        fn read(&mut self, len: usize) -> Result<Vec<u8>, std::io::Error> {
             let mut buf = Vec::<u8>::new();
             buf.resize(len, 0);
             match self.inner.read(&mut buf) {
@@ -290,7 +291,7 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("read_exact", |lua_ctx, fs: &mut Self, len: usize|{
                 if let Ok(buf) = fs.read_exact(len) {
-                    Ok(Some(lua_ctx.create_string(&buf[..])?))
+                    Ok(Some(lua_ctx.create_string(buf.as_bytes())?))
                 }
                 else{
                     Ok(None)
@@ -319,8 +320,27 @@ pub mod lua_filesystem {
                 fs.inner.seek_to(pos);
                 Ok(Nil)
             });
-            _methods.add_method_mut("seek_to_string", |_, fs: &mut Self, flag: String|{
-                Ok(fs.inner.seek_to_string(&flag))
+            _methods.add_method_mut("seek_to_string", |_, fs: &mut Self, neddle: String|{
+                Ok(fs.inner.seek_to_string(&neddle))
+            });
+            _methods.add_method_mut("next_line", |lua_ctx, fs: &mut Self, ()|{
+                let mut result = Vec::<u8>::with_capacity(512);
+                let mut buf = [0];
+                loop {
+                    match fs.inner.read_exact(&mut buf) {
+                        Ok(())=> {
+                            result.push(buf[0]);
+                            if buf[0] == b'\n' {
+                                break;
+                            }
+                        },
+                        Err(_)=> return {
+                            if result.len() == 0 { Ok(None) } 
+                            else { Ok(Some(lua_ctx.create_string(result.as_bytes())?)) }
+                        }
+                    }
+                };
+                Ok(Some(lua_ctx.create_string(buf.as_bytes())?))
             });
             _methods.add_method_mut("rewind", |_, fs: &mut Self, ()|{
                 fs.inner.rewind().map_err(|_|LuaError::RuntimeError("Failed to rewind file cursor".to_string()))

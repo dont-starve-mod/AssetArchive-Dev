@@ -1,6 +1,9 @@
 PRINT_SOURCE = true
+PRINT_TIME = Args ~= nil
 
 local print_loggers = {print}
+
+local start = now()
 
 function AddPrintLogger( fn )
     table.insert(print_loggers, fn)
@@ -54,6 +57,10 @@ print = function(...)
         end
     else
         str = packstring(...)
+    end
+
+    if PRINT_TIME then
+        str = string.format("[%.3f] ", (now() - start) / 1000) .. str
     end
 
     for i,v in ipairs(print_loggers) do

@@ -6,18 +6,28 @@ end
 
 local PO = Class(function(self, root)
 	local f = root:Open("scripts/languages/chinese_s.po")
+
 	assert(f, "Failed to open file: chinese_s.po")
 	f:seek_to_string("#") -- skip file head
 	local content = f:read_to_end()
 	local strings = {}
 	local key, value
-	for line in content:gmatch("[^\n]+") do
-		key = line:match("^msgctxt%s*%\"(%S*)%\"") or key
-		value = line:match("^msgstr%s*%\"(.*)%\"") or value
-		if value and key then
-			strings[key] = convert(value)
-			key = nil
-			value = nil
+	local index = 0
+	while true do
+		local eol = content:find("\n", index)
+		if eol ~= nil then
+			local line = content:sub(index, eol - 1)
+			index = eol + 1
+
+			key = line:match("^msgctxt%s*%\"(%S*)%\"") or key
+			value = line:match("^msgstr%s*%\"(.*)%\"") or value
+			if value and key then
+				strings[key] = convert(value)
+				key = nil
+				value = nil
+			end
+		else
+			break
 		end
 	end
 
@@ -42,6 +52,10 @@ end
 
 function PO:GetSkinQuote(name)
 	return self("STRINGS.SKIN_QUOTES."..name:lower())
+end
+
+function PO:SaveFile()
+	FileSystem.SaveString("chinese_s.po.dat", json.encode(self.strings))
 end
 
 --- EntryManager
@@ -240,13 +254,30 @@ local function main(GLOBAL)
 	assert(success, "Failed to load prefab.dat")
 
 	GLOBAL.po = PO(GLOBAL.root)
+
 	local manager = EntryManager()
 	manager.po = GLOBAL.po
 	manager.root = GLOBAL.root
 	manager.prov = GLOBAL.prov
 	manager.prefabdata = prefabdata
 
-	manager:BuildBasic()
+	-- manager:BuildBasic()
+
+	GLOBAL.prefabdata = prefabdata
+	-- run asset annotator
+	local run = require "compiler.assetdesc.run"
+	run(GLOBAL)
+
+
+	-- finally, write static file
+	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler/output/"
+	local path = output/"assetdesc.lua"
+	path:write(
+		"return "..
+		json.encode(FileSystem.GetString("assetdesc.dat"))
+	)
+
+
 end
 
 return {
