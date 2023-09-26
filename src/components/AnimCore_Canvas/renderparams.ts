@@ -7,6 +7,7 @@ export interface IRenderParams {
   centerStyle?: "center" | "ground" | "bottom",
   bgc?: string,
 }
+
 /**
  * Affect canvas render behavior, but not assiciated with AnimState
  * eg. scale / rotation / flip / xy-offset / axis / bgc

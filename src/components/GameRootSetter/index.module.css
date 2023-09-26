@@ -1,0 +1,16 @@
+.flash{
+  font-weight: 700;
+  animation: blink 1s infinite linear;
+}
+
+@keyframes blink{
+  /* 0% {
+    color: inherit;
+  } */
+  0% {
+    color: var(--primary-color-2);
+  }
+  100% {
+    color: inherit;
+  }
+}

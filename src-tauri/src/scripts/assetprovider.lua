@@ -82,6 +82,7 @@ function DST_DataRoot:SetRoot(path, explicit)
 		return false
 	end
 	if path == self.root then
+		Config:SetAndSave("last_dst_root", path:as_string())
 		return true
 	end
 
@@ -193,6 +194,14 @@ end
 function DST_DataRoot:as_string()
 	assert(self.root ~= nil and self.root:is_dir())
 	return self.root:as_string()
+end
+
+function DST_DataRoot:OpenRootFolder()
+	if self.root ~= nil then
+		return SelectFileInFolder(self.root:as_string())
+	else
+		return false
+	end
 end
 
 
@@ -313,9 +322,16 @@ function Provider:ListAsset()
 		end
 	end
 
+	for _,v in ipairs(self.root:Iter("images/colour_cubes/"))do
+		if v:endswith(".tex") then
+			texpath_all[v] = true
+		end
+	end
+
 	for k in pairs(texpath_all)do
 		if not texpath_refs[k] then
-			table.insert(self.alltexture, Asset("tex_no_ref", { file = k }))
+			table.insert(self.alltexture, Asset("tex_no_ref", 
+				{ file = k, _is_cc = k:startswith("images/colour_cubes/") and true or nil }))
 		end
 	end
 
@@ -412,6 +428,8 @@ function Provider:Load(args)
 		-- local r = self:GetImage(args)
 		-- print("Load image use time: ", timeit(), #r)
 		-- return r
+	elseif type == "image_with_cc" then
+		return self:GetImageWithCC(args)
 	elseif type == "texture" then
 		return self:GetTexture(args)
 	elseif type == "xml" then
@@ -591,6 +609,7 @@ function Provider:GetAtlas(args)
 						return Clipboard.WriteImage_Bytes(atlas:GetImageBytes(0), w, h)
 					end
 				elseif args.format == "save" then
+					print("Save!!!")
 					if atlas.is_dyn then
 						return DYN_ENCRYPT
 					else
@@ -776,7 +795,46 @@ function Provider:GetTexture(args)
 			elseif args.format == "copy" then
 				return Clipboard.WriteImage_Bytes(tex:GetImageBytes(index), w, h)
 			elseif args.format == "save" then
+				print("SAVE!!!!!")
 				return tex:GetImage(index):save(args.path) and args.path
+			end
+		end
+	end
+end
+
+function Provider:GetImageWithCC(args)
+	if type(args.cc) == "string" then
+		local tex = self:LoadTex(args.cc)
+		local w, h = tex:GetSize(0)
+		local cc_bytes = tex:GetImageBytes(0)
+		local result_format = args.format
+		if args.cc:endswith("quagmire_cc.tex") then
+			-- it's 960*30, why...
+			cc_bytes = Image.From_RGB(cc_bytes, w, h):resize(1024, 32):to_bytes()
+		else
+			assert(w == 1024, "cc width must be 1024")
+			assert(h == 32, "cc height must be 32")
+		end
+
+		args.format = "img"
+		args.cc = nil
+		args.type = args.sourceType
+		local img = self:Load(args)
+		args.format = result_format
+
+		if img == DYN_ENCRYPT then
+			return img
+		elseif type(img) == "userdata" then
+			img:clone()
+			img:apply_cc(cc_bytes, args.percent or 1)
+			if args.format == "img" then
+				return img
+			elseif args.format == "png" then
+				return img:save_png_bytes()
+			elseif args.format == "copy" then
+				return Clipboard.WriteImage(img)
+			elseif args.format == "save" then
+				return img:save(arg.path) and args.path
 			end
 		end
 	end

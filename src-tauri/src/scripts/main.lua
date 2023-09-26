@@ -29,19 +29,23 @@ GLOBAL = {
 	prov = nil,
 }
 
+
 IpcHandlers.Register("appinit", function()
 	-- Events:
-	--   allconfig
+	--   settings
 	--   root
 	--   index_progress 0..100
 	--   anim_predictable_data
 	--   assets
 	
-	IpcEmitEvent("allconfig", Persistant.Config:Dumps()) -- get config first
+	IpcEmitEvent("settings", Persistant.Config:Dumps()) -- get settings first
 
 	GLOBAL.root = DST_DataRoot()
 	if not GLOBAL.root:IsValid() then
-		IpcEmitEvent("root", "")
+		IpcEmitEvent("update_setting", json.encode_compliant({
+			key = "last_dst_root", 
+			value = "",
+		}))
 		return
 	end
 	GLOBAL.prov = Provider(GLOBAL.root)
@@ -55,14 +59,23 @@ IpcHandlers.Register("appinit", function()
 	}
 end)
 
-IpcHandlers.Register("setroot", function(path)
-	if GLOBAL.root:SetRoot(path) then
+IpcHandlers.Register("setroot", function(param)
+	if GLOBAL.root:SetRoot(param.path) then
+		IpcEmitEvent("update_setting", json.encode_compliant({
+			key = "last_dst_root",
+			value = param.path,
+		}))
 		GLOBAL.prov = Provider(GLOBAL.root)
 		GLOBAL.prov:DoIndex(true)
+		GLOBAL.prov:ListAsset()
 		return true
 	else
 		return false
 	end
+end)
+
+IpcHandlers.Register("showroot", function()
+	return GLOBAL.root:OpenRootFolder()
 end)
 
 IpcHandlers.Register("load", function(param)
@@ -73,7 +86,14 @@ IpcHandlers.Register("load", function(param)
 	-- 
 	-- xml[type=image]
 	-- tex[type=image]
-	return GLOBAL.prov:Load(param)
+	assert(type(param) == "table", "Ipc<load> only accept table param")
+	local result = GLOBAL.prov:Load(param)
+	if param.result_type ~= nil and type(result) ~= param.result_type then
+		error("Ipc<load> result type failed to match, expect "..param.result_type..", got "..type(result)
+			.."\n"..json.encode_compliant(param))
+	end
+
+	return result
 end)
 
 IpcHandlers.Register("copy", function(text)

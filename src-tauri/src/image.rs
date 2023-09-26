@@ -4,7 +4,6 @@ use image::Frame;
 use rlua::{Value, FromLua, Context};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 use std::ops::{Index};
-use std::sync::{Arc, Mutex};
 use std::fs::File;
 #[cfg(unix)]
 use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
@@ -145,7 +144,7 @@ pub mod lua_image {
     use std::os::fd::AsRawFd;
     use std::time::Duration;
 
-    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage};
+    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage, buffer};
     use image::ColorType;
     use rlua::{Context, AnyUserData};
     use rlua::Value::Nil;
@@ -355,6 +354,77 @@ pub mod lua_image {
                 _ => panic!("apply_filter only support rgb/rgba image")
             }
         }
+
+        pub fn apply_cc(&mut self, cc: &[u8], percent: f64) -> Result<(), &'static str> {
+            if cc.len() < 32*32*32*3 {
+                return Err("cc must contain 32,768 pixels")
+            }
+            let sampler = |c: u8| {
+                // 0-255 -> 0-31
+                let f = c as f64 / 255.0 * 31.0;
+                let floor = f64::floor(f) as usize;
+                let ceil  = f64::ceil(f) as usize;
+                let percent = f64::fract(f);
+                (floor, ceil, percent)
+            };
+            let get_offset = |r: usize, g: usize, b: usize|{
+                r*1 + b*32 + g*1024
+            };
+            let apply_cc_impl = |channels: &mut[u8]|{
+                // let mut pixel = channels;
+                let rs = sampler(channels[0]);
+                let gs = sampler(channels[1]);
+                let bs = sampler(channels[2]);
+                let offset = (
+                    get_offset(rs.0, gs.0, bs.0),
+                    get_offset(rs.1, gs.1, bs.1)
+                );
+                let c1 = &cc[offset.0*3..offset.0*3+2];
+                let c2 = &cc[offset.1*3..offset.1*3+2];
+                c1.iter().zip(c2)
+                    .enumerate()
+                    .for_each(|(index, (v1, v2))|{
+                        // blue is used as blend percent
+                        channels[index] = f64::clamp(
+                            percent * (*v1 as f64 * (1.0 - bs.2) + *v2 as f64 * bs.2) +
+                            (1.0 - percent) * channels[index] as f64, 
+                            0.0, 255.0
+                        ) as u8
+                    });
+            };
+
+            match &mut self.inner {
+                DynamicImage::ImageRgba8(buffer) => {
+                    buffer.pixels_mut().for_each(|pixel|{
+                        let mut channels = pixel.channels_mut();
+                        apply_cc_impl(&mut channels);
+                        // let rs = sampler(pixel[0]);
+                        // let gs = sampler(pixel[1]);
+                        // let bs = sampler(pixel[2]);
+                        // let offset = (
+                        //     get_offset(rs.0, gs.0, bs.0),
+                        //     get_offset(rs.1, gs.1, bs.1)
+                        // );
+                        // let c1 = &cc[offset.0*3..offset.0*3+2];
+                        // let c2 = &cc[offset.1*3..offset.1*3+2];
+                        // c1.iter().zip(c2)
+                        //     .enumerate()
+                        //     .for_each(|(index, (v1, v2))|{
+                        //         // blue is used as blend percent
+                        //         pixel[index] = f64::clamp(*v1 as f64 * (1.0 - bs.2) + *v2 as f64 * bs.2, 0.0, 255.0) as u8
+                        //     });
+                    });
+                },
+                DynamicImage::ImageRgb8(buffer) => {
+                    buffer.pixels_mut().for_each(|pixel|{
+                        let mut channels = pixel.channels_mut();
+                        apply_cc_impl(&mut channels);
+                    });
+                },
+                _ => panic!("apply_cc only support rgb/rgba image")
+            };
+            Ok(())
+        }
     }
 
     pub struct GifWriter {
@@ -513,6 +583,10 @@ pub mod lua_image {
                 let img = img.inner.crop_imm(x, y, width, height);
                 Ok(Image::from_img(img))
             });
+            // clone the image
+            _methods.add_method("clone", |_, img: &Self, ()|{
+                Ok(Image::from_img(img.inner.clone()))
+            });
             // apply an affine transform on image, return new image
             _methods.add_method("affine_transform", |_, img: &Self, 
                 (width, height, matrix, resampler): (u32, u32, Vec<f64>, Resampler)|{
@@ -611,10 +685,10 @@ pub mod lua_image {
                 match filter {
                     Value::Table(t)=> {
                         let filter = Filter::from_lua(
-                            t.get(1)?, 
-                            t.get(2)?,
-                            t.get(3)?,
-                            t.get(4)?)?;
+                            t.get::<_, Function>(1)?, 
+                            t.get::<_, Function>(2)?,
+                            t.get::<_, Function>(3)?,
+                            t.get::<_, Function>(4)?)?;
                         img.apply_filter(&filter);
                         Ok(true)
                     },
@@ -625,6 +699,10 @@ pub mod lua_image {
                     },
                     _=> Err(LuaError::FromLuaConversionError { from: "(lua)", to: "table|Filter", message: None })
                 }
+            });
+            // apply dontstarve colour_cube on image
+            _methods.add_method_mut("apply_cc", |_, img: &mut Self, (cc, percent): (LuaString, f64)|{
+                img.apply_cc(cc.as_bytes(), percent).map_err(|e|LuaError::RuntimeError(e.to_string()))
             });
             _methods.add_meta_method(MetaMethod::ToString, |_, img: &Self, ()|{
                 Ok(format!("Image<{}x{} {}>", img.width, img.height, img.pixelformat()))

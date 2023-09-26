@@ -12,7 +12,7 @@ export type AssetListKey =
 export interface IBasicAsset {
   id: string,
   type: string,
-  description?: string,
+  description?: string[],
 }
 
 export interface Tex extends IBasicAsset{
@@ -42,6 +42,7 @@ export interface AnimDyn extends IBasicAsset {
 export interface TexNoRef extends IBasicAsset {
   type: "tex_no_ref",
   file: string,
+  _is_cc?: true,
 }
 
 type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef

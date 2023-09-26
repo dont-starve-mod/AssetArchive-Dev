@@ -95,6 +95,17 @@ pub mod lua_misc {
             Ok(webbrowser::open(url.as_str()).is_ok())
         })?)?;
 
+        // select file
+        globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: String|{
+            use std::process;
+            #[cfg(unix)]
+            Ok(process::Command::new("/usr/bin/open")
+                .arg("-R")
+                .arg(path)
+                .status()
+                .is_ok())
+        })?)?;
+
         // process
         globals.set("exit", lua_ctx.create_function(|_, code: Value| -> Result<(), LuaError>{
             let code = match code {

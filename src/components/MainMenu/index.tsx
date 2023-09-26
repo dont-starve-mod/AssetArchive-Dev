@@ -18,8 +18,8 @@ export default function MainMenu() {
   return <Menu style={{minWidth: "100%", backgroundColor: "transparent"}}>
     <MenuNavLink icon="git-repo" to="/assets" text="游戏资源" />
     <MenuNavLink icon="walk" to="/anim-list" text="动画渲染器" />
-    <MenuNavLink icon="color-fill" to="/filter" text="滤镜效果" />
-    <MenuNavLink icon="build" to="/modtools" text="模组工具" />
+    <div onClick={()=> alert("这个功能还没做完 _(:з」∠)_")}><MenuNavLink icon="color-fill" to="/filter" text="滤镜渲染器" /></div>
+    {/* <MenuNavLink icon="build" to="/modtools" text="模组工具" /> */}
     <MenuNavLink icon="bug" to="/report-bug" text="反馈bug" />
     <MenuDivider />
     <MenuNavLink icon="cog" to="/settings" text="设置"/>

@@ -1,5 +1,8 @@
 local RichText = require "richtext"
 local r = RichText
+local Human = require "compiler.assetdesc.human"
+
+DUMMY_DESC = { _dummy = true }
 
 local function CreateLoader(root)
 	local script_bundle_path = root/"databundles"/"scripts.zip"
@@ -56,6 +59,8 @@ local AssetAnnotator = {
 		self.FindTexList = function(self, xml)
 			return self.texelement_map[xml]
 		end
+
+		self.human = Human(self)
 	end,
 
 	AddDesc = function(self, asset, desc)
@@ -66,15 +71,15 @@ local AssetAnnotator = {
 	end,
 
 	Minimap = function(self)
-		local minimap_desc = require "compiler.assetdesc.minimap_desc"
-		local util = minimap_desc(self.env)
+		local minimap_ref = require "compiler.assetdesc.minimap_ref"
+		local ref = minimap_ref(self.env).ref
 
 		for _,v in ipairs(self.assets.alltexelement)do
 			if v.xml == "minimap/minimap_data.xml" then
 				local name = NameOf(v.tex)
 				local prefablist = {name}
-				if util.ref[name] ~= nil then
-					table.extend(prefablist, util.ref[name])
+				if ref[name] ~= nil then
+					table.extend(prefablist, ref[name])
 				end
 				local label = nil
 				for _,v in ipairs(prefablist)do
@@ -86,11 +91,12 @@ local AssetAnnotator = {
 				if label ~= nil then
 					self:AddDesc(v, label.."的小地图图标")
 				else
-					print("----------", v.tex)
-						-- TODO 这里有一大堆东西需要手动标注
+					self:AddDesc(v, DUMMY_DESC)
 				end
 			end
 		end
+
+		self.human:Minimap()
 	end,
 
 	Wallpaper = function(self)
@@ -211,8 +217,8 @@ local AssetAnnotator = {
 					if prefab_label then
 						self:AddDesc(v, skin_label.."的物品栏图片（"..prefab_label.."的皮肤）")
 					else
-						self:AddDesc(v, skin_label.."的物品栏图片（皮肤）")
 						error("Warning: Failed to get skin prefab: "..name.." - "..skin_label)
+						self:AddDesc(v, skin_label.."的物品栏图片（皮肤）")
 					end
 				else
 					-- print(v.tex) -- TODO:这里也需要手动标注
@@ -225,6 +231,7 @@ local AssetAnnotator = {
 	Deprecated = function(self)
 		
 	end,
+
 }
 
 local function run(env)
@@ -238,7 +245,8 @@ local function run(env)
 		data = {},
 		po = po,
 		assets = assert(provider.assets, "Asset list not found, call `ListAsset` first"),
-		load = CreateLoader(root)
+		load = CreateLoader(root),
+		DUMMY_DESC = DUMMY_DESC,
 	}, {__index = AssetAnnotator})
 
 	annotator:PreLoad()	
@@ -257,6 +265,13 @@ local function run(env)
 	for k,v in pairs(annotator.data)do
 		local id = k:GetID()
 		data[id] = v -- TODO: richtext
+
+		-- check dummy data
+		table.foreach(v, function(_, item)
+			if item == DUMMY_DESC then
+				print("Warning: dummy desc in: "..tostring(k))
+			end
+		end)
 	end
 
 	FileSystem.SaveString("assetdesc.dat", json.encode_compliant(data))

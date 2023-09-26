@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox } from '@blueprintjs/core'
 import { Collapse, ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
-import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture } from '../../hooks'
+import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useGenericSaveFileCb, useSaveFileDialog } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
 import style from './index.module.css'
@@ -11,6 +11,8 @@ import Preview from '../../components/Preview'
 import ClickableTag from '../../components/ClickableTag'
 import Hash from '../../components/HumanHash'
 import FacingIcon from '../../components/FacingIcon'
+import CCMiniPlayground from '../../components/CCMiniPlayground'
+import CCMapViewer from '../../components/CCMapViewer'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 
 function KeepAlive(props) {
@@ -53,9 +55,13 @@ export default function AssetPage() {
         <ZipPage {...asset} key={id}/>
       </KeepAlive>
     case "tex_no_ref":
-      return <KeepAlive key={id}>
-        <TexNoRefPage {...asset} key={id}/>
-      </KeepAlive>
+      if (asset._is_cc)
+        // cc page contains webGL context, don't cache it
+        return <TexNoRefPage {...asset} key={id} is_cc={true}/>
+      else
+        return <KeepAlive key={id}>
+          <TexNoRefPage {...asset} key={id}/>
+        </KeepAlive>
     default:
       return <AssetInvalidPage type="invalid-type" typeName={type}/>
   }
@@ -104,11 +110,11 @@ function TexPage({id, xml, tex}) {
     call()
   }, [call])
 
-  const download = useSaveFileCall({
-    defaultParams: {type: "image", xml, tex, format: "save"},
-    filters: "image",
-    defaultPath: tex + ".png",
-  }, [id, xml, tex])
+  const download = useSaveFileCall(
+    {type: "image", xml, tex}, 
+    "image",
+    tex + ".png",
+  [id, xml, tex])
 
   const copy = useCopyTexElement(xml, tex)
 
@@ -141,57 +147,58 @@ function TexPage({id, xml, tex}) {
   </div>
 }
 
-function TexNoRefPage({id, file}) {
-  const ref = useRef()
+function TexNoRefPage({id, file, is_cc}) {
   const [resolution, setResolution] = useState([0, 0])
   const [loading, setLoading] = useState(true)
+  const [url, setURL] = useState("")
   
   const onImgLoad = ({target})=> {
     setResolution([target.width, target.height])
     setLoading(false)
   }
 
-  const call = useLuaCall("load", result=> {
+  useLuaCallOnce("load", result=> {
     const array = Uint8Array.from(result)
     const blob = new Blob([array])
-    ref.current.src = URL.createObjectURL(blob)
+    setURL(URL.createObjectURL(blob))
   }, {type: "texture", file, format: "png"}, 
     [file])
 
-  useEffect(()=> {
-    // setLoading(true)
-    call()
-  }, [call])
-
-  const download = useSaveFileCall({
-    defaultParams: {type: "texture", file, format: "save"},
-    filters: "image",
-    defaultPath: file + ".png",
-  }, [id, file])
+  const download = useSaveFileCall(
+    {type: "texture", file},
+    "image",
+    file + ".png", [id, file])
 
   const copy = useCopyTexture(file)
 
   return <div>
-    <H3>{file} <AssetType type="tex_no_ref"/></H3>
+    <H3>{file} 
+      <AssetType type="tex_no_ref"/>
+      { is_cc && <AssetType type="cc"/> }
+    </H3>
     <div className="bp4-running-text">
       <Loading loading={loading}/>
       <img style={{maxWidth: "100%", maxHeight: "80vh", display: loading ? "none" : null}} 
-        className='bp4-elevation-1' ref={ref} onLoad={onImgLoad}/>
+        className='bp4-elevation-1' src={url} onLoad={onImgLoad}/>
       <div style={{height: 20}}></div>
       <Button icon="duplicate" onClick={()=> copy()} disabled={loading}>
         拷贝
       </Button>
       &nbsp;
-      <Button icon="download" intent='primary' onClick={download} disabled={loading}>
+      <Button icon="download" intent='primary' onClick={()=> download()} disabled={loading}>
         下载
       </Button>
       <H5>基本信息</H5>
-      <Card elevation={1}>
       <p>分辨率: {resolution[0]}x{resolution[1]}</p>
       <p>资源路径: {file} &nbsp;
         <Button icon="document-open" minimal={true}/>
       </p>
-      </Card>
+      {
+        is_cc && url.length > 0 && <CCMiniPlayground cc={url}/>
+      }
+      {
+        // is_cc && <CCMapViewer file={file}/>
+      }
     </div>
   </div>
 }
@@ -250,11 +257,11 @@ const XmlPageDisplay = {
   Grid({data, xml}) {
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
-    const download = useSaveFileCall({
-      defaultParams: {type: "image", xml, format: "save"},
-      filters: "image",
-      defaultPath: "image.png",
-    }, [xml])
+    const download = useSaveFileCall(
+      {type: "image", xml},
+      "image",
+      "image.png", [xml])
+
     const skipButton = e=> e.target.className.indexOf("button-group") !== -1
     
     return <div className={style["grid-container"]}>
@@ -286,11 +293,11 @@ const XmlPageDisplay = {
   List({data, xml}) {
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
-    const download = useSaveFileCall({
-      defaultParams: {type: "image", xml, format: "save"},
-      filters: "image",
-      defaultPath: "image.png",
-    }, [xml])
+    const download = useSaveFileCall(
+      {type: "image", xml},
+      "image",
+      "image.png", [xml])
+
     return <table className={style["list-container"]} border={0}>
       <thead>
         {/* <th><Checkbox inline={true} style={{marginRight: 0}} /></th> */}
@@ -367,6 +374,13 @@ function ZipPage({type, file, id}) {
 
   const copyAtlas = useCopyBuildAtlas(file)
   const copyElement = useCopySymbolElement(file)
+  const downloadAtlas = useSaveFileCall({
+    type: "atlas", build: file  
+  }, "image", "TODO: name.png", [file])
+  const downloadElement = useSaveFileCall({
+    type: "symbol_element", build: file,
+  }, "image", "TODO: name.png", [file])
+
   const onSuccess = useCopySuccess()
 
   return <div>
@@ -405,7 +419,7 @@ function ZipPage({type, file, id}) {
                       <td>
                         <Button icon="duplicate" onClick={()=> copyAtlas({sampler: i})}/>
                         <span style={{display: "inline-block", width: 10}}/>
-                        <Button icon="download" intent='primary'></Button>
+                        <Button icon="download" intent='primary' onClick={()=> downloadAtlas({sampler: i})}></Button>
                       </td>
                     </tr>)
                 }
@@ -414,7 +428,7 @@ function ZipPage({type, file, id}) {
           </div>
           <p><strong>符号</strong></p>
           <p>
-            <Button icon="download" intent="primary">批量下载</Button>
+            <Button icon="download" intent="primary" onClick={()=> alert("TODO:这个还没写")}>批量下载</Button>
           </p>
           <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
             <table className={style["list-container"]}>
@@ -455,9 +469,8 @@ function ZipPage({type, file, id}) {
                           <td>
                             <Button icon="duplicate" onClick={()=> copyElement({imghash, index: img.index})}/>
                             <span style={{display: "inline-block", width: 10}}/>
-                            <Button icon="download" intent='primary'/>
+                            <Button icon="download" intent='primary' onClick={()=> downloadElement({imghash, index: img.index})}/>
                           </td>
-
                         </tr>)
                     }
                   </>)

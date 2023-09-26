@@ -7,11 +7,11 @@ from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 
 logging.basicConfig(level = logging.INFO, format = "%(asctime)s %(message)s")
-event_handler = LoggingEventHandler
+event_handler = LoggingEventHandler()
 observer = Observer()
 path = Path(__file__).resolve().parent.parent.parent
 print("Watch: ", path)
-observer.schedule(event_handler, path, resursive = True)
+observer.schedule(event_handler, path, recursive = True)
 observer.start()
 
 while True:

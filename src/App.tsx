@@ -1,40 +1,33 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Routes, useLocation, useNavigate } from 'react-router-dom'
+import React, { useContext, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { appWindow, getCurrent } from '@tauri-apps/api/window'
-import { listen as globalListen } from '@tauri-apps/api/event' 
 import "./App.css"
 
 import Nav from './components/Nav'
 import MainMenu from './components/MainMenu'
 import Footer from './components/Footer'
 import AppToaster from './components/AppToaster'
-
 import AppInit from './components/AppInit'
 import { FocusStyleManager } from "@blueprintjs/core"
 import cacheContext from './components/KeepAlive/cacheContext'
 import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
+import { useAppSetting } from './hooks'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
 		app_init?: boolean,
-		config: any,
 	}
 }
 
 export default function App() {
 	const isSubwindow = getCurrent().label !== "main"
-	// const isSubwindow = true
 	return !isSubwindow ? <AppMain/> : <AppSub/>
 }
 
 function AppMain() {
-	let url = useLocation()
-	// let mainroute = useRoutes(MainRouteList)
-	// console.log(mainroute)
-	const navigate = useNavigate()
 	const articleRef = useRef(null)
 	const { setScrollableWidget } = useContext(cacheContext)
 
@@ -42,41 +35,15 @@ function AppMain() {
 		setScrollableWidget({node: articleRef.current})
 	}, [])
 
-	// TODO: 注意这里的颜色模式切换并不是启动即时的，可能有点问题需要优化
-	const [systemTheme, setSystemTheme] = useState("light")
-	const [configTheme, setConfigTheme] = useState()
+	const [theme, _] = useAppSetting("theme")
+	const [isDarkMode, setDarkMode] = useState(false)
 
-	// useEffect(()=> {
-		
-	// 	appWindow.theme().then(
-	// 		theme=> {
-	// 			setSystemTheme(theme)
-	// 		}
-	// 	)
-	// }, [setSystemTheme])
-
-	// useEffect(()=> {
-		
-	// 	const configListener = appWindow.listen("colortheme", ({payload: theme})=> {
-	// 		setConfigTheme(theme)
-	// 	})
-	// 	const systemListener = appWindow.onThemeChanged(({payload: theme})=> {
-	// 		setSystemTheme(theme)
-	// 	})
-	// 	return ()=> {
-	// 		configListener.then(f=> f())
-	// 		systemListener.then(f=> f())
-	// 	}
-	// }, [systemTheme, setSystemTheme, configTheme, setConfigTheme])
-
-	const isDarkMode = useMemo(()=> {
-		if (configTheme === "auto") {
-			return systemTheme === "dark"
-		}
-		else {
-			return configTheme === "dark"
-		}
-	}, [systemTheme, configTheme])
+	useEffect(()=> {
+		appWindow.theme().then(
+			systemTheme=> setDarkMode(
+				theme !== "auto" ? theme === "dark" : systemTheme == "dark")
+		)
+	}, [theme])
 
   return (
 		<div className={isDarkMode ? "bp4-dark": undefined}>
@@ -92,9 +59,6 @@ function AppMain() {
 				</menu>
 				<article ref={articleRef} id="app-article">
 					<MainRoutes/>
-
-					{/* <div style={{height: 300}}></div> */}
-					{/* <br/> */}
 				</article>
 			</div>
 			<footer>
@@ -104,21 +68,10 @@ function AppMain() {
 			<AppInit/>
 			<AppToaster/>
 			<AppQuickSettings/>
-			
-			{/* <Local/> */}
 		</div>
 	)
 }
 
 function AppSub() {
 	return <SubRoutes/>
-}
-
-function Local() {
-	const [_, plus] = useState(0)
-	useEffect(()=> {
-		let t = setInterval(()=> plus(v=> v+1), 500)
-		return ()=> clearInterval(t)
-	}, [plus])
-	return <p>{JSON.stringify(window.config)}</p>
 }

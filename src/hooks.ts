@@ -2,8 +2,9 @@ import { invoke } from "@tauri-apps/api"
 import { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { appWindow } from "@tauri-apps/api/window"
 import { save } from "@tauri-apps/api/dialog"
-
-console.log("User Agent: ", navigator.userAgent)
+import type { AppSettings } from "./redux/reducers/appsettings"
+import { update as UpdateSetting, update } from "./redux/reducers/appsettings"
+import { useDispatch, useSelector } from "./redux/store"
 
 const DYN_ENCRYPT = "DYN_ENCRYPT"
 
@@ -21,6 +22,7 @@ function checkEncryptResult(result: string | object){
 export function useOS() {
   return useMemo(()=> {
     const ua = navigator.userAgent.toLocaleLowerCase()
+    console.log("User Agent: ", ua)
     return {
       isMacOS: ua.indexOf("mac") !== -1,
       isWindows: ua.indexOf("win") !== -1,
@@ -81,15 +83,29 @@ export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true
   return [onScroll, onMouseEnter, onMouseLeave]
 }
 
+type rLuaAPI = 
+  "appinit" |
+  "load" | 
+  "setroot" | "showroot" | 
+  "copy" | 
+  "animproject.init" | "animproject" | 
+  "set" 
+  
+type LuaCallCb<T> = (response: T, param?: any)=> void
+
 /** a strict lua ipc hook
  * error will auto emit to window
  */
-type rLuaAPI = "appinit" | "load" | "setroot" | "copy" | "animproject.init" | "animproject" | "setconfig" | "getconfig"
-export function useLuaCall<T>(api: rLuaAPI, callback: (response: T, param?: any)=> void, defaultParams = {}, deps: React.DependencyList = []) {
+export function useLuaCall<T>(
+  api: rLuaAPI, 
+  callback: LuaCallCb<T>, 
+  defaultParams = {}, 
+  deps: React.DependencyList = [])
+{
   return useCallback((param={})=> {
-    if ((defaultParams as any).debug){
+    // if ((defaultParams as any).debug){
       console.log("useLuaCall", {...defaultParams, ...param})
-    }
+    // }
     invoke<T>("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
       (response: T)=> callback(response, param),
       error=> appWindow.emit("lua_call_error", error)
@@ -98,11 +114,22 @@ export function useLuaCall<T>(api: rLuaAPI, callback: (response: T, param?: any)
 }
 
 /** useLuaCall and call function on change */
-export function useLuaCallOnce<T>(api: rLuaAPI, callback: (response: T, param?: any)=> void, defaultParams = {}, deps: React.DependencyList = []): void {
+export function useLuaCallOnce<T>(
+  api: rLuaAPI, 
+  callback: LuaCallCb<T>, 
+  defaultParams = {}, 
+  // dependency list that change the function definition (like useCallback)
+  deps: React.DependencyList,
+  // dependency list that indicating whether the function will be called after changed
+  // an empty list or a non-empty list containing true value is YES
+  // a non-empty list containing no true value is NO
+  filter_deps: React.DependencyList = [])
+{
   const fn = useLuaCall<T>(api, callback, defaultParams, deps)
   useEffect(()=> {
-    fn()
-  }, [fn])
+    if (filter_deps.length === 0 || filter_deps.find(v=> Boolean(v)) !== undefined)
+      fn()
+  }, [fn, ...filter_deps])
 }
 
 /** an unstrict lua ipc hook 
@@ -180,11 +207,15 @@ const SAVE_FILTERS = {
 }
 
 /** common file save dialog */
-export function useSaveFileDialog(saveFn, filters, defaultPath?: string) {
+export function useSaveFileDialog(saveFn, filters, defaultPath: string) {
   const fn = useCallback(async (param?: {[K: string]: any})=> {
+    defaultPath = param?.defaultPath || defaultPath
+    if (filters === "image" && defaultPath.endsWith(".tex"))
+      defaultPath = defaultPath.substring(0, defaultPath.length - 4) + ".png"
+    
     const filepath = await save({
       filters: typeof filters === "string" ? SAVE_FILTERS[filters.toUpperCase()] : filters,
-      defaultPath: param?.defaultPath || defaultPath,
+      defaultPath,
     })
     if (filepath)
       saveFn({...param, path: filepath})
@@ -207,38 +238,48 @@ export function useGenericSaveFileCb(filters) {
     }
   }
   return fn
-}
+} 
 
 /** wrap `useSaveFile` and `useLuaCall` */
-export function useSaveFileCall({api = "load", defaultParams, filters, defaultPath}, deps: React.DependencyList) {
+export function useSaveFileCall(defaultParams, filters, defaultPath: string, deps: React.DependencyList) {
   const cb = useGenericSaveFileCb(filters) // callback fn when backend return message
-  const saveFn = useLuaCall(api, cb, defaultParams, deps) // backend query
+  const saveFn = useLuaCall("load", cb, {...defaultParams, format: "save", result_type: "string"}, deps) // backend query
   const dialog = useSaveFileDialog(saveFn, filters, defaultPath) // get filepath from frontend 
   return dialog
 }
 
-/** basic config getter&setter */
-export function useConfig(key, onGet = ()=>{}, onSet = ()=>{}) {
-  const getCall = useLuaCall("getconfig", onGet, {key})
-  const setCall = useLuaCall("setconfig", onSet, {key})
-  return [getCall, setCall]
+/** appsettings getter & setter */
+export function useAppSetting<K extends keyof AppSettings>(key: K):
+[AppSettings[K], (v: AppSettings[K])=> void]
+{
+  const appsettings = useSelector(({appsettings})=> appsettings)
+  const dispatch = useDispatch()
+  
+  const value = appsettings[key]
+  const call = useLuaCall("set", ()=> {}, {key}, [key])
+  const set = (v: AppSettings[K])=> {
+    dispatch(UpdateSetting({key: key, value: v})) 
+    call({value: v})
+  }
+  return [ value, set ]
 }
 
 /** a observer to test if widget is into view */
-export function useIntersectionObserver({ref, threshold = 0, rootMargin = "100px"}) {
+export function useIntersectionObserver(param: {ref: React.MutableRefObject<HTMLElement>} & IntersectionObserverInit){
+  const {ref, threshold = 0, rootMargin = "40px"} = param
   const [visible, setVisible] = useState(false)
   const [appeared, setAppeared] = useState(false)
 
   useEffect(() => {
     const observer = new IntersectionObserver(entry=> {
       setVisible(entry[0].isIntersecting)
-      if (entry[0].isIntersecting && !visible){
+      if (entry[0].isIntersecting){
         setAppeared(true)
       }
     }, { rootMargin, threshold })
     observer.observe(ref.current)
     return () => ref.current && observer.unobserve(ref.current)
-  }, [ref, visible, threshold, rootMargin])
+  }, [ref, threshold, rootMargin])
 
   return { visible, appeared }
 }

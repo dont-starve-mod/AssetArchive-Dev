@@ -11,6 +11,7 @@ import "./styles.css"
 import { BrowserRouter } from "react-router-dom"
 import { KeepAliveProvider } from "./components/KeepAlive"
 import store from "./redux/store"
+import './pixiconfig.ts'
 import { Provider } from "react-redux"
 
 ReactDOM.createRoot(document.getElementById("root")).render(

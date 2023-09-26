@@ -14,7 +14,7 @@ function AssetIndex:DoIndex(ignore_cache)
 	local t = now()
 	print("Index assets ...")
 	-- start flag
-	IpcEmitEvent("root", self.root:as_string())
+	-- IpcEmitEvent("root", self.root:as_string())
 	IpcEmitEvent("index_progress", tostring(0))
 
 	local animzip = (self.root/"anim"):iter_file_with_extension(".zip")
@@ -28,8 +28,10 @@ function AssetIndex:DoIndex(ignore_cache)
 			return error(ERROR.IPC_INTERRUPTED)
 		end
 		bar:set_position(i)
-		IpcEmitEvent("index_progress", tostring(i/total))
-		if i == total then
+		if i < total then
+			IpcEmitEvent("index_progress", tostring(i/total))
+		else
+			IpcEmitEvent("index_progress", "1")
 			bar:done()
 		end
 	end

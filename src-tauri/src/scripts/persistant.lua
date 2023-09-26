@@ -95,5 +95,5 @@ end
 local old_Set = Persistant.Config.Set
 Persistant.Config.Set = function(self, k, v)
 	old_Set(self, k, v)
-	pcall(IpcEmitEvent, "updateconfig", json.encode_compliant({key = k, value = v}))
+	pcall(IpcEmitEvent, "updatesetting", json.encode_compliant({key = k, value = v}))
 end

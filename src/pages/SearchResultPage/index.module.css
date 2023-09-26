@@ -11,10 +11,17 @@
   background-color: #eee;
 }
 
-.search-item-box h3 {
+.search-item-box .left {
+  padding-left: 10px;
+}
+
+.search-item-box .left h3 {
   font-size: 1em!important;
   font-weight: 700;
-  text-indent: .5em;
+}
+
+.search-item-box .left p {
+  color: #aaa;
 }
 
 .search-item-box .preview-box {
@@ -34,6 +41,7 @@
 }
 
 .no-result {
+  margin-left: 10px;
   margin-top: 10px;
   margin-bottom: 100px;
 }

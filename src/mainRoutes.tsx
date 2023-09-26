@@ -5,6 +5,7 @@ import AboutPage from "./pages/AboutPage"
 import ReportBugPage from "./pages/ReportBugPage"
 import AssetPage from "./pages/AssetPage"
 import AnimListPage from "./pages/AnimListPage"
+import HomePage from "./pages/HomePage"
 
 import { Routes, Route } from "react-router-dom"
 
@@ -18,6 +19,6 @@ export default function MainRoutes() {
     <Route path="/search" element={<SearchResultPage/>} />
     <Route path="/modtools" element={<>什么都没有</>} />
     <Route path="/filter" element={<>什么都没有</>} />
-    <Route path="/" element={<></>} />
+    <Route path="/" element={<HomePage/>} />
   </Routes>
 }

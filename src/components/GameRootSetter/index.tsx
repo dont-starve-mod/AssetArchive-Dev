@@ -1,15 +1,32 @@
-import React, { useEffect, useState } from 'react'
-import { Dialog, DialogBody, DialogFooter, Button, Icon } from '@blueprintjs/core'
+import React, { useCallback, useEffect, useState } from 'react'
+import { Button, Icon, InputGroup } from '@blueprintjs/core'
 import { MultistepDialog, DialogStep, RadioGroup, Radio, H4 } from '@blueprintjs/core'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
+import style from './index.module.css'
+import { useLuaCall } from '../../hooks'
+import { open } from '@tauri-apps/api/dialog'
 
 const NEXT_TEXT = "下一步"
 const PREV_TEXT = "上一步"
+const FINAL_TEXT = "确认"
 
-/* a setter widget that guide user to set DST game data directory path */
-export default function GameRootSetter({isOpen, onClose}) {
-  const [gametype, setGameType] = useState(null)
+interface IProps {
+  isOpen: boolean,
+  onClose: any
+}
+
+/** a model that guide user to set DST game data directory path */
+export default function GameRootSetter(props: IProps) {
+  const {isOpen} = props
+  // const isOpen = true
+  const onClose = ()=> {}
+  const [gametype, setGameType] = useState<
+    "dst-client-installed" |
+    "dst-client-uninstalled" | 
+    "dst-dedicated-server">()
+  const [verifying, setVerifying] = useState(false)
+
   const onSelectGameType = ({target})=> {
     setGameType(target.value)
   }
@@ -19,27 +36,24 @@ export default function GameRootSetter({isOpen, onClose}) {
     icon="folder-open"
     navigationPosition="top"
     title="设置游戏目录"
-    nextButtonProps={{
-      text: NEXT_TEXT
-    }}
-    backButtonProps={{
-      text: PREV_TEXT
-    }}
+    nextButtonProps={{ text: NEXT_TEXT }}
+    backButtonProps={{ text: PREV_TEXT }}
+    finalButtonProps={{ text: FINAL_TEXT, loading: verifying, onClick: ()=> appWindow.emit("submit_root") }}
     style={{minWidth: 600}}
   >
     <DialogStep
       id="install-options"
-      title="选择类型"
+      title="选择"
       panel={<GameTypePanel onChange={onSelectGameType} selectedValue={gametype}/>}
       nextButtonProps={{
         text: NEXT_TEXT,
-        disabled: gametype === null,
-        tooltipContent: gametype === null ? "选择一项以继续" : undefined,
+        disabled: gametype === undefined,
+        tooltipContent: gametype === undefined ? "选择一项以继续" : undefined,
       }}
     />
     <DialogStep
       id="open-game"
-      title="打开游戏位置"
+      title={gametype === "dst-client-installed" ? "游戏位置" : "安装游戏"}
       panel={<OpenFolderPanel gametype={gametype}/>}
       nextButtonProps={{
         text: NEXT_TEXT,
@@ -57,7 +71,9 @@ export default function GameRootSetter({isOpen, onClose}) {
 function GameTypePanel(props){
   return <div className='bp4-dialog-body'>
     <H4>游戏目录</H4>
+    <p>饥荒资源档案是一个易用的饥荒游戏资源读取工具。</p>
     <p>要运行本程序，必须先安装“饥荒联机版”。</p>
+    <hr/>
     <RadioGroup onChange={props.onChange} selectedValue={props.selectedValue}>
       <Radio label="我已安装游戏" value="dst-client-installed" />
       <Radio label="我已购买游戏，但尚未安装" value="dst-client-uninstalled" />
@@ -66,9 +82,9 @@ function GameTypePanel(props){
   </div>
 }
 
-function OpenFolderPanel(props){
+function OpenFolderPanel(props: { gametype: string }){
   const { gametype } = props
-  return <div className="bp4-dialog-body">
+  return <div className="bp4-dialog-body" style={{minHeight: 160}}>
     {
       gametype == "dst-client-installed" ? <div className='bp4-running-text'>
         <p>打开游戏的安装位置。</p>
@@ -92,7 +108,10 @@ function OpenFolderPanel(props){
         <p>或者：</p>
         <ul>
           <li>安装<strong>饥荒联机版专用服务器</strong>。
-           <Tooltip2 content="官方提供的游戏专用服务器，可免费安装，但不能直接游玩">
+           <Tooltip2 content={<div style={{width: 250}}>
+              这是官方提供的游戏专用服务器，包含
+              全部游戏资源文件，可免费安装。
+            </div>}>
             <Icon icon="small-info-sign"/>
            </Tooltip2>
           </li>
@@ -105,9 +124,19 @@ function OpenFolderPanel(props){
   </div>
 }
 
-function DragFolderPanel(){
+export function DragFolderPanel(){
   const [hover, setHover] = useState(false)
   const [path, setPath] = useState("")
+
+  const call = useLuaCall("setroot", result=> {
+    if (result === "false"){
+      appWindow.emit("alert", {title: "设置失败", message: "不是一个有效的游戏资源目录"})
+    }
+    else if (result === "true"){
+      appWindow.emit("alert", {intent: "primary", title: "设置成功", message: "资源目录已链接至: " + path})
+    }
+  }, {path}, [path])
+
   useEffect(()=> {
     const unlisten = appWindow.onFileDropEvent(event=> {
       const type = event.payload.type
@@ -119,30 +148,46 @@ function DragFolderPanel(){
         setPath(event.payload.paths[0])
       }
       else {
-        console.log("Cancel")
         setHover(false)
       }
     })
-    return ()=> unlisten.then(f=> f())
-
+    return ()=> { unlisten.then(f=> f()) }
   }, [])
-  return <div className='bp4-dialog-body'>
-    {
-      path.length > 0 ? <>
-        当前路径：{path}
-      </> : <> 
+
+  useEffect(()=> {
+    const unlisten = appWindow.listen("submit_root", ()=> {
+      console.log(path)
+      call()
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [path])
+
+  const openDialog = useCallback(()=> {
+    open({directory: true, title: ""}).then(
+      result=> typeof result === "string" && setPath(result)
+    )
+  }, [])
+
+  return (
+    <div className='bp4-dialog-body' style={{minHeight: 160}}>
       {
-        !hover ? <>
-          <p><Icon icon="folder-close"/> 
+        !hover ?
+          <p style={{cursor: "pointer"}} onClick={openDialog}>
+            <Icon icon="folder-close"/> 
             &nbsp;把游戏文件夹拖拽到这里。
-          </p>
-        </> : <>
-          <p><Icon icon="folder-open" intent='success'/> 
+          </p> :
+          <p className={style["flash"]}>
+            <Icon icon="folder-open" intent='primary'/> 
             &nbsp;现在可以松开了。
           </p>
-        </>
-      }</>
-    }
-    
-  </div>
+      }
+      <br/>
+      <p>或者把文件夹路径粘贴到下方：</p>
+      <InputGroup 
+        value={path} 
+        onChange={e=> setPath(e.target.value)} 
+        spellCheck={false}
+        placeholder=''/>
+    </div>
+  )
 }

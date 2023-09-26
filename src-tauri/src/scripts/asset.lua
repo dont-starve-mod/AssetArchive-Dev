@@ -19,8 +19,13 @@ function Asset:__newindex(k,v)
 end
 
 function Asset:__tostring()
-	return string.format("Asset<%s %s>",
-		self.type, self.file or self.xml)
+	if self.type == "tex" then
+		return string.format("Asset<%s %s - %s>",
+			self.type, self.xml, self.tex)
+	else
+		return string.format("Asset<%s %s>",
+			self.type, self.file)
+	end
 end
 
 function Asset:GetID()

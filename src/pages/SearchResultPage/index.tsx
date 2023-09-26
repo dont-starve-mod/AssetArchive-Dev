@@ -1,7 +1,6 @@
-import { H3, Pre, Spinner, TabId, Tag } from '@blueprintjs/core'
+import { H3, Icon, Spinner, TabId, Tag } from '@blueprintjs/core'
 import React, { useEffect, useMemo, useReducer, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Tab, Tabs } from '@blueprintjs/core'
 import { SEARCH_RESULT_TYPE } from '../../strings'
 import MatchText from '../../components/MatchText'
 import { searchengine } from '../../asyncsearcher'
@@ -22,14 +21,13 @@ export default function SearchResultPage() {
   const [tab, selectTab] = useState<TabId>("all")
   const [result, setSearchResult] = useState<AssetItemProps[]>([])
 
-  // 对搜索结果进行一些预处理
+  // classified results
   const resultGroups = useMemo(()=> {
-    console.log(result)
-      let groups = Object.fromEntries(
-        SEARCH_RESULT_TYPE.map(({key})=> [key, [] as AllAssetTypes[]])
-      )
-      result.forEach(item=> groups[item.type].push(item))
-      return groups
+    let groups: {[K: string]: AssetItemProps[]} = Object.fromEntries(
+      SEARCH_RESULT_TYPE.map(({key})=> [key, []])
+    )
+    result.forEach(item=> groups[item.type].push(item))
+    return groups
   }, [result])
 
   useEffect(()=> {
@@ -50,23 +48,12 @@ export default function SearchResultPage() {
     return ()=> { changed = true }
   }, [query, flag])
 
+  const maxResultNum = 500
+
   return <div>
     <H3>搜索 <span style={{color: "#6020d0"}}>{query}</span></H3>
     {/* <KeepAlivePage cacheNamespace="searchPage"> */}
       <div style={{borderBottom: "1px solid #ddd"}}>
-        {/* <Tabs onChange={v=> selectTab(v === tab ? "none" : v)} selectedTabId={tab}>
-          <Tab id={"all"} title={"全部"} 
-            tagContent={result.length}/>
-          {
-            SEARCH_RESULT_TYPE.map(({key, name})=> 
-              <Tab id={key} key={key} 
-                title={name} 
-                tagContent={resultGroups[key].length}
-                disabled={resultGroups[key].length === 0}
-              />
-            )
-          }
-        </Tabs> */}
         <GroupTag selected={tab === "all"} onClick={()=> selectTab("all")}>
           全部 {result.length}
         </GroupTag>
@@ -82,17 +69,23 @@ export default function SearchResultPage() {
       </div>
       <div style={{overflowY: "auto", overflowX: "visible", maxHeight: "calc(100vh - 160px)"}}>
         {
-          !loading && tab === "all" && result.map(item=> 
-            <DetailedSearchItem key={item.id} {...item}/>)
+          !loading && tab === "all" && result.map((item, index)=> 
+            index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
+            index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={result.length}/> :
+            <></>)
         }
         {
-          !loading && tab !== "all" && resultGroups[tab].map(item=> 
-            <DetailedSearchItem key={item.id} {...item}/>)
-        }
+          !loading && tab !== "all" && resultGroups[tab].map((item, index)=> 
+            index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
+            index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={resultGroups[tab].length}/> :
+            <></>)
+      }
         {
           !loading && 
           <div className={style["no-result"]}>
-            <p>没找到想要的结果？<a onClick={()=> alert("还没写完")}>反馈...</a></p>
+            <p><Icon icon="search" style={{color: "#ccc", marginRight: 5}}/>
+            没找到想要的结果？
+            <a onClick={()=> alert("还没写完")}>反馈...</a></p>
           </div>
         }
       </div>
@@ -100,6 +93,15 @@ export default function SearchResultPage() {
       </div>
     {/* </KeepAlivePage> */}
   </div>
+}
+
+function ResultNumOverflow(props: {max: number, num: number}) {
+  const {max, num} = props
+  return (
+    <div>
+      还有没显示的东西... max={max} num={num}
+    </div>
+  )
 }
 
 function GroupTag({children, selected, onClick}) {
@@ -111,34 +113,40 @@ function GroupTag({children, selected, onClick}) {
   </Tag>
 }
 
-const PREIVEW_SIZE = {
-  width: 50,
-  height: 50
-}
+const PREIVEW_SIZE = { width: 50, height: 50 }
+
 function DetailedSearchItem(props: AssetItemProps){
-  const {type, id} = props
+  const {type, id, description} = props
   const navigate = useNavigate()
   return <div 
-  className={style["search-item-box"]} 
+  className={style["search-item-box"]}
   onClick={()=> {
     // props.onClickItem()
     // TODO: 词条和asset的区别
     navigate("/asset?id=" + encodeURIComponent(id))
   }}>
-    <H3>
-      {
-        (type === "animzip" || type === "animdyn") ? 
-          <MatchText text={props.file} match={props.matches.file} /> :
-        type === "xml" ? 
-          <MatchText text={props.file} match={props.matches.file} /> :
-        type === "tex" ?
-          <MatchText text={props.tex} match={props.matches.tex} /> :
-        type === "tex_no_ref" ?
-          <MatchText text={props.file} match={props.matches.file} /> :
-        <></>
-      }
-    </H3>
-    {/* <p>描述语句</p> */}
+    <div className={style["left"]}>
+      <H3>
+        {
+          (type === "animzip" || type === "animdyn") ? 
+            <MatchText text={props.file} match={props.matches.file} /> :
+          type === "xml" ? 
+            <MatchText text={props.file} match={props.matches.file} /> :
+          type === "tex" ?
+            <MatchText text={props.tex} match={props.matches.tex} /> :
+          // type === "tex_no_ref" && props._is_cc ?
+            
+          type === "tex_no_ref" ?
+            <MatchText text={props.file} match={props.matches.file} /> :
+          <></>
+        }
+      </H3>
+      <p>
+        {
+          description?.map((s, i)=> <span key={i}>{s}</span>)
+        }
+      </p>
+    </div>
     <div className={style["preview-box"] + " bp4-elevation-1"} style={{...PREIVEW_SIZE}}>
       {
         type === "tex" ? 
@@ -147,6 +155,11 @@ function DetailedSearchItem(props: AssetItemProps){
           <Preview.XmlMap {...props} {...PREIVEW_SIZE}/> :
         type === "animzip" || type === "animdyn" ? 
           <Preview.Zip {...props} {...PREIVEW_SIZE}/> :
+        type === "tex_no_ref" && props._is_cc === true ?
+          <Preview.CC {...props} {...PREIVEW_SIZE} cc={props.file} 
+          sourceType={"image"}
+          xml={"images/bg_loading_loading_farming.xml"} 
+          tex={"loading_farming.tex"}/> :
         type === "tex_no_ref" ? 
           <Preview.Texture {...props} {...PREIVEW_SIZE}/> :
          <></>
