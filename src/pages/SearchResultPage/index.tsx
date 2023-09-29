@@ -1,18 +1,20 @@
 import { H3, Icon, Spinner, TabId, Tag } from '@blueprintjs/core'
-import React, { useEffect, useMemo, useReducer, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import React, { useContext, useEffect, useMemo, useReducer, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
 import MatchText from '../../components/MatchText'
 import { searchengine } from '../../asyncsearcher'
-import { AllAssetTypes, FuseResult } from "../../searchengine"
-import style from "./index.module.css"
-import { appWindow } from '@tauri-apps/api/window'
+import { AllAssetTypes, FuseResult, Matches } from "../../searchengine"
+import AssetDescFormatter from '../../components/AssetDescFormatter'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import Preview from '../../components/Preview'
+import cacheContext from '../../components/KeepAlive/cacheContext'
+import style from "./index.module.css"
 
-type AssetItemProps = AllAssetTypes & FuseResult<AllAssetTypes>
+type AssetItemProps = AllAssetTypes & FuseResult<AllAssetTypes> & { matches: Matches }
 
 export default function SearchResultPage() {
+  const location = useLocation()
   const [param] = useSearchParams()
   const query = param.get("q")
 
@@ -20,6 +22,8 @@ export default function SearchResultPage() {
   const [loading, setLoading] = useState(false)
   const [tab, selectTab] = useState<TabId>("all")
   const [result, setSearchResult] = useState<AssetItemProps[]>([])
+
+  const {drop: dropCache} = useContext(cacheContext)
 
   // classified results
   const resultGroups = useMemo(()=> {
@@ -31,28 +35,31 @@ export default function SearchResultPage() {
   }, [result])
 
   useEffect(()=> {
+    if (!query) return
     let changed = false
     setLoading(true)
     if (!searchengine.ready) {
-      setTimeout(()=> forceUpdate(), 200)
+      setTimeout(()=> forceUpdate(), 330)
       return
     }
     searchengine.search(query, null).then(
-      (result: Array<FuseResult<AllAssetTypes>&{id: string}>)=> {
+      (result: Array<FuseResult<AllAssetTypes>&{id: string, matches: Matches}>)=> {
         if (changed) return
         setSearchResult(result.map(item=> 
           ({...window.assets_map[item.id], ...item})))
         setLoading(false)
+        dropCache({cacheId: "searchPage/" + location.search})
       }
     )
     return ()=> { changed = true }
-  }, [query, flag])
+  }, [query, flag, forceUpdate])
 
   const maxResultNum = 500
 
+  console.log("Render", loading, tab)
+
   return <div>
     <H3>搜索 <span style={{color: "#6020d0"}}>{query}</span></H3>
-    {/* <KeepAlivePage cacheNamespace="searchPage"> */}
       <div style={{borderBottom: "1px solid #ddd"}}>
         <GroupTag selected={tab === "all"} onClick={()=> selectTab("all")}>
           全部 {result.length}
@@ -67,31 +74,38 @@ export default function SearchResultPage() {
       <div style={{width: 100, marginTop: 16, display: loading ? "block" : "none"}}>
         <Spinner/>
       </div>
-      <div style={{overflowY: "auto", overflowX: "visible", maxHeight: "calc(100vh - 160px)"}}>
-        {
-          !loading && tab === "all" && result.map((item, index)=> 
-            index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
-            index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={result.length}/> :
-            <></>)
-        }
-        {
-          !loading && tab !== "all" && resultGroups[tab].map((item, index)=> 
-            index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
-            index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={resultGroups[tab].length}/> :
-            <></>)
-      }
-        {
-          !loading && 
-          <div className={style["no-result"]}>
-            <p><Icon icon="search" style={{color: "#ccc", marginRight: 5}}/>
-            没找到想要的结果？
-            <a onClick={()=> alert("还没写完")}>反馈...</a></p>
+      {
+        !loading &&
+        <div style={{overflowY: "auto", overflowX: "visible", maxHeight: "calc(100vh - 160px)"}}>
+          <KeepAlivePage key={query} cacheNamespace="searchPage">
+            <div>
+
+            
+          {
+            tab === "all" && result.map((item, index)=> 
+              index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
+              index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={result.length}/> :
+              <></>)
+          }
+          {
+            tab !== "all" && resultGroups[tab].map((item, index)=> 
+              index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
+              index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={resultGroups[tab].length}/> :
+              <></>)
+          }
+          {
+            <div className={style["no-result"]}>
+              <p><Icon icon="search" style={{color: "#ccc", marginRight: 5}}/>
+              没找到想要的结果？
+              <a onClick={()=> alert("还没写完")}>反馈...</a></p>
+            </div>
+          }
           </div>
-        }
-      </div>
+          </KeepAlivePage>
+        </div>
+      }
       <div>
-      </div>
-    {/* </KeepAlivePage> */}
+    </div>
   </div>
 }
 
@@ -114,36 +128,42 @@ function GroupTag({children, selected, onClick}) {
 }
 
 const PREIVEW_SIZE = { width: 50, height: 50 }
+const MARK_STYLE: React.CSSProperties = { color: "#6020d0", fontWeight: 800 }
 
-function DetailedSearchItem(props: AssetItemProps){
-  const {type, id, description} = props
+function DetailedSearchItem(props: AssetItemProps & { matches: Matches }){
+  const {type, id, description, matches} = props
+  const matchesMap = Object.fromEntries(
+    matches.map(({key, indices})=> [key, indices as [number, number][]])
+  )
   const navigate = useNavigate()
   return <div 
-  className={style["search-item-box"]}
-  onClick={()=> {
-    // props.onClickItem()
-    // TODO: 词条和asset的区别
-    navigate("/asset?id=" + encodeURIComponent(id))
-  }}>
+    className={style["search-item-box"]}
+    onClick={()=> {
+      // props.onClickItem()
+      // TODO: 词条和asset的区别
+      navigate("/asset?id=" + encodeURIComponent(id))
+    }}>
     <div className={style["left"]}>
       <H3>
         {
           (type === "animzip" || type === "animdyn") ? 
-            <MatchText text={props.file} match={props.matches.file} /> :
+            <MatchText text={props.file} match={matchesMap["file"]} markStyle={MARK_STYLE}/> :
           type === "xml" ? 
-            <MatchText text={props.file} match={props.matches.file} /> :
+            <MatchText text={props.file} match={matchesMap["file"]} markStyle={MARK_STYLE}/> :
           type === "tex" ?
-            <MatchText text={props.tex} match={props.matches.tex} /> :
+            <MatchText text={props.tex} match={matchesMap["tex"]} markStyle={MARK_STYLE}/> :
           // type === "tex_no_ref" && props._is_cc ?
             
           type === "tex_no_ref" ?
-            <MatchText text={props.file} match={props.matches.file} /> :
+            <MatchText text={props.file} match={matchesMap["file"]} markStyle={MARK_STYLE}/> :
           <></>
         }
       </H3>
       <p>
         {
-          description?.map((s, i)=> <span key={i}>{s}</span>)
+          
+          description &&
+          <AssetDescFormatter.PlainText description={description}/>
         }
       </p>
     </div>

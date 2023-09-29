@@ -133,6 +133,7 @@ function buildLoader({build}: {build: string}, error): BuildData | undefined{
         })
         delete buildLoading[id]
         buildData[id] = data
+        onNewBuildLoaded()
       }
       else{
         pushError(error, "Build not exists: " + id)
@@ -281,6 +282,14 @@ function addCanvas(canvas){
 function removeCanvas(canvas){
   updatingCanvas.delete(canvas)
   // console.log("<remove canvas> size changed to", updatingCanvas.size)
+}
+
+function onNewBuildLoaded() {
+  updatingCanvas.forEach(canvas=> {
+    canvas.anims.forEach(anim=> {
+      anim.rebuildSymbolSource()
+    })
+  })
 }
 
 const observer = new IntersectionObserver(entries=> {

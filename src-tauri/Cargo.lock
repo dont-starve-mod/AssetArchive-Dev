@@ -138,7 +138,6 @@ dependencies = [
  "curl",
  "ffmpeg-sidecar",
  "filenamify",
- "fmod",
  "image",
  "include-crypt-bytes",
  "include_lua",
@@ -1251,10 +1250,6 @@ dependencies = [
  "pin-project",
  "spin 0.9.8",
 ]
-
-[[package]]
-name = "fmod"
-version = "0.1.0"
 
 [[package]]
 name = "fnv"

@@ -6,19 +6,10 @@ import { ErrorHandler} from '../AppInit'
 import { PredictableData } from '../../renderer_predict'
 import { useLuaCall } from '../../hooks'
 import { predict } from '../../asyncsearcher'
+import { AllAssetTypes } from '../../searchengine'
 
-declare global {
-  interface Window {
-    assets: any,
-    assets_map: any,
-    hash: Map<number, string>,
-  }
-}
-
-window.config = {}
-window.assets = {}
+window.assets = {} as any
 window.assets_map = {}
-// window.predict = new PredictableHelper()
 window.hash = new Map()
 
 export default function AppRendererInit() {
@@ -44,7 +35,7 @@ export default function AppRendererInit() {
             const assets = JSON.parse(payload)
             window.assets = assets
             window.assets_map = {}
-            Object.values(assets).forEach(list=> {
+            Object.values(assets).forEach((list: AllAssetTypes[])=> {
               list.forEach(a=> window.assets_map[a.id] = a)
             })
           }),
@@ -66,7 +57,7 @@ export default function AppRendererInit() {
       }
     }
     let handlers = init()
-    return ()=> handlers.then(fns=> fns.forEach(f=> f()))
+    return ()=> { handlers.then(fns=> fns.forEach(f=> f())) }
   }, [])
 
   // useEffect(()=> {

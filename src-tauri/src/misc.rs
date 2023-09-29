@@ -96,14 +96,20 @@ pub mod lua_misc {
         })?)?;
 
         // select file
+        #[cfg(unix)]
         globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: String|{
             use std::process;
-            #[cfg(unix)]
             Ok(process::Command::new("/usr/bin/open")
                 .arg("-R")
                 .arg(path)
                 .status()
                 .is_ok())
+        })?)?;
+
+        #[cfg(windows)]
+        globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: String|{
+            unimplemented!();
+            Ok(())
         })?)?;
 
         // process

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useReducer, useMemo } from 'react'
-import { Alert, Button, ButtonGroup, Card, H3, H5, Icon, PopoverInteractionKind } from '@blueprintjs/core'
+import { Alert, Button, ButtonGroup, Card, H3, H5, Icon, PopoverInteractionKind, ToastProps } from '@blueprintjs/core'
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
-import { useLuaCall } from '../../hooks'
+import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import style from './style.module.css'
 import { Popover2 } from '@blueprintjs/popover2'
 import { EditableText } from '@blueprintjs/core'
@@ -55,15 +55,15 @@ const actionReducer: React.Reducer<State, Action | ResetAction> = (state: State,
         return { deleting: { id: payload.id } }
     case "deleted":
       return {}
+    default:
+      return state
   }
-  return state
 }
 
 export default function AnimListPage() {
   const [recent, setRecent] = useState<AnimProject[]>([])
   const [sortBy, setSorting] = useState<["title" | "mtime", boolean]>(["title", false])
   const [template, setTemplate] = useState<AnimProject[]>([])
-  // const [action, setAction] = useState<AnimProjectSetterAction>("use_template")
   const [actionState, dispatch] = useReducer(actionReducer, {})
   const actionName: AnimProjectSetterAction = 
     actionState.duplicating !== undefined ? "duplicate" :
@@ -74,13 +74,25 @@ export default function AnimListPage() {
     actionState.duplicating !== undefined ? actionState.duplicating :
     actionState.templating !== undefined ? actionState.templating :
     null
+  
+  const openProject = useCallback((id: string)=> {
+    openAnimSubwindow({id})
+  }, [])
+  
+  const setOpenId = useCallback((id: string)=> {
+    // appWindow.emit("request_opening_project", { id })
+    const payload: ToastProps = {
+      intent: "success",
+      message: "项目创建成功。是否打开？",
+      action: {
+        icon: "document-open",
+        // text: "打开"
+        onClick: ()=> openProject(id),
+      }
+    }
+    appWindow.emit("toast", payload)
+  }, [])
 
-  const list = useLuaCall("animproject", (result: string)=> {
-    const data = JSON.parse(result)
-    const {template, project} = data as {[K: string]: AnimProject[]}
-    setRecent(project)
-    setTemplate(template)
-  }, {type: "list"}, [])
   const delete_call =  useLuaCall("animproject", (result: string)=> {
     const data = JSON.parse(result)
     const {project} = data as {project: AnimProject[]}
@@ -90,7 +102,7 @@ export default function AnimListPage() {
     const data = JSON.parse(result)
     const {new_id, project} = data as {new_id: string, project: AnimProject[]}
     setRecent(project)
-    console.log("New id: ", new_id) // TODO: open new id
+    setOpenId(new_id)
   }, {type: "create"}, [])
   const change = useLuaCall("animproject", (result: string)=> {
     const data = JSON.parse(result)
@@ -102,11 +114,15 @@ export default function AnimListPage() {
     const data = JSON.parse(result)
     const {new_id, project} = data as {new_id: string, project: AnimProject[]}
     setRecent(project)
-    console.log("New id: ", new_id)
+    setOpenId(new_id)
   }, {type: "duplicate"}, [])
 
-
-  useEffect(()=> { list() }, [list])
+  useLuaCallOnce<string>("animproject", result=> {
+    const data = JSON.parse(result)
+    const {template, project} = data as {[K: string]: AnimProject[]}
+    setRecent(project)
+    setTemplate(template)
+  }, {type: "list"}, [])
 
   const sortedProjectList = useMemo(()=> {
     const [by, reversed] = sortBy
@@ -142,13 +158,15 @@ export default function AnimListPage() {
     dispatch({type: "deleting", payload: {id}})
   }, [])
 
-  const onDuplicate = useCallback(({title, description}: NewAnimProject)=> {
+  const onDuplicate = useCallback(({title, description, from_id}: NewAnimProject & { from_id: string })=> {
     dispatch({type: "duplicated", payload: {id: "/"}})
-    console.log("后端: duplicate", title, description)
-    // duplicate({title, description})
+    duplicate({title, description, from_id})
   }, [])
 
-  // const onUseTemplate = useCallback(({title, description}))
+  const onUseTemplate = useCallback(({title, description, from_id}: NewAnimProject & { from_id: string })=> {
+    dispatch({type: "templating", payload: {id: "/"}})
+    duplicate({title, description, from_id, type: "use_template"})
+  }, [])
 
   const onRequestDuplicating = useCallback((project: AnimProject)=> {
     dispatch({type: "duplicating", payload: project})
@@ -197,7 +215,7 @@ export default function AnimListPage() {
       onClose={()=> dispatch({type: "reset"})}
       onCreate={onCreate}
       onDuplicate={onDuplicate}
-      onUseTemplate={()=> {}}
+      onUseTemplate={onUseTemplate}
     />
     <Alert isOpen={Boolean(actionState.deleting)} intent="danger" icon="trash"
       style={{zIndex: 100}}
@@ -223,8 +241,9 @@ interface IAnimProjectItemHandlers {
 
 function AnimProjectItem(props: AnimProject & IAnimProjectItemHandlers & {disable?: boolean}) {
   const {title, id} = props
+  const openProject = ()=> openAnimSubwindow({id})
   return <div className={style["recent-project-item"]}>
-    <span className={style["link"]} onClick={()=> window.alert(title)}>{title || "未命名项目"}</span>
+    <span className={style["link"]} onClick={openProject}>{title || "未命名项目"}</span>
       <Popover2 
         disabled={props.disable}
         content={<AnimProjectPreview {...props}/>}

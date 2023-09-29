@@ -49,6 +49,8 @@ local RichText = Class(function(self, text_or_param)
 	end
 end)
 
+RichText.is_rich_text = true
+
 function RichText:__call(text)
 	-- a call on RichText fill it's content
 	if self.text ~= "" then
@@ -110,10 +112,16 @@ function RichText:Flatten()
 	if node ~= self then
 		print("Warning: head node advanced")
 	end
-	local stack = {} -- some nonclosed styles
+
+	local stack = {} -- some nonclosed styles TODO: impl
+	local result = {}
 
 	for i = 1, 100 do -- a strict checker
-		print(node)
+		table.insert(result, {
+			text = node.text,
+			style = node.style,
+			anydata = node.anydata,
+		})
 		node = node.next
 		if node == nil then
 			break
@@ -123,7 +131,10 @@ function RichText:Flatten()
 	if node ~= nil then
 		print("Warning: RichText too long")
 		self:DebugPrintNode()
+		error()
 	end
+
+	return result
 end
 
 function RichText:DebugPrintNode()
@@ -190,6 +201,17 @@ for k in pairs(STYLE)do
 	RichText[k.."_"] = RichTextCtorHelper_CloseStyle(k)
 end
 
+RichText.asset_link = function(param)
+	-- string | { id: string, label?: string }
+	if type(param) == "string" then
+		param = {id = param}
+	end
+	local r = RichText("")
+	r.anydata = param
+	r.anydata.is_asset_link = true
+	return r
+end
+
 RichText.any = function(param)
 	local r = RichText("")
 	r.anydata = param
@@ -204,6 +226,16 @@ RichText.html = function(text)
 end
 
 RichText.HTML = RichText.html
+
+RichText.ToPlainText = function(value)
+	if type(value) == "string" then
+		return value
+	elseif type(value) == "table" and value.is_rich_text then
+		return value:Flatten()
+	else
+		error("Failed to convert to plain text: "..json.encode(value))
+	end
+end
 
 local function Examples()
 	local r = RichText
@@ -227,6 +259,7 @@ local function Examples()
 	local t1 = r"Link1: " .. website
 	-- local t2 = r"Link2: " .. website  -- error, can not reuse RichText
 	-- local t3 = r"Link3: " .. website  -- error, can not reuse RichText
+	
 	-- instead, make a new copy:
 	local website = function() return r{"a", link = "https://space.bilibili.com/209631439/"} "subscribe my channel" end
 	local t1 = r"Link1: " .. website()

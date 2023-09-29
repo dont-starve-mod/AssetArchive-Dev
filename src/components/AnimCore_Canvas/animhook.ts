@@ -20,6 +20,11 @@ export function useAnimStateHook(animstate: AnimState) {
     forceUpdate()
   }, [])
 
+  const changeApiArg = useCallback((index: number, args: ApiArgType[])=> {
+    animstate.changeApiArg(index, args)
+    forceUpdate()
+  }, [])
+
   const rearrange = useCallback((from: number, to: number)=> {
     animstate.rearrange(from, to)
     forceUpdate()
@@ -29,6 +34,7 @@ export function useAnimStateHook(animstate: AnimState) {
     insertApi,
     enableApi,
     disableApi,
+    changeApiArg,
     rearrange,
   }
 }

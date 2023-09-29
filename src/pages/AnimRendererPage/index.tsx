@@ -21,7 +21,7 @@ const bodyStyle: React.CSSProperties = {
 
 export default function AnimRendererPage(props: IProps) {
   const {id} = useParams()
-  const [panelWidth, setPanelWidth] = useState<number>(200)
+  const [panelWidth, setPanelWidth] = useState<number>(250)
   const animstate = useRef(new AnimState()).current
   const animstateHooks = useAnimStateHook(animstate)
 

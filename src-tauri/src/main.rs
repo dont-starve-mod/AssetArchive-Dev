@@ -1,4 +1,5 @@
 use std::hash::Hash;
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::{fs, result};
 use std::path::PathBuf;
@@ -25,7 +26,7 @@ mod args;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use crate::ffmpeg::FfmpegManager;
 
-use fmod;
+// use fmod;
 use include_lua::ContextExt;
 use include_lua_macro;
 
@@ -132,15 +133,21 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
     }
 }
 
+#[cfg(unix)]
 #[tauri::command]
 fn select_file_in_folder(path: String) -> bool {
     use std::process;
-    #[cfg(unix)]
     process::Command::new("/usr/bin/open")
         .arg("-R")
         .arg(path)
         .status()
         .is_ok()
+}
+
+#[cfg(windows)]
+#[tauri::command]
+fn select_file_in_folder(path: String) -> bool {
+    unimplemented!();
 }
 
 enum LuaBytes{

@@ -3,6 +3,7 @@ import smallhash from "../../smallhash"
 import { FrameList, AnimationData, BuildData } from "./animcore"
 import { v4 as uuidv4 } from "uuid"
 
+// TODO: 需要写一个指令覆盖/依赖关系的缓存表
 type hash = string | number
 type percent = number
 type facing = string | number
@@ -195,6 +196,13 @@ export class AnimState {
   disableApi(index: number): this {
     const api = this.api_list[index]
     api.disabled = true
+    this.reviewApi(api)
+    return this
+  }
+
+  changeApiArg(index: number, args: any): this {
+    const api = this.api_list[index]
+    api.args = args
     this.reviewApi(api)
     return this
   }

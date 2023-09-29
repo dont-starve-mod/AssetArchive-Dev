@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [volume, setVolume] = useAppSetting("volume")
   const [resolution, setResolution] = useAppSetting("resolution")
   const [numResults, setNumResults] = useAppSetting("num_search_results")
+  const [showDesc, setShowDesc] = useAppSetting("quick_search_desc")
 
   const showRoot = useLuaCall("showroot", ()=> {})
   
@@ -36,14 +37,24 @@ export default function SettingsPage() {
       selectedValue={theme}
       inline={true}
     >
-      <Radio label="跟随系统" value="auto" />
       <Radio label="浅色" value="light" />
       <Radio label="深色" value="dark" />
+      <Radio label="跟随系统" value="auto" />
     </RadioGroup>
     <hr/>
     <H4>搜索</H4>
     <RadioGroup
-      label="搜索结果的最大显示数量"
+      label="搜索提示中是否显示简介"
+      onChange={(e)=> setShowDesc(e.currentTarget.value as typeof showDesc)}
+      selectedValue={showDesc}
+      inline={true}
+    >
+      <Radio label='是' value={"on"}/>
+      <Radio label='否' value={"off"}/>
+    </RadioGroup>
+    <br/>
+    <RadioGroup
+      label="可同时显示搜索结果的最大数量"
       onChange={e=> setNumResults(Number(e.currentTarget.value))}
       selectedValue={numResults}
       inline={true}

@@ -2,50 +2,45 @@ import React, { CSSProperties } from 'react'
 
 interface IProps {
   text: string,
-  match?: number[],
+  match?: [number, number][],
   markStyle?: CSSProperties,
-  range?: [number, number],
+  bestMatch?: false,
+  numMismatchChars?: number,
 }
 
 export default function MatchText(props: IProps){
-  const {text, match, markStyle = {color: "#6020d0", fontWeight: 500}, range = [-1, -1]} = props
+  let {
+    text, 
+    match, 
+    markStyle = {color: "#6020d0", fontWeight: 500}, 
+    bestMatch,
+    numMismatchChars = 1000
+  } = props
 
-  const [r1, r2] = range
-  if (!match) {
-    if (r2 > 0 && (r1+r2) < text.length){
-      return <>{text.substring(0, r1+r2) + "..."}</>
-    }
-    else{
-      return <>{text}</>
-    }
+  if (match === undefined) {
+    return <span>{text}</span>
   }
 
-  const temp: Array<[string, boolean]> = []
+  const result: JSX.Element[] = []
+  // TODO: impl of `numMismatchChars`
   let index = 0
-  match.forEach((i: number)=> {
-    if (i > index){
-      if (index === 0 && r1 > 0 && i - r1 > 0){
-        temp.push(["..." + text.substring(i - r1, i), false])
-      }
-      else{
-        temp.push([text.substring(index, i), false])
-      }
+  if (bestMatch !== false) {
+    match = [...match].sort((a, b)=> -(a[1]-a[0])+(b[1]-b[0]))
+    match.splice(1, match.length)
+  }
+  let matchGuard = [...match, [99999, 99999]]
+  matchGuard.forEach(([start, end], i)=> {
+    if (index < start){
+      result.push(<span key={`0-${i}`}>{text.substring(index, start)}</span>)
     }
-    temp.push([text[i], true])
-    index = i + 1
+    result.push(<span key={`1-${i}`} style={markStyle}>{text.substring(start, end + 1)}</span>)
+    index = end + 1
   })
-  if (r2 > 0 && text.length > index + r2){
-    temp.push([text.substring(index, index + r2) + "...", false])
-  }
-  else{
-    temp.push([text.substring(index), false])
-  }
 
-  return <>
-  {
-    temp.map(([str, highlight], i: number)=>
-      highlight ? <span key={i} style={markStyle}>{str}</span> : str
-    )
-  }
-  </>
+  return (
+    <>
+      { result }
+    </>
+  )
+  
 }

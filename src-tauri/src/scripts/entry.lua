@@ -13,5 +13,3 @@ function Entry:SetKey(k)
 	assert(self.key == nil)
 	self.key = k
 end
-
-

@@ -22,7 +22,7 @@ function checkEncryptResult(result: string | object){
 export function useOS() {
   return useMemo(()=> {
     const ua = navigator.userAgent.toLocaleLowerCase()
-    console.log("User Agent: ", ua)
+    // console.log("User Agent: ", ua)
     return {
       isMacOS: ua.indexOf("mac") !== -1,
       isWindows: ua.indexOf("win") !== -1,

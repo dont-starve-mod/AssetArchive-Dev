@@ -3,21 +3,18 @@ import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
-import { Alert, AlertProps, H3 } from '@blueprintjs/core'
+import { Alert, AlertProps, H3, useHotkeys } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
 import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
 import { AppSettings, init as initSettings, update as updateSetting } from '../../redux/reducers/appsettings'
 import { AllAssetTypes } from '../../searchengine'
-
-window.assets = {}
-window.assets_map = {}
-window.hash = new Map()
+import type { AssetDesc } from '../../assetdesc'
 
 export default function AppInit() {
   const root = useSelector(({appsettings})=> appsettings.last_dst_root)
   const requestRoot = typeof root === "string" && root.length === 0
-  
+
   const dispatch = useDispatch()
 
   useEffect(()=> {
@@ -43,7 +40,7 @@ export default function AppInit() {
           searchengine.initPayload = ()=> assets
         }),
         await globalListen<string>("assetdesc", ({payload})=> {
-          const assetdesc = JSON.parse(payload)
+          const assetdesc: {[K: string]: AssetDesc[]} = JSON.parse(payload)
           Object.keys(assetdesc).forEach(k=> {
             window.assets_map[k].description = assetdesc[k]
           })
@@ -77,6 +74,8 @@ export default function AppInit() {
   return <>
     <ErrorHandler/>
     <GameRootSetter isOpen={requestRoot} onClose={()=> {}}/>
+    <ThemeHandler/>
+    <GlobalHotKey/>
   </>
 }
 
@@ -181,4 +180,31 @@ export function ErrorHandler(){
   </>
 }
 
-export {}
+function ThemeHandler() {
+  const dispatch = useDispatch()
+  useEffect(()=> {
+    appWindow.theme().then(systemTheme=> {
+      dispatch(updateSetting({key: "systemTheme", value: systemTheme}))
+    })
+    const unlisten = appWindow.onThemeChanged(({payload: systemTheme})=> {
+      dispatch(updateSetting({key: "systemTheme", value: systemTheme}))
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
+  return <></>
+}
+
+function GlobalHotKey() {
+  useHotkeys([
+    {
+      combo: "mod + p",
+      label: "搜索",
+      global: true,
+      onKeyDown(e) {
+        e.preventDefault()
+        appWindow.emit("start_search")
+      },
+    }
+  ])
+  return <></>
+}

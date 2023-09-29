@@ -14,11 +14,15 @@ import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
+import type { AllAssetTypes } from './searchengine'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
 		app_init?: boolean,
+		assets: {[K in AllAssetTypes["type"]]: AllAssetTypes[]},
+		assets_map: {[K: string]: AllAssetTypes},
+		hash: Map<number, string>,
 	}
 }
 
@@ -35,15 +39,9 @@ function AppMain() {
 		setScrollableWidget({node: articleRef.current})
 	}, [])
 
-	const [theme, _] = useAppSetting("theme")
-	const [isDarkMode, setDarkMode] = useState(false)
-
-	useEffect(()=> {
-		appWindow.theme().then(
-			systemTheme=> setDarkMode(
-				theme !== "auto" ? theme === "dark" : systemTheme == "dark")
-		)
-	}, [theme])
+	const [theme] = useAppSetting("theme")
+	const [systemTheme] = useAppSetting("systemTheme")
+	const isDarkMode = (theme === "auto" ? systemTheme : theme) === "dark"
 
   return (
 		<div className={isDarkMode ? "bp4-dark": undefined}>

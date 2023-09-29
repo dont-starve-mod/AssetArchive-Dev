@@ -3,7 +3,7 @@
  * need a static width and height
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { useIntersectionObserver, useLuaCall, useLuaCallOnce } from '../../hooks'
+import { useAppSetting, useIntersectionObserver, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Button, Dialog, Icon, Spinner, Tag } from '@blueprintjs/core'
 import { appWindow } from '@tauri-apps/api/window'
 
@@ -20,8 +20,9 @@ function useCanvasPreviewSetup(
   const ref = useRef<HTMLDivElement>()
   const canvas = useRef<HTMLCanvasElement>()
   const appeared = useIntersectionObserver({ref}).appeared || props.lazy === false
+  const [resolution] = useAppSetting("resolution")
 
-  const pix = window.devicePixelRatio * (window.config.resolution === "half" ? 0.5 : 1.0)
+  const pix = window.devicePixelRatio * (resolution === "half" ? 0.5 : 1.0)
   const renderWidth = pix* width
   const renderHeight = pix* height
   const loadingSize = Math.min(width, height)* 0.5
@@ -170,7 +171,6 @@ function CC(props: CCProps) {
   const {ref, canvas, appeared, width, height, renderWidth, renderHeight, loadingSize} = useCanvasPreviewSetup(props, [80, 80])
   const [loadingState, setState] = useState(LoadingState.Loading)
   const {cc, percent} = props
-  console.log(111)
 
   useLuaCallOnce<number[]>("load", result=> {
     async function load(){

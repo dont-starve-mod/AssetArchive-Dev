@@ -14,7 +14,6 @@ function AssetIndex:DoIndex(ignore_cache)
 	local t = now()
 	print("Index assets ...")
 	-- start flag
-	-- IpcEmitEvent("root", self.root:as_string())
 	IpcEmitEvent("index_progress", tostring(0))
 
 	local animzip = (self.root/"anim"):iter_file_with_extension(".zip")

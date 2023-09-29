@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { NewAnimProject } from '../../animproject'
+import { AnimProject, NewAnimProject } from '../../animproject'
 import { Dialog, DialogBody, DialogFooter, Button, H5, IconName } from '@blueprintjs/core'
 import { InputGroup, TextArea } from '@blueprintjs/core'
 
@@ -14,14 +14,14 @@ interface ICreateProps {
 
 interface IUseTemplateProps {
   action: "use_template",
-  project: NewAnimProject, // ?
-  onUseTemplate: (param: NewAnimProject)=> unknown
+  project: AnimProject,
+  onUseTemplate: (param: NewAnimProject & { from_id: string })=> unknown
 }
 
 interface IDuplicateProps {
   action: "duplicate",
-  project: NewAnimProject, // ?
-  onDuplicate: (param: NewAnimProject)=> unknown
+  project: AnimProject,
+  onDuplicate: (param: NewAnimProject & { from_id: string })=> unknown
 }
 
 export type AnimProjectSetterAction = (IIdleProps | ICreateProps | IDuplicateProps | IUseTemplateProps)["action"]
@@ -60,10 +60,10 @@ export default function AnimProjectSetter(props: IProps) {
         props.onCreate(param)
         return
       case "duplicate":
-        props.onDuplicate(param)
+        props.onDuplicate({ ...param, from_id: project.id })
         return
       case "use_template":
-        props.onUseTemplate(param)
+        props.onUseTemplate({ ...param, from_id: project.id })
         return
     }
   }
@@ -77,7 +77,7 @@ export default function AnimProjectSetter(props: IProps) {
       <DialogBody>
         <H5>名字</H5>
         <InputGroup
-          inputRef={ref=> {ref?.select(); titleRef.current = ref}}
+          inputRef={ref=> {ref?.focus(); titleRef.current = ref}}
           placeholder={action === "create" ? "给新项目取个名字吧..." : "输入项目名字..."}
           style={{marginBottom: 20}} 
           maxLength={100}

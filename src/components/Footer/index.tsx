@@ -6,7 +6,9 @@ import { Icon } from '@blueprintjs/core'
 const BRANCH = "alpha"
 
 export default function Footer() {
-  const currentURL = location.toString().replace("tauri://", "")
+  const currentURL = location.toString()
+    .replace("tauri://", "")
+    .replace("tauri.localhost", "")
   const copyURL = ()=> {
     writeText(currentURL).then(
       ()=> window.alert("已拷贝至剪贴板"),

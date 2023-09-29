@@ -7,7 +7,7 @@ interface IProps {
   width: number,
   onChangeWidth: (width: number)=> void
 }
-const MIN_WIDTH = 200
+const MIN_WIDTH = 250
 export default function SidePanel(props: IProps) {
   const {width, onChangeWidth} = props
   const onMoveDivider = useCallback((_x: number, _y: number, px: number)=> {

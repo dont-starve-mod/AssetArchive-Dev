@@ -12,7 +12,6 @@ import ClickableTag from '../../components/ClickableTag'
 import Hash from '../../components/HumanHash'
 import FacingIcon from '../../components/FacingIcon'
 import CCMiniPlayground from '../../components/CCMiniPlayground'
-import CCMapViewer from '../../components/CCMapViewer'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 
 function KeepAlive(props) {
@@ -56,7 +55,7 @@ export default function AssetPage() {
       </KeepAlive>
     case "tex_no_ref":
       if (asset._is_cc)
-        // cc page contains webGL context, don't cache it
+        // cc page contains webgl canvas, don't cache it
         return <TexNoRefPage {...asset} key={id} is_cc={true}/>
       else
         return <KeepAlive key={id}>

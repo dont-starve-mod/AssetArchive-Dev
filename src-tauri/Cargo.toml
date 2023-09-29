@@ -1,5 +1,5 @@
 [workspace]
-members = ["fmod", "include_lua", "include_lua_macro", "ffmpeg-sidecar"]
+members = ["include_lua", "include_lua_macro", "ffmpeg-sidecar"]
 
 [package]
 name = "asset-archive"
@@ -33,7 +33,7 @@ image = "0.24.6"
 curl = { version = "0.4.44", features = ["rustls"] }
 webbrowser = { version = "0.8.11", features = ["hardened"] }
 
-fmod = { path = "./fmod" }
+# fmod = { path = "./fmod" }
 include_lua = { path = "./include_lua" }
 include_lua_macro = { path = "./include_lua_macro" }
 include-crypt-bytes = "^0.1"

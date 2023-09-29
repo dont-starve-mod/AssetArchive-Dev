@@ -1,41 +1,48 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react'
-import { Navbar, Alignment, Button, InputGroup, Checkbox } from '@blueprintjs/core'
+import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox } from '@blueprintjs/core'
 import { useNavigate } from 'react-router-dom'
 import { appWindow } from '@tauri-apps/api/window'
 import MatchText from '../MatchText'
-import { useOS } from '../../hooks'
+import { useAppSetting, useOS } from '../../hooks'
 import style from './style.module.css'
 import { searchengine } from '../../asyncsearcher'
+import { AllAssetTypes, Matches } from '../../searchengine'
+import { Popover2 } from '@blueprintjs/popover2'
 
 export default function Nav() {
   let { isWindows, isMacOS, isLinux } = useOS()
   const [query, setQueryString] = useState("")
   const [result, setSearchResult] = useState([])
   const [focus, setFocus] = useState(false)
-  const resultRef = useRef()
+  const inputRef = useRef<HTMLInputElement>()
+  const resultRef = useRef<HTMLDivElement>()
   const [isCompisiting, setCompositing] = useState(false)
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   const showResult = focus && (query.length >= 2 || !(/^[\x00-\x7F]+$/.test(query)) && query.length >= 1)
-
+  
   useEffect(()=> {
     let changed = false
     requestAnimationFrame(()=> {
       if (showResult && !isCompisiting) {
         setLoading(true)
-        searchengine.search(query).then(
+        searchengine.search(query, "").then(
           (result)=> {
             if (!changed){
               setSearchResult(result.map(item=> 
-                window.assets_map[item.id]))
+                ({
+                  matches: item.matches, 
+                  ...window.assets_map[item.id]
+                })
+              ))
               setLoading(false)
             }
           }
         )
       }
     })
-    return ()=> changed = true
+    return ()=> { changed = true }
   }, [showResult, query, isCompisiting])
 
   const handleDrag = ({target})=> {
@@ -54,7 +61,7 @@ export default function Nav() {
   }
 
   const handleKey = useCallback(event=> {
-    if (event.keyCode === 65 &&
+    if (event.keyCode === 65 && // ctrl+A
       (isWindows && event.ctrlKey || isMacOS && event.metaKey || isLinux && event.ctrlKey ))
       {
         event.target.select()
@@ -70,6 +77,16 @@ export default function Nav() {
 
   const handleCompositionStart = ()=> setCompositing(true)
   const handleCompositionEnd = ()=> setCompositing(false)
+
+  const [closeButtonFocus, setCloseButtonFocus] = useState(false)
+
+  useEffect(()=> {
+    const unlisten = appWindow.listen("start_search", ()=> {
+      // setFocus(true)
+      inputRef.current?.focus()
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
 
   return <Navbar style={{backgroundColor: "transparent", boxShadow: "none", width: "100%"}}
     onMouseDown={handleDrag}>
@@ -87,6 +104,7 @@ export default function Nav() {
           autoComplete="off" 
           spellCheck="false" 
           className="allow-input"
+          inputRef={inputRef}
           onChange={handleSearch} onKeyDown={handleKey}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
@@ -102,32 +120,64 @@ export default function Nav() {
           }
       </div>
       <Navbar.Divider />
-      <Button className="bp4-minimal" icon="home" text="Home" />
-      <Button className="bp4-minimal" icon="document" text="Files" />
+      <ColorThemeIcon />
       {
         isWindows && <>
           <Navbar.Divider />
-          <Button className="bp4-minimal" icon="small-minus" onClick={()=> appWindow.minimize()}/>
-          <Button className="bp4-minimal" icon="small-square" onClick={()=> appWindow.toggleMaximize()}/>
-          <Button className="bp4-minimal" icon="small-cross" onClick={()=> appWindow.close()}/>
+          <Button minimal icon="minus" onClick={()=> appWindow.minimize()}/>
+          <Button minimal icon="small-square" onClick={()=> appWindow.toggleMaximize()}/>
+          <Button minimal icon="cross" intent={closeButtonFocus ? "danger" : "none"}
+            onMouseOver={()=> setCloseButtonFocus(true)}
+            onMouseLeave={()=> setCloseButtonFocus(false)}
+            onClick={()=> appWindow.close()}/>
         </>
       }
     </Navbar.Group>
   </Navbar>
 }
 
-function QuickSearchResult({result, resultRef, onClickItem, onClickMore, loading}) {
-  const handleClick = (event)=> {
-    event.preventDefault()
-  }
+function ColorThemeIcon() {
+  const [theme] = useAppSetting("theme")
+  const [systemTheme] = useAppSetting("systemTheme")
+  const [open, setOpen] = useState(false)
+
+  const isDarkMode = (theme === "auto" ? systemTheme : theme) === "dark"
+  const icon = isDarkMode ? "moon" : "flash"
 
   return (
-    <div className={style["quick-search-result"]} ref={resultRef} onMouseDown={handleClick}>
+    <Popover2 
+      minimal 
+      isOpen={open} 
+      content={<ColorThemePicker closeMenu={()=> setOpen(false)}/>}>
+      <Button
+        minimal
+        onClick={()=> setOpen(v=> !v)}
+        icon={icon}
+      />
+    </Popover2>
+  )
+}
+
+function ColorThemePicker(props: any) {
+  const [theme, setTheme] = useAppSetting("theme")
+  return (
+    <Menu style={{minWidth: 125}} onClick={()=> props.closeMenu()}>
+      <MenuItem selected={theme === "light"} onClick={()=> setTheme("light")} icon="flash" text='浅色'/>
+      <MenuItem selected={theme === "dark"} onClick={()=> setTheme("dark")} icon="moon" text='深色'/>
+      <MenuItem selected={theme === "auto"} onClick={()=> setTheme("auto")} icon="desktop" text='跟随系统'/>
+    </Menu>
+  )
+}
+
+function QuickSearchResult({result, resultRef, onClickItem, onClickMore, loading}) {
+  return (
+    <div className={style["quick-search-result"]} ref={resultRef} onMouseDown={e=> e.preventDefault()}>
       <div className={style['result-list']}>
         {
           Object.keys(
             Array.from({length: 1000})).map((_, index)=> {
-              return index < result.length && <QuickSearchItem key={index} onClickItem={onClickItem} {...result[index]}/>
+              return index < result.length && 
+              <QuickSearchItem key={index} onClickItem={onClickItem} {...result[index]}/>
             })
         }
       </div>
@@ -140,31 +190,36 @@ function QuickSearchResult({result, resultRef, onClickItem, onClickMore, loading
       <div style={{position: "absolute", right: 10, bottom: 5, display: loading ? "block" : "none"}}>
         <Button minimal active={false} loading/>
       </div>
-      {/* <div className='bp4-text-small'>
-        <Switch label='全词匹配' inline={true} value={1} onChange={({target})=> setWholeWord(target.checked)}/>
-      </div> */}
+      {/* <Checkbox/> */}
     </div>
   )
 }
 
-function QuickSearchItem(props) {
-  const {type, file, id} = props
+function QuickSearchItem(props: AllAssetTypes & { onClickItem: Function, matches: Matches }) {
+  const {type, id, matches} = props
   const navigate = useNavigate()
-  return <div style={{textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden"}} onClick={()=> {
-    props.onClickItem()
-    // TODO: 词条和asset的区别
-    navigate("/asset?id=" + encodeURIComponent(id))
-  }}>
-    {
-      (type === "animzip" || type === "animdyn") ? 
-        <MatchText text={file}  /> :
-      (type === "xml") ? 
-        <MatchText text={props.file} /> :
-      (type === "tex") ?
-        <MatchText text={props.tex} /> :
-      (type == "tex_no_ref") ? 
-        <MatchText text={props.file} /> :
-      <></>
-    }
-  </div>
+  const matchesMap = Object.fromEntries(
+    matches.map(({key, indices})=> [key, indices])
+  )
+  return (
+    <div 
+      style={{textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden"}} 
+      onClick={()=> {
+        props.onClickItem()
+        // TODO: 词条和asset的区别
+        navigate("/asset?id=" + encodeURIComponent(id))
+      }}>
+      {
+        (type === "animzip" || type === "animdyn") ? 
+          <MatchText text={props.file} match={matchesMap["file"]}/> :
+        (type === "xml") ? 
+          <MatchText text={props.file} match={matchesMap["file"]}/> :
+        (type === "tex") ?
+          <MatchText text={props.tex} match={matchesMap["tex"]}/> :
+        (type == "tex_no_ref") ? 
+          <MatchText text={props.file} match={matchesMap["file"]}/> :
+        <></>
+      }
+    </div>
+  )
 }

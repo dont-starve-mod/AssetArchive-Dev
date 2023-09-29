@@ -7,6 +7,7 @@ import { pageCacheNameSpace, capacityChoice } from "./cacheCapacity"
 interface IProps {
   cacheNamespace: pageCacheNameSpace,
   cacheProfile?: capacityChoice,
+  cacheDependency?: React.DependencyList,
   children: any,
 }
 

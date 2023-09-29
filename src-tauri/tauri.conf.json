@@ -82,12 +82,13 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "asset-archive",
+        "title": "Asset Archive - alpha",
         "width": 800,
         "height": 600,
         "minWidth": 500,
         "minHeight": 400,
         "titleBarStyle": "Overlay",
+        "decorations": true,
         "hiddenTitle": true
       }
     ]

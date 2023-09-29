@@ -1,13 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { comlink } from "vite-plugin-comlink";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [comlink(), react()],
-  worker: {
-    plugins:  [comlink()],
-  },
+  plugins: [react()],
+  base: "/",
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   // prevent vite from obscuring rust errors

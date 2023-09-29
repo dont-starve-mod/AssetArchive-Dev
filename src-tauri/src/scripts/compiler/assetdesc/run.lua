@@ -228,6 +228,16 @@ local AssetAnnotator = {
 		end
 	end,
 
+	CC = function(self)
+		local temp = {}
+		for _,v in ipairs(self.assets.alltexture)do
+			if v._is_cc then
+				table.insert(temp, v)
+			end
+		end
+		self.human:ColourCube(temp)
+	end,
+
 	Deprecated = function(self)
 		
 	end,
@@ -255,6 +265,7 @@ local function run(env)
 	annotator:Character()
 	annotator:InventoryImage()
 	annotator:ImagePostLink()
+	annotator:CC()
 	annotator:Deprecated()
 
 	for _,v in pairs(annotator.data)do
@@ -264,14 +275,26 @@ local function run(env)
 	local data = {}
 	for k,v in pairs(annotator.data)do
 		local id = k:GetID()
-		data[id] = v -- TODO: richtext
+		data[id] = v
 
-		-- check dummy data
-		table.foreach(v, function(_, item)
-			if item == DUMMY_DESC then
+		for i, desc in ipairs(v)do
+			if desc == DUMMY_DESC then
 				print("Warning: dummy desc in: "..tostring(k))
 			end
-		end)
+			if type(desc) == "string" then
+				desc = {
+					type = "plain",
+					value = desc,
+				}
+			else
+				desc = {
+					type = "rich",
+					value = desc:Flatten(),
+				}
+				-- TODO: 在这里可以直接解析assetlink label
+			end
+			v[i] = desc
+		end
 	end
 
 	FileSystem.SaveString("assetdesc.dat", json.encode_compliant(data))

@@ -1,6 +1,7 @@
 .quick-search-result {
-  position: absolute;
-  top: 50px;
+  position: fixed;
+  top: 60px;
+  right: 10px;
   width: 300px;
   max-height: 410px;
   background-color: #fff;

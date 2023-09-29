@@ -52,7 +52,7 @@ h1 {
   text-align: center;
 }
 
-input,
+/* input,
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -64,19 +64,19 @@ button {
   background-color: #ffffff;
   transition: border-color 0.25s;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
+} */
 
 button {
   cursor: pointer;
 }
 
-button:hover {
+/* button:hover {
   border-color: #396cd8;
 }
 button:active {
   border-color: #396cd8;
   background-color: #e8e8e8;
-}
+} */
 
 input,
 button {

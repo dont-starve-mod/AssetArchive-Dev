@@ -141,7 +141,6 @@ pub struct Point {
 
 pub mod lua_image {
     use std::io::Write;
-    use std::os::fd::AsRawFd;
     use std::time::Duration;
 
     use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage, buffer};
@@ -431,9 +430,14 @@ pub mod lua_image {
         // width: Option<u32>,
         // height: Option<u32>,
         inner: GifEncoder<File>,
-        fd: Option<i32>,
+        #[cfg(unix)]
+        fd: Option<RawFd>,
+        #[cfg(windows)]
+        fd: Option<RawHandle>,
         duration: u64,
     }
+
+    unsafe impl Send for GifWriter{}
 
     impl GifWriter {
         fn new(path: &str) -> Result<Self, String> {
@@ -450,7 +454,7 @@ pub mod lua_image {
             encoder.set_repeat(image::codecs::gif::Repeat::Infinite).unwrap();
             Ok(GifWriter {
                 inner: encoder,
-                fd: Some(fd as i32),
+                fd: Some(fd),
                 duration: 3 // ~30fps
             })
         }
@@ -582,6 +586,10 @@ pub mod lua_image {
                 (x, y, width, height): (u32, u32, u32, u32)|{
                 let img = img.inner.crop_imm(x, y, width, height);
                 Ok(Image::from_img(img))
+            });
+            // resize the image, return a new one
+            _methods.add_method("resize", |_, img: &Self, (width, height): (u32, u32)|{
+                Ok(Image::from_img(img.inner.resize(width, height, image::imageops::FilterType::Nearest)))
             });
             // clone the image
             _methods.add_method("clone", |_, img: &Self, ()|{

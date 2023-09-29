@@ -1,5 +1,5 @@
 import Fuse from 'fuse.js'
-
+import type { AssetDesc } from './assetdesc'
 export type FuseResult<T> = Fuse.FuseResult<T>
 
 export type AssetListKey = 
@@ -12,7 +12,7 @@ export type AssetListKey =
 export interface IBasicAsset {
   id: string,
   type: string,
-  description?: string[],
+  description?: AssetDesc,
 }
 
 export interface Tex extends IBasicAsset{
@@ -47,6 +47,7 @@ export interface TexNoRef extends IBasicAsset {
 
 type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef
 export type AllAssetTypes = Asset
+export type Matches = Array<{indices: Array<[number, number]>, key: string}>
 
 export class SearchEngine {
   data: {
@@ -60,7 +61,7 @@ export class SearchEngine {
     includeScore: true,
     includeMatches: true,
     shouldSort: false,
-    threshold: 0.3,
+    threshold: 0.5,
     ignoreLocation: true,
     keys: [
       {
@@ -73,6 +74,10 @@ export class SearchEngine {
       },
       {
         name: "texpath",
+        weight: 0.5,
+      },
+      {
+        name: "_short_name",
         weight: 0.5,
       },
       "file",

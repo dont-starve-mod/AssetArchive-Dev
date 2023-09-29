@@ -344,6 +344,7 @@ function AnimProjectManager:OnIpc(param)
 	end
 	-- create | duplicate | use_template | change | delete
 	local id = param.id
+	local from_id = param.from_id
 	local title = param.title or "未命名"
 	local description = param.description
 	local new_id = nil
@@ -357,12 +358,41 @@ function AnimProjectManager:OnIpc(param)
 		self:ReloadProjectById(id, data)
 		path:write(AnimProject.Static_ToFile(data))
 	elseif param.type == "duplicate" then
-		assert(type(id) == "string", "Duplicate project: id not provided")
-		local new_id, path = self:NewUid(title)
-
+		assert(type(from_id) == "string", "Duplicate project: from_id not provided")
+		local id, path = self:NewUid(title)
+		new_id = id
+		local success, content = pcall(function() return (self.basedir/from_id):read_to_string() end)
+		if success and #content > 0 then
+			local project = AnimProject()
+			if project:LoadSource(content) then
+				project.title = title
+				project.description = description
+				local data = project:Serialize({id = new_id, mtime = now()/1000})
+				table.insert(self.project_list, data)
+				path:write(AnimProject.Static_ToFile(data))
+			else
+				error("Failed to load project: "..id.."\n"..project.error)
+			end
+		end
 	elseif param.type == "use_template" then
-		assert(type(id) == "string", "Use template: id not provided")
-		local new_id, path = self:NewUid(title)
+		assert(type(from_id) == "string", "Use template: from_id not provided")
+		local id, path = self:NewUid(title)
+		new_id = id
+		local template
+		for _,v in ipairs(self.template_list)do
+			if v.id == from_id then
+				template = json.decode(json.encode(v))
+			end
+		end
+		if template == nil then
+			error("Invalid template id: "..from_id)
+		end
+		local data = template
+		data.title = title
+		data.description = description
+		data.mtime = now()/1000
+		table.insert(self.project_list, data)
+		path:write(AnimProject.Static_ToFile(data))
 	elseif param.type == "change" then
 		assert(type(id) == "string", "Change project: id not provided")
 		for i,v in ipairs(self.project_list)do
@@ -392,6 +422,14 @@ function AnimProjectManager:OnIpc(param)
 			end
 		end
 	end
+
+	-- debug check data type
+	for _,v in ipairs(self.project_list)do
+		assert(getmetatable(v) == nil)
+		assert(v.id, "Field `id` is required")
+		assert(v.mtime, "Field `mtime` is required")
+	end
+
 	return {
 		new_id = new_id,
 		project = self.project_list,

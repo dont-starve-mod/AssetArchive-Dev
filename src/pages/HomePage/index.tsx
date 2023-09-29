@@ -6,8 +6,8 @@ export default function HomePage() {
     <div>
       <div style={{
         width: 300, height: 200, 
-        color: "grey", 
-        backgroundColor: "pink", 
+        color: "#aaa", 
+        // backgroundColor: "pink", 
         margin: "200px auto",
         fontWeight: 600,
         fontSize: "125%",
@@ -18,12 +18,17 @@ export default function HomePage() {
             <tr>
               <td>搜索资源</td>
               <td>
-                <span className='bp4-key-combo'><Icon icon="key-command"/>P</span>
+                <span className='bp4-key-combo'>
+                  <kbd className='bp4-key'>
+                    <Icon icon="key-command"/>
+                    <span style={{fontSize: "150%"}}>P</span>
+                  </kbd>
+                </span>
               </td>
             </tr>
             <tr>
-              <td>第二行</td>
-              <td>233</td>
+              {/* <td>第二行</td>
+              <td>233</td> */}
             </tr>
           </tbody>
         </table>

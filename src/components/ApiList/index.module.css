@@ -6,11 +6,14 @@
 ul.api-list, ul.arg-list {
   padding: 0;
   margin: 0;
+  font-size: 100%;
+  white-space: unset; 
+  /* TODO: word wrap in 2 lines */
   /* background-color: pink; */
 }
 
 ul.arg-list {
-  padding-left: 20px;
+  padding-left: 4px;
 }
 
 .arg-hover:hover {
@@ -33,14 +36,6 @@ ul.arg-list {
 
 .insert-down {
   bottom: 0;
-}
-
-
-.input {
-  margin: 5px 0;
-  margin-right: 10px;
-  display: inline-block!important;
-  /* width: 85%; */
 }
 
 .inline {

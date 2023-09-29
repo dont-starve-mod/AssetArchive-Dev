@@ -48,23 +48,29 @@ function DST_DataRoot:ResolvePath(path)
             elseif name == "Don't Starve Together Dedicated Server" then
                 return self:ResolvePath(path/"dontstarve_dedicated_server_nullrenderer.app")
             elseif name == "dontstarve_steam.app" or name == "dontstarve_dedicated_server_nullrenderer.app" then
-                return self:ResolvePath(path/"Contents"/"data")
+                return self:ResolvePath(path/"Contents/data")
             elseif name == "Contents" and path:parent():is_dir() then
                 return self:ResolvePath(path:parent())
             end
         end
     elseif PLATFORM == "WINDOWS" then
-    	if path.is_dir() then
-            if name == "Don't Starve Together" or name == "Don't Starve Together Dedicated Server" then
-                return self:ResolvePath(path/"data")
-            elseif name:find("(2000004)") then
+    	if path:is_dir() then
+            if name == "Don't Starve Together" or name == "Don't Starve Together Dedicated Server"
+            	or name:find("(2000004)") then
                 return self:ResolvePath(path/"data")
             end
         elseif path:is_file() then
             if path:check_extention(".exe") and path:parent():name():startswith("bin")
-            	and (name:find("dontstarve_steam") or name:find("dontstarve_rail"))then
+            	and (name:find("dontstarve_steam") or name:find("dontstarve_dedicated_server_nullrenderer") or name:find("dontstarve_rail"))then
             	return self:ResolvePath(path:parent():parent())
             end
+        else
+        	local parent = path:parent()
+        	local parent_name = parent:name()
+        	if parent_name == "Don't Starve Together" or parent_name == "Don't Starve Together Dedicated Server"
+        		or parent_name:find("(2000004)") then
+        		return self:ResolvePath(parent/"data")
+        	end
         end
     elseif PLATFORM == "LINUX" then
     	-- TODO
@@ -115,10 +121,17 @@ function DST_DataRoot:SearchGame()
 	if PLATFORM == "WINDOWS" then
 		for i = 2, 25 do
 			local drive = FileSystem.Path(string.char(65 + i) .. ":/")
-			print(drive)
 			if drive:is_dir() then
-				-- TODO
-				error("unimplement!")
+				local steamapps = drive/"Program Files (x86)/Steam/steamapps/common"
+				for _, game in ipairs{
+					"Don't Starve Together",
+					"Don't Starve Together Dedicated Server",
+				}do
+					local path = steamapps/game/"data"
+					if path:is_dir() and self:SetRoot(path) then
+						return true
+					end
+				end
 			end
 		end
 	elseif PLATFORM == "MACOS" then
@@ -135,7 +148,7 @@ function DST_DataRoot:SearchGame()
 			end
 		end
 	elseif PLATFORM == "LINUX" then
-		-- 
+		-- TODO: Linux install directory
 	end
 end
 
@@ -249,14 +262,14 @@ end
 
 
 function Provider:ListAsset()
-	timeit(true)
+	print("Start listing asset...")
 	for _,v in ipairs((self.root/"anim"):iter_file_with_extension(".zip"))do
 		table.insert(self.allzipfile, Asset("animzip", {file = "anim/"..v:name()}))
 
 		-- mark character.zip as deprecated
 		local name = v:name()
 		local dynname = name:sub(1, #name - 4)..".dyn"
-		if self.root:Exists("anim/dynamic/"..dynname, false) then -- TODO: 测试win分隔符
+		if self.root:Exists("anim/dynamic/"..dynname, false) then
 			self.allzipfile[#self.allzipfile]._depricated_redirect = {
 				Asset("animdyn", {file = "anim/dynamic/"..dynname}):GetID()
 			}
@@ -266,7 +279,7 @@ function Provider:ListAsset()
 	for _,v in ipairs((self.root/"anim"/"dynamic"):iter_file_with_extension(".dyn"))do
 		local name = v:name()
 		local zipname = name:sub(1, #name - 4)..".zip"
-		if not self.root:Exists("anim/dynamic/"..zipname, "anim/dynamic") then -- TODO: 测试windows分隔符是否有效
+		if not self.root:Exists("anim/dynamic/"..zipname, "anim/dynamic") then
 			print("Warning: dyn file without build zip: "..name)
 		else
 			table.insert(self.alldynfile, Asset("animdyn", {file = "anim/dynamic/"..v:name()}))
@@ -330,8 +343,11 @@ function Provider:ListAsset()
 
 	for k in pairs(texpath_all)do
 		if not texpath_refs[k] then
-			table.insert(self.alltexture, Asset("tex_no_ref", 
-				{ file = k, _is_cc = k:startswith("images/colour_cubes/") and true or nil }))
+			table.insert(self.alltexture, Asset("tex_no_ref", {
+				file = k,
+				_is_cc = k:startswith("images/colour_cubes/") and true or nil,
+				_short_name = string.sub(k, k:find("[^/]*$")),
+			}))
 		end
 	end
 
@@ -361,14 +377,14 @@ function Provider:ListAsset()
 		alltexture = self.alltexture,
 	}
 
-	timeit()
+	print("Start emitting data to frontend...")
 
 if not Args then
 	IpcEmitEvent("assets", json.encode_compliant(self.assets))
 	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
 end
 
-	timeit()
+	print("Finish")
 end
 
 function Provider:ResolveInvImage(file)
@@ -384,10 +400,10 @@ function Provider:ResolveInvImage(file)
 			break
 		end
 	end
-	for _, spice in ipairs{"garlic", "sugar", "salt", "chili"} do -- 忽略所有香料
+	for _, spice in ipairs{"garlic", "sugar", "salt", "chili"} do
 		if file:endswith("spice_"..spice) then return end
 	end
-	if file:endswith("oversized_rot") then return end -- 忽略腐烂的巨大农作物
+	if file:endswith("oversized_rot") then return end
 	if file:find("tomato") or file:find("onion") then return end -- 忽略暴食作物（和游戏本体共用图片素材）
 	if file:startswith("yotc_carrat_gym") or file:startswith("yotr_decor") then return end
 	if file == "abigail_flower_wilted" or file == "kullkelp_root" then return end -- depricated prefabs
@@ -425,9 +441,6 @@ function Provider:Load(args)
 		return self:GetAtlasPreview(args)
 	elseif type == "image" then
 		return self:GetImage(args)
-		-- local r = self:GetImage(args)
-		-- print("Load image use time: ", timeit(), #r)
-		-- return r
 	elseif type == "image_with_cc" then
 		return self:GetImageWithCC(args)
 	elseif type == "texture" then
@@ -609,7 +622,6 @@ function Provider:GetAtlas(args)
 						return Clipboard.WriteImage_Bytes(atlas:GetImageBytes(0), w, h)
 					end
 				elseif args.format == "save" then
-					print("Save!!!")
 					if atlas.is_dyn then
 						return DYN_ENCRYPT
 					else
@@ -795,7 +807,6 @@ function Provider:GetTexture(args)
 			elseif args.format == "copy" then
 				return Clipboard.WriteImage_Bytes(tex:GetImageBytes(index), w, h)
 			elseif args.format == "save" then
-				print("SAVE!!!!!")
 				return tex:GetImage(index):save(args.path) and args.path
 			end
 		end

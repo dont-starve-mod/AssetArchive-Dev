@@ -1,0 +1,56 @@
+.arg-input-number, .arg-input-string {
+  display: inline-block!important;
+  margin-left: 20px;
+}
+
+.arg-input-string {
+  margin-left: 10px;
+  width: 150px;
+}
+
+
+.arg-input-number > input {
+  height: 20px;
+  line-height: 20px;
+  max-width: 35px;
+  padding: 2px;
+}
+
+.arg-input-string > input {
+  height: 20px;
+  line-height: 20px;
+  padding: 2px;
+}
+
+.arg-type {
+  min-width: 30px;
+}
+
+.color-picker {
+  width: 30px;
+  /* height: 10px; */
+}
+
+.slider-container {
+  display: inline-block;
+  width: 80px;
+}
+
+.slider-container > :global(.bp4-slider) {
+  min-width: 100%;
+  height: 12px;
+  margin-left: 10px;
+  /* background-color: pink; */
+}
+
+.slider-container > :global(.bp4-slider) :global(.bp4-slider-handle) {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  top: 3px;
+}
+
+.slider-container > :global(.bp4-slider) :global(.bp4-slider-handle) :global(.bp4-slider-label) {
+  transform: translate(-50%, -20px);
+  display: none;
+}
