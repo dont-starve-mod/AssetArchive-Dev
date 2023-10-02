@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useReducer, useState, useContext, useMemo, useRef } from 'react'
-import { AnimState, Api, ApiArgType } from '../AnimCore_Canvas/animstate'
+import { AnimState, Api, ApiArgType, getDefaultArgs } from '../AnimCore_Canvas/animstate'
 import style from './index.module.css'
 import { MenuItem, Menu, EditableText, Tag, Switch, Checkbox, useHotkeys } from '@blueprintjs/core'
 import { useDragData } from '../../hooks'
@@ -21,14 +21,30 @@ export default function ApiList(props: ApiListProps) {
     rearrange} = useContext(animstateContext)
   const [initDialog, setInitDialog] = useState<"asset"|"animstate"|"none">("none")
   const api_list: Api[] = animstate.getApiList()
+  const [insertPosition, setInsertPosition] = useState(-1)
 
   const onConfirm = useCallback(({bank, build, animation}: {[K: string]: string})=> {
-    console.log(build, bank, animation)
+    console.log("Init", build, bank, animation)
     // TODO: need some warning if param is valid?
     insertApi("SetBuild", [build])
     insertApi("SetBankAndPlayAnimation", [bank, animation])
     setInitDialog("none")
   }, [])
+
+  // TODO: fix this bug
+  useEffect(()=> {
+    let unlisten = appWindow.listen("global_dragend", ()=> {
+      console.log("END--->")
+      setInsertPosition(-1)
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [setInsertPosition])
+
+  // useEffect(()=> {
+  //   const onMouseUp = ()=> {console.log("UP"); setInsertPosition(-1)}
+  //   document.addEventListener("dragend", onMouseUp)
+  //   return ()=> document.removeEventListener("dragend", onMouseUp)
+  // }, [])
 
   return (
     <>
@@ -45,8 +61,11 @@ export default function ApiList(props: ApiListProps) {
         }
         <ul className={style["api-list"]}>
           {
-            api_list.map((api, index)=> 
-              <ApiItem key={api.uuid} {...api} index={index}/>)
+            api_list.map((api, index)=> <>
+              { index === 0 && <InsertHint key={-1} visible={insertPosition === 0}/>}
+              <ApiItem key={api.uuid} {...api} index={index} onInsertHover={setInsertPosition}/>
+              <InsertHint key={index} visible={insertPosition === index + 1}/>
+            </>)
           }
         </ul>
       </div>
@@ -55,20 +74,30 @@ export default function ApiList(props: ApiListProps) {
   )
 }
 
+function InsertHint(props: {visible: boolean}){
+  return (
+    <div style={{
+      width: "100%", height: 2, 
+      backgroundColor: props.visible ? "rgb(117, 98, 212)" : "#ddd",
+    }}>
+    </div>
+  )
+}
+
 // TODO: 需要给最下方的API更大的拖拽判定区
-function ApiItem(props: Api & {index: number}){
-  const {name, args, disabled} = props
+function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> void}){
+  const {name, args, disabled, fold} = props
+  const {onInsertHover} = props
   const apiNameStyle: React.CSSProperties = {fontWeight: 600}
   const apiArgStyle: React.CSSProperties = {color: "#666"}
-  const [unfold, setUnfold] = useState(false)
   const [editing, setEditing] = useState(-1)
   const fmt = (value: any)=> typeof value === "string" ? JSON.stringify(value) :
     typeof value === "boolean" ? (value ? "true" : "false") :
-    typeof value === "number" ? JSON.stringify(value) :
+    typeof value === "number" ? value.toFixed(2) :
     (value === undefined || value === null) ? "nil" :
     "UNKNOWN"
   const text = useMemo(()=> {
-    if (unfold) {
+    if (!fold) {
       return <span style={apiNameStyle}>{name}</span>
     }
     const result = []
@@ -86,21 +115,20 @@ function ApiItem(props: Api & {index: number}){
 
     result.push(<span style={apiNameStyle}>{")"}</span>)
     return result
-  }, [name, args, disabled, unfold])
+  }, [name, args, disabled, fold])
 
   const dragData = useDragData()
   const dragArea = useRef<HTMLDivElement>()
   const [dragging, setDragging] = useState(false)
-  const [insertPosition, setInsertPosition] = useState<"up"|"down"|"none">("none")
   const onDragStart = useCallback((e: React.DragEvent)=> {
     setDragging(true)
     dragData.set("source", "API")
-    dragData.set("payload", JSON.stringify({index: props.index}))
+    dragData.set("payload", JSON.stringify({index: props.index, fold}))
   }, [props])
 
   const onDragEnd = useCallback((e: React.DragEvent)=> {
     setDragging(false)
-    appWindow.emit("global_dragend")
+    appWindow.emit("global_dragend", "ApiList")
   }, [props])
 
   const calcInsertPosition = useCallback((e: React.DragEvent)=> {
@@ -117,13 +145,13 @@ function ApiItem(props: Api & {index: number}){
     const source = await dragData.get("source")
     const payload = await dragData.get("payload")
     const { index } = JSON.parse(payload)
-    if (source === null || index === props.index)
+    if (source === null )
       return
-    await appWindow.emit("global_dragend")
-    setInsertPosition(calcInsertPosition(e))
+
+    onInsertHover(props.index + (calcInsertPosition(e) === "up" ? 0 : 1))
   }, [props])
 
-  const {rearrange, insertApi, disableApi, enableApi, changeApiArg} = useContext(animstateContext)
+  const {rearrange, insertApi, disableApi, enableApi, changeApiArg, toggleFoldApi} = useContext(animstateContext)
 
   const onDrop = useCallback(async (e: React.DragEvent)=> {
     const source = await dragData.get("source")
@@ -134,47 +162,36 @@ function ApiItem(props: Api & {index: number}){
     const pos = calcInsertPosition(e)
     const newIndex = props.index + (pos === "up" ? 0 : 1)
     if (source === "API_PICKER") {
-      insertApi(name, [], newIndex)
+      insertApi(name, getDefaultArgs(name), newIndex)
     }
     else if (source === "API") {
       rearrange(index, newIndex)
     }
-    setInsertPosition("none")
-  }, [props])
+    onInsertHover(-1)
+  }, [props, onInsertHover])
 
-  useEffect(()=> {
-    const unlisten = appWindow.listen("global_dragend", 
-      ()=> setInsertPosition("none"))
-    return ()=> {unlisten.then(f=> f())}
-  }, [])
 
   return (
-    <div ref={dragArea} style={{position: "relative", opacity: dragging ? 0.5 : 1}}
+    <div ref={dragArea} 
+      style={{position: "relative", opacity: dragging ? 0.2 : 1, padding: "4px"}}
+      className={fold ? style["api-item-fold"] : ""}
       onDragOver={onDragOver}
-      onDragLeave={()=> setInsertPosition("none")}
+      onDragLeave={()=> onInsertHover(-1)}
       onDrop={onDrop}
       >
-      <div className={style["insert-up"]}
-        style={{display: (insertPosition === "up") ? "block" : "none"}}></div>
-      <div className={style["insert-down"]}
-        style={{display: (insertPosition === "down") ? "block" : "none"}}></div>
       <MenuItem
         draggable
+        multiline
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         text={text} 
         intent='primary' 
         style={{padding: "2px 4px", color: disabled ? "#aaa" : undefined}}
         // labelElement={<Button icon="eye-on" small minimal></Button>} 
-        onClick={()=> setUnfold(v=> {
-          if (v) {
-            setEditing(-1)
-          }
-          return !v
-        })}
+        onClick={()=> toggleFoldApi(props.index)}
       />
       {
-        unfold && <ul className={style["arg-list"]}>
+        !fold && <div className={style["arg-list"]}>
           {/* <span>开启</span>
           <Checkbox checked={!disabled} onChange={()=> {
             if (disabled)
@@ -197,21 +214,7 @@ function ApiItem(props: Api & {index: number}){
             onEdit={setEditing}
             editing={editing}
           />
-          {/* { 
-          //@ts-ignore
-            args.map((arg: string, index: number)=> 
-            <div style={{...apiArgStyle, margin: "4px 0"}}>
-              <ArgInput 
-                value={arg}
-                onChange={value=> changeApiArg(props.index, args.map((v, i)=> i === index ? value : v))}
-                onFocus={()=> setEditing(index)}
-                inputRef={(input)=> 
-                  index === editing && input && input.focus()
-              }/>
-            </div>
-            )
-          } */}
-        </ul>
+        </div>
       }
     </div>
   )

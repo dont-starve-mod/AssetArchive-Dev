@@ -8,10 +8,11 @@ interface IProps {
   onChangeWidth: (width: number)=> void
 }
 const MIN_WIDTH = 250
+const MAX_WIDTH = 400
 export default function SidePanel(props: IProps) {
   const {width, onChangeWidth} = props
   const onMoveDivider = useCallback((_x: number, _y: number, px: number)=> {
-    onChangeWidth(Math.max(MIN_WIDTH, px))
+    onChangeWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, px)))
   }, [])
   const [onMouseDown] = useMouseDrag(onMoveDivider)
 
@@ -24,6 +25,7 @@ export default function SidePanel(props: IProps) {
         />
         <div className={style["control-panel-container"]}>
           <ControlPanel.ApiPanel/>
+          <ControlPanel.Export/>
           {/* <ControlPanel.ApiPanel/> */}
         </div>
 

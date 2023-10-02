@@ -8,12 +8,21 @@ ul.api-list, ul.arg-list {
   margin: 0;
   font-size: 100%;
   white-space: unset; 
-  /* TODO: word wrap in 2 lines */
-  /* background-color: pink; */
+  list-style: none;
 }
 
-ul.arg-list {
-  padding-left: 4px;
+.api-item-fold div {
+  /* background-color: pink!important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: horizontal;
+  max-height: 40px; */
+}
+
+div.arg-list > div {
+  margin: 4px 0;
 }
 
 .arg-hover:hover {

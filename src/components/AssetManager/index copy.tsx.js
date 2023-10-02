@@ -1,46 +1,109 @@
-import smallhash from "../../smallhash"
-import { hash, AnimState } from "./animstate"
-import { RenderParams, IRenderParams } from "./renderparams"
-import { invoke } from "@tauri-apps/api"
+import React, { useCallback, useEffect, useReducer, useState } from 'react'
+import { AnimState } from '../AnimCore_Canvas/animstate'
+import { invoke } from '@tauri-apps/api'
+import { AnimationData, BuildData, Element, FrameList } from '../AnimCore_Canvas/animcore'
+import { predict } from '../../asyncsearcher'
+import { PredictableData } from '../../renderer_predict'
 
-/* 动画资源 */
-const buildLoading: {[K: string]: true} = {}
-const buildData: {[K: string]: BuildData} = {}
-const animLoading: {[K: string]: true} = {}
-const animData : {[K: string]: AnimationData[]}= {}
-const atlasLoading: {[K: string]: true} = {}
-const atlasData: {[K: string]: AtlasObject} = {}
-
-/* 动画资源加载器 */
-function pushError(error: any, msg: any){
-  // 这个函数得再看看...
-  console.log("error:", error, msg)
-  return
-  if (typeof error === "function"){
-    return error(msg)
-  }
-  else if (error && error.forEach){
-    // 注意修改列表不会触发React组件更新
-    error.push(msg)
-  }
+type AssetData<T> = {
+  state: "loading",
+} | {
+  state: "loaded",
+  data: T,
+} | {
+  state: "invalid",
+}
+| {
+  state: "error",
+  error: {
+    type: string,
+    message?: string,
+  },
 }
 
-export interface Element {
-  imghash: number,
-  imgindex: number,
-  layerhash: number,
-  matrix: [number, number, number, number, number, number],
-  z_index: number,
+type AssetState = {
+  animData: {[K: string]: AssetData<AnimationData[]>},
+  buildData: {[K: string]: AssetData<BuildData>},
+  atlasData: {[K: string]: AssetData<ImageBitmap>},
+
+  buildNames: Set<string>,
+  banks: Map<number, Set<string>>,
+
+  onBuildLoaded: ()=> void,
+  onAnimationLoaded: ()=> void,
 }
 
-export type Frame = Element[]
-export type FrameList = Frame[]
+type Action = {
+  type: "init",
+  payload: PredictableData,
+} | 
+{
+  type: "loadBuild",
+  payload: string,
+}
 
-export interface AnimationData {
-  name: string,
-  bankhash: number,
-  facing: number
-  frame: FrameList,
+const assetReducer = (state: AssetState, action: Action): AssetState => {
+  switch (action.type) {
+    case "init": {
+      const {build, animation} = action.payload
+      const newState = {
+        ...state,
+        buildNames: new Set(build),
+        banks: new Map(animation.map(
+          ({animation, bank})=> [bank, new Set(animation.map(({name})=> name))]
+        ))
+      }
+      return newState
+    }
+    case "loadBuild":
+      const build = action.payload
+      const data = state.buildData[build]
+      if (!data) {
+        if (state.buildNames.has(build)) {
+          console.log("Load!!!", build)
+          async function load() {
+            try {
+              const response = await get<string>({type: "build", name: build})
+              if (response.length > 0){
+                const data: BuildData = JSON.parse(response)
+                data.symbolMap = {}
+                data.symbol.forEach(({imghash, imglist})=> {
+                  data.symbolMap[imghash] = imglist
+                })
+                state.buildData[build] = {
+                  state: "loaded",
+                  data,
+                }
+                state.onBuildLoaded()
+              }
+              else{
+                state.buildData[build] = {
+                  state: "error",
+                  error: { type: "NotExists" }
+                }
+              }
+            }catch(e){
+              state.buildData[build] = {
+                state: "error",
+                error: { type: "IntervalError", message: "Failed to load build ["+build+"], "+e.message }
+              }
+            }
+          }
+          load()
+          return {
+            ...state,
+            buildData: { ...state.buildData, [build]: {state: "loading"}}
+          }
+        }
+        else {
+          return {
+            ...state,
+            buildData: { ...state.buildData, [build]: {state: "invalid"}}
+          }
+        }
+      }
+  }
+  return state
 }
 
 async function get<T>(param: {[K:string]: string | number | boolean}): Promise<T> {
@@ -108,13 +171,6 @@ interface SymbolData {
   imglist: ImageData[],
 }
 
-export interface BuildData {
-  name: string,
-  atlas: string[],
-  symbol: SymbolData[],
-  symbolMap: {[K: number]: ImageData[]},
-}
-
 function buildLoader({build}: {build: string}, error): BuildData | undefined{
   // console.log(`buildLoader{build: ${build}}`)
   if (!build) return
@@ -144,10 +200,6 @@ function buildLoader({build}: {build: string}, error): BuildData | undefined{
   }
   load()
 }
-
-// const toInt = b=> b[3]*16777216 + b[2]*65535 + b[1]*256 + b[0]
-
-type AtlasObject = ImageBitmap
 
 function atlasLoader({build, sampler}: {build: string, sampler: number}, error): AtlasObject | undefined{
   // console.log(`atlasLoader{build: ${build}, sampler: ${sampler}}}`)
@@ -319,8 +371,8 @@ function addAnimState(
     animstate = new AnimState(animstate)
   }
   // object type is consumed
-  (<AnimState>animstate).registerLoaders({...defaultLoaders, ...loaders} as any)
-  canvas.anims.push(<AnimState>animstate)
+  // (<AnimState>animstate).registerLoaders({...defaultLoaders, ...loaders} as any)
+  // canvas.anims.push(<AnimState>animstate)
 }
 
 /** bisearch the actual image index to render */
@@ -346,3 +398,74 @@ export {
 }
 
 export type CanvasRenderer = HTMLCanvasElement & CanvasRendererExt
+
+/** dedicated asset loader for anim renderer subwindow */
+export default function AssetManager(props: {animstate: AnimState}) {
+  const [ready, setReady] = useState(false)
+  const [state, dispatch] = useReducer(assetReducer, {
+    animData: {},
+    buildData: {},
+    atlasData: {},
+    buildNames: new Set<string>(),
+    banks: new Map(),
+    onBuildLoaded: ()=> console.log("BuildLoaded"),
+    onAnimationLoaded: ()=> console.log("AnimLoaded")
+  })
+
+  const loadBuild = useCallback((build: string)=> {
+    if (!ready) return
+    if (!state.buildNames.has(build)) return
+    const data = state.buildData[build]
+    if (data){
+      return data.state === "loaded" ? data.data : undefined
+    }
+    console.log("Load!!!", build)
+    async function load() {
+      dispatch({type: "loadBuild", payload: build})
+      try {
+        const response = await get<string>({type: "build", name: build})
+        if (response.length > 0){
+          const data: BuildData = JSON.parse(response)
+          data.symbolMap = {}
+          data.symbol.forEach(({imghash, imglist})=> {
+            data.symbolMap[imghash] = imglist
+          })
+          state.buildData[build] = {
+            state: "loaded",
+            data,
+          }
+          state.onBuildLoaded()
+        }
+        else{
+          state.buildData[build] = {
+            state: "error",
+            error: { type: "NotExists" }
+          }
+        }
+      }catch(e){
+        state.buildData[build] = {
+          state: "error",
+          error: { type: "IntervalError", message: "Failed to load build ["+build+"], "+e.message }
+        }
+      }
+    }
+    load()
+
+  }, [ready, state])
+
+  useEffect(()=> {
+    const timer = setInterval(()=> {
+      const data: PredictableData = predict.initPayload?.()
+      if (data) {
+        setReady(true)
+        dispatch({type: "init", payload: data})
+        clearInterval(timer)
+      }
+    }, 100)
+    return ()=> clearInterval(timer)
+  }, [])
+
+  return (
+    <></>
+  )
+}

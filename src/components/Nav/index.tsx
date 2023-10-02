@@ -27,7 +27,7 @@ export default function Nav() {
     requestAnimationFrame(()=> {
       if (showResult && !isCompisiting) {
         setLoading(true)
-        searchengine.search(query, "").then(
+        searchengine.search(query, "", "search").then(
           (result)=> {
             if (!changed){
               setSearchResult(result.map(item=> 

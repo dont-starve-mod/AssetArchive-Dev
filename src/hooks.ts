@@ -72,11 +72,10 @@ export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true
 
     const nodes = [
       document.getElementById("app-article") as HTMLElement, // article
-       document.getElementsByTagName("body")[0], // body
-    ]
-// @ts-ignore 
+      document.getElementsByTagName("body")[0], // body
+    ].filter(node=> Boolean(node))
+  
     nodes.forEach(({style})=> style.overflow = hover ? "hidden" : null)
-// @ts-ignore 
     return ()=> nodes.forEach(({style})=> style.overflow = null)
   }, [hover])
 

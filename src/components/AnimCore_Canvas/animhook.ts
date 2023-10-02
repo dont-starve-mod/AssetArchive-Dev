@@ -30,11 +30,19 @@ export function useAnimStateHook(animstate: AnimState) {
     forceUpdate()
   }, [])
 
+  const toggleFoldApi = useCallback((index: number)=> {
+    animstate.toggleFoldApi(index)
+    forceUpdate()
+  }, [])
+
   return {
     insertApi,
     enableApi,
     disableApi,
     changeApiArg,
     rearrange,
+    toggleFoldApi,
+
+    forceUpdate,
   }
 }

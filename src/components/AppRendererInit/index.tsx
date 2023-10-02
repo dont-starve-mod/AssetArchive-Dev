@@ -10,7 +10,6 @@ import { AllAssetTypes } from '../../searchengine'
 
 window.assets = {} as any
 window.assets_map = {}
-window.hash = new Map()
 
 export default function AppRendererInit() {
   const initCall = useLuaCall<string>("animproject.init", (result)=> {
@@ -18,6 +17,7 @@ export default function AppRendererInit() {
     predict.initPayload = ()=> {
       return data.anim_predictable_data as PredictableData
     }
+    window.hash = new Map(data.anim_predictable_data.hashmap.map(([k,v])=> [v,k]))
   })
 
   useEffect(()=> {

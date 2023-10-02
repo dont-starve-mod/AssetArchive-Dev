@@ -1,6 +1,6 @@
-import { useCallback, useContext, useEffect, useState } from "react"
+import { useCallback, useContext, useEffect, useState, useMemo } from "react"
 import animstateContext from "../../pages/AnimRendererPage/globalanimstate"
-import { predict } from "../../asyncsearcher"
+import { predict, fuseworker } from "../../asyncsearcher"
 import { FuseResult } from "../../searchengine"
 
 /** get global animstate instance, this hook can only use in animrenderer subwindow */
@@ -16,8 +16,7 @@ export function useBasicPredicter(
   const [result, setResult] = useState(undefined)
   useEffect(()=> {
     let skip = false
-    console.log("?", field, payload)
-    predict.search(field, payload, false).then(
+    predict.search(field, payload).then(
       result=> {
         if (skip) return
         setResult(result)
@@ -38,13 +37,46 @@ export function useBasicPredicter(
   }
 }
 
-export function usePredicterFormatter(type: "default") {
-  return useCallback(({bestMatch})=> {
+export function useHashPredicter(
+  query: string,
+  items: (string | number)[]) {
+
+  const [result, setResult] = useState(undefined)
+  useEffect(()=> {
+    console.log("this is list:", query, items)
+    let skip = false
+    fuseworker.search(query, {items, options: {isCaseSensitive: false}}).then(
+      result=> {
+        if (skip) return
+        setResult(result)
+        console.log(result)
+      }
+    )
+    return ()=> { skip = true }
+  }, [query, items])
+
+  const hasPredicted = result !== undefined
+  const bestMatch = result && result.length && result[0].matches[0].value
+  const isvalid = typeof bestMatch === "string" && bestMatch.toLowerCase() === query.toLowerCase()
+
+  return {
+    result,
+    hasPredicted,
+    bestMatch,
+    isvalid,
+  }
+}
+
+export function usePredicterFormatter(type: "default" | "symbol") {
+  return useCallback(({value, bestMatch})=> {
     switch (type) {
       case "default":
         return typeof bestMatch === "string" ?
           `参数无效，你是否指的是“${bestMatch}”？` :
           `参数无效`
+      case "symbol":
+        return `当前动画中不存在“${value}”，因此指令不会生效。` + 
+          (typeof bestMatch === "string" ?  `\n你是否指的是“${bestMatch}”？` : "" )
     }
   }, [type])
 }

@@ -5,6 +5,7 @@ export interface IRenderParams {
   defaultScale?: number,
   axis?: "none" | "front" | "back",
   centerStyle?: "center" | "ground" | "bottom",
+  bgcStyle?: "solid" | "grid",
   bgc?: string,
 }
 
@@ -25,7 +26,8 @@ export class RenderParams implements IRenderParams{
   globalScale = 1.0
   axis = "none" as IRenderParams["axis"]
   centerStyle = "ground" as IRenderParams["centerStyle"]
-  bgc = "#0000"
+  bgcStyle = "solid"as IRenderParams["bgcStyle"]
+  bgc = "#cccccc"
 
   _transform: affine_matrix | null = null
 
@@ -89,6 +91,12 @@ export class RenderParams implements IRenderParams{
   offset(x: number = 0, y: number = 0){
     this.x += x // window.devicePixelRatio * this.devicePixelRatio
     this.y += y // window.devicePixelRatio * this.devicePixelRatio
+  }
+
+  reset(): void {
+    this.x = 0
+    this.y = 0
+    this.scale = 1
   }
 
   axisOrigin(): [number, number] {

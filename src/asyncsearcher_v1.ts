@@ -1,5 +1,4 @@
 import * as Comlink from "comlink"
-import { v4 } from "uuid"
 
 type WorkerFileName = "renderer_predict_worker" | "searchengine_worker" | "renderer_fuse_worker"
 type ComlinkWorker = {
@@ -11,7 +10,7 @@ type ComlinkWorker = {
 
 export default class Searcher {
   url: WorkerFileName
-  workers: {[K: string]: ComlinkWorker}
+  worker: ComlinkWorker
   timeout: number
 
   initPayload?: ()=> any
@@ -19,10 +18,10 @@ export default class Searcher {
   constructor(url: WorkerFileName, timeout?: number) {
     this.url = url
     this.timeout = timeout || 10*1000
-    this.workers = {}
+    this.newWorker()
   }
 
-  newWorker(id: string): ComlinkWorker {
+  newWorker(): ComlinkWorker {
     let core: Worker
     if (this.url === "renderer_predict_worker"){
       core = new Worker(new URL("./renderer_predict_worker", import.meta.url), {type: "module"})
@@ -37,47 +36,40 @@ export default class Searcher {
       throw Error("Invalid url: " + this.url)
     }
     const worker = Comlink.wrap(core)
-    this.workers[id] = { core, worker, state: "new" }
-    if (this.initPayload) {
-      this.workers[id].worker.init(this.initPayload?.()).then(
-        ()=> this.workers[id].state = "idle",
-        ()=> this.workers[id].state = "error"
-      )
-    }
-    return this.workers[id]
+    this.worker = { core, worker, state: "new" }
+    this.worker.worker.init(this.initPayload?.()).then(
+      ()=> this.worker.state = "idle",
+      ()=> this.worker.state = "error"
+    )
+    return this.worker
   }
 
-  getWorker(id?: string) {
-    if (!id) id = v4()
-    const worker = this.workers[id]
-    if (!worker) return this.newWorker(id)
-    const {state} = worker
+  getWorker(uniqueWorker: boolean) {
+    const { state } = this.worker
     if (state === "new" || state == "idle") {
-      return worker
+      return this.worker
     }
     else if (state === "terminated" || state === "error") {
-      return this.newWorker(id)
+      return this.newWorker()
     }
-    else if (state === "working"){
-      // terminate old worker if id is same
-      worker.core.terminate()
-      worker.state = "terminated"
-      return this.newWorker(id)
+    else if (uniqueWorker === false) {
+      return this.newWorker()
     }
-    throw Error("Failed to get worker: unreachable")
+    else if (state === "working") {
+      this.worker.core.terminate()
+      this.worker.state = "terminated"
+      return this.newWorker()
+    }
   }
 
   get ready() {
-    if (this.url === "renderer_fuse_worker")
-      return true
-  
     return this.initPayload !== undefined
   }
 
-  async search(type: string, payload: any, id?: string): Promise<any[]> {
+  async search(type: string, payload: any, uniqueWorker?: false): Promise<any[]> {
     return new Promise(async (resolve, reject)=> {
       if (!this.ready) return resolve([])
-      let worker = this.getWorker(id)
+      let worker = this.getWorker(uniqueWorker)
       worker.state = "working"
       let timer = setTimeout(()=> {
         if (worker.state === "working") {

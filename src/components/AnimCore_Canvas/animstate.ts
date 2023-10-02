@@ -8,12 +8,17 @@ type hash = string | number
 type percent = number
 type facing = string | number
 type ApiArgType = string | boolean | number | hash | percent | null
+type Color = [number, number, number, number]
+type SymbolColorMap = {[K: number]: Color}
 export type {hash, percent, facing, ApiArgType}
 
 export interface BasicApi {
   name: string,
   args?: ApiArgType[],
+
+  // ui params
   disabled?: true,
+  fold?: boolean,
   uuid?: string,
 }
 
@@ -55,6 +60,32 @@ export interface SymbolColourApi extends BasicApi {
 
 export type Api = SingleStringArgApi | SingleHashArgApi | SetBankAndPlayAnimation | SymbolApi | ColourApi | SymbolColourApi | IgnoredApi
 
+enum _DefaultAsString {
+  "SetBank", "SetBuild", "PlayAnimation", "PushAnimation",
+  "AddOverrideBuild", "ClearOverrideBuild",
+  "HideSymbol", "ShowSymbol",
+  "HideLayer", "ShowLayer",
+  "Hide", "Show",
+  "ClearOverrideSymbol",
+}
+
+export function getDefaultArgs(name: Api["name"]): any[] {
+  if (typeof _DefaultAsString[name] === "number")
+    return [""]
+  else if (name === "SetMultColour")
+    return [1, 1, 1, 1]
+  else if (name === "SetAddColour")
+    return [1, 0, 0, 1]
+  else if (name === "SetSymbolMultColour")
+    return ["", ...getDefaultArgs("SetMultColour")]
+  else if (name === "SetSymbolAddColour")
+    return ["", ...getDefaultArgs("SetAddColour")]
+  else if (name === "OverrideSkinSymbol" || name === "OverrideSymbol")
+    return ["", "", ""]
+  else 
+    throw Error("default args not defined: " + name)
+}
+
 // group I
 export enum SkeletonApi {
   "SetBank",
@@ -92,6 +123,11 @@ const ALL_API = {
   ...RenderApi,
 }
 
+Object.values(ALL_API).forEach(v=> {
+  if (typeof v === "string")
+    getDefaultArgs(v as Api["name"])
+})
+
 const compareHash = (a: hash, b: hash)=> {
   if (typeof a === "string")
     a = smallhash(a)
@@ -119,16 +155,21 @@ interface IData {
   facing?: facing,
 }
 
+const dummy = ()=> {}
+
 export class AnimState {
   private _facing?: facing = "all"
   autoFacing?: true
 
-  animLoader: Function = ()=> {}
-  buildLoader: ({build}: {build: string})=> BuildData | undefined = ()=> undefined
-  atlasLoader: Function = ()=> {}
+  animLoader: (param: {bank: hash, animation: string})=> AnimationData[] = dummy as any
+  buildLoader: (param: {build: string})=> BuildData = dummy as any
+  atlasLoader: (param: {build: string, sampler: number})=> ImageBitmap = dummy as any
 
   frameList: FrameList
+  symbolCollection: Map<number, string | number>
+  layerCollection:  Map<number, string | number>
   symbolSource: {[K: number]: [BuildData | null, number]}
+  tint: {mult: Color, add: Color, symbolMult: SymbolColorMap, symbolAdd: SymbolColorMap}
   private player: AnimPlayer
 
   private api_list: Api[]
@@ -137,7 +178,11 @@ export class AnimState {
     this.api_list = []
     this.frameList = []
     this.symbolSource = {}
+    this.symbolCollection = new Map()
+    this.layerCollection = new Map()
+    this.tint = {} as any
     this.player = new AnimPlayer(this)
+    this.autoFacing = true
 
     const {bank, build, animation, facing} = data || {}
     if (build !== undefined)
@@ -159,8 +204,6 @@ export class AnimState {
         }
       }
     })
-
-    // if (window.anim === undefined) window.anim = this
   }
 
   // alias
@@ -200,6 +243,12 @@ export class AnimState {
     return this
   }
 
+  toggleFoldApi(index: number): this {
+    const api = this.api_list[index]
+    api.fold = !api.fold
+    return this
+  }
+
   changeApiArg(index: number, args: any): this {
     const api = this.api_list[index]
     api.args = args
@@ -208,7 +257,6 @@ export class AnimState {
   }
 
   rearrange(from: number, to: number): this {
-    console.log("rearrange!!", from, to)
     if (from === to) return this
     const len = this.api_list.length
     if (from < 0 || to < 0)
@@ -243,12 +291,13 @@ export class AnimState {
     switch (type){
       case "SKELETON":
         return this.preload(api)
+          .rebuildFrameList()
           .rebuildSymbolSource()
       case "SWAP":
         return this.preload(api)
           .rebuildSymbolSource()
-      case "RENDER": // do nothing
-        return this
+      case "RENDER": 
+        return this.rebuildTint()
       case "UNKNOWN":
         console.warn("Unknown api group for: " + name)
         return this
@@ -330,6 +379,10 @@ export class AnimState {
       return undefined
   }
 
+  getTint() {
+    return this.tint
+  }
+
   shouldRender({imghash, layerhash}: {imghash: hash, layerhash: hash}): boolean {
     let result = true
     this.api_list.forEach(({name, args})=> {
@@ -353,16 +406,74 @@ export class AnimState {
     this.rebuildSymbolSource()
   }
 
+  rebuildTint(): this {
+    let mult: Color
+    let add: Color
+    let symbolMult: {[K: number]: Color} = {}
+    let symbolAdd: {[K: number]: Color} = {}
+    for (let i = this.api_list.length - 1; i >= 0; --i){
+      const {name, args, disabled} = this.api_list[i]
+      if (!disabled){
+        if (name === "SetMultColour" && !mult)
+          mult = args
+        else if (name === "SetAddColour" && !add)
+          add = args
+        else if (name === "SetSymbolMultColour"){
+          const hash = smallhash(args[0])
+          if (!symbolMult[hash]) symbolMult[hash] = args.slice(1) as Color
+        }
+        else if (name === "SetSymbolAddColour"){
+          const hash = smallhash(args[0])
+          if (!symbolAdd[hash]) symbolAdd[hash] = args.slice(1) as Color
+        }
+      }
+    }
+    this.tint = {
+      mult: mult || [1,1,1,1], 
+      add: add || [0,0,0,1], 
+      symbolMult, symbolAdd
+    }
+    return this
+  }
+
+  rebuildFrameList(): this {
+    const animList: AnimationData[] = this.animLoader({bank: this.bank, animation: this.animation})
+    if (animList && animList.length){
+      console.log(animList)
+      const animData = this.getActualFacing(animList)
+      if (animData) {
+        this.setFrameList(animData.frame)
+      }
+    }
+    return this
+  }
+
   rebuildSymbolSource(): this {
-    // TODO: 当loadBuild获取新材质时，应该触发一次rebuild  （如何实现？）
+    console.log("Rebuild symbol", this.frameList)
+    // TODO: 当loadBuild获取新材质时，应该触发一次rebuild  (确认机制运行正常)
     if (this.frameList === undefined) return this
-    // get all symbols used in animation
-    const hashCollection = new Set<number>()
+    // get all symbols / layers used in animation
+    this.symbolCollection = new Map()
+    this.layerCollection = new Map()
+    console.log(this.frameList)
     this.frameList.forEach(frame=>
-      frame.forEach(element=> hashCollection.add(element.imghash)))
+      frame.forEach(element=> {
+        this.symbolCollection.set(element.imghash, -1)
+        this.layerCollection.set(element.layerhash, -1)
+      }))
+    // try to resolve hash
+    for (let map of [this.symbolCollection, this.layerCollection]) {
+      for (let key of map.keys()) {
+        const string = window.hash.get(key)
+        if (typeof string === "string") {
+          map.set(key, string)
+        }
+      }
+    }
+    console.log('-----', this.symbolCollection)
     // iter cmds
     this.symbolSource = Object.fromEntries(
-      Array.from(hashCollection).map(symbol=> [symbol, [null, -1]]))
+      Array.from(this.symbolCollection.keys()).map(symbol=> [symbol, [null, -1]]))
     this.api_list.forEach(api=> {
       if (api.disabled) return
       const {name, args} = api
@@ -408,13 +519,14 @@ export class AnimState {
   }
 
   // loaders
-  registerLoaders({animLoader, buildLoader, atlasLoader}: {[K in keyof AnimState]: AnimState[K]}){
+  registerLoaders({animLoader, buildLoader, atlasLoader}){
     this.animLoader = animLoader
     this.buildLoader = buildLoader
     this.atlasLoader = atlasLoader
   }
 
   // player methods
+  getPlayer(): AnimPlayer { return this.player }
   pause(): void { this.player.paused = true }
   resume(): void { this.player.paused = false }
   get isPaused(): boolean { return this.player.paused }
@@ -472,5 +584,28 @@ class AnimPlayer {
     }
     this.currentFrame = f
     this.time = time
+  }
+
+  step(v: number){
+    let f = this.currentFrame
+    let dir = v > 0 ? true : false
+    v = Math.abs(v)
+    while (v > 0){
+      v -= 1
+      if (dir){
+        f = f + 1 >= this.totalFrame ? 0 : f + 1
+      }
+      else {
+        f = f - 1 < 0 ? this.totalFrame - 1 : f - 1
+      }
+    }
+    if (f !== this.currentFrame){
+      this.currentFrame = f
+      this.time = 0
+    }
+  }
+
+  setPercent(percent: number){
+    const frame = percent * (this.totalFrame)
   }
 }

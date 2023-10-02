@@ -14,8 +14,8 @@ export function openAnimSubwindow({id}: {id: string}) {
     const w = new WebviewWindow(label, {
       // tabbingIdentifier: "anim",
       url: "/anim/" + encodeURIComponent(id),
-      minWidth: 400,
-      minHeight: 300,
+      minWidth: 700,
+      minHeight: 500,
       fileDropEnabled: false,
     })
     // w.once("tauri://created", (e)=> console.log(e))

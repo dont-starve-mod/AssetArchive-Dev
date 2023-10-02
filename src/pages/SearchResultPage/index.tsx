@@ -42,7 +42,7 @@ export default function SearchResultPage() {
       setTimeout(()=> forceUpdate(), 330)
       return
     }
-    searchengine.search(query, null).then(
+    searchengine.search(query, null, "search").then(
       (result: Array<FuseResult<AllAssetTypes>&{id: string, matches: Matches}>)=> {
         if (changed) return
         setSearchResult(result.map(item=> 

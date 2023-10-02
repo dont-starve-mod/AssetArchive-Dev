@@ -3,3 +3,63 @@
   height: 100vh;
   background-color: azure;
 }
+
+.pixi-app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.x-axis, .y-axis {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transition: background-color .3s linear;
+  transition-delay: .7s;
+}
+
+.x-axis {
+  height: 1px;
+}
+
+.y-axis {
+  width: 1px;
+}
+
+.player {
+  position: absolute;
+  background-color: #ccc;
+  width: 100%;
+}
+
+.tools {
+  /* padding: 3px; */
+  background-color: white;
+  border: 1px solid #9c9c9c;
+  border-radius: 2px;
+  /* width: 30px;
+  height: 500px; */
+  position: fixed;
+  right: 10px;
+  top: 10px;
+  /* background-color: #fff; */
+}
+
+.tools-panel {
+  width: 160px;
+  min-height: 100px;
+  padding: 10px;
+}
+
+.tools-popover > :global(.bp4-popover2-content) {
+  background-color: rgba(255,255,255, 0.9)!important;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.tools-panel .tools-panel-sep {
+  width: 100%;
+  height: 1px;
+  background-color: #ccc;
+  margin-bottom: 10px;
+}

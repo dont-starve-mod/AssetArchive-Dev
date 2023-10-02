@@ -1,0 +1,71 @@
+.container {
+  width: 450px;
+  /* height: 50px; */
+  background-color: pink;
+  margin: 0 auto;
+  border: 1px solid #aaa;
+}
+
+.bar {
+  width: 100%;
+  height: 10px;
+  background-color: #fff;
+  border: 1px solid #aaa;
+  border-radius: 2px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.control {
+  position: relative;
+  width: 100%;
+  height: 40px;
+}
+
+.key-tooltip :global(.bp4-key) {
+  padding: 0!important;
+  margin-top: -4px;
+  margin-bottom: -4px;
+}
+
+.player-icon-group {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.reverse-icon {
+  margin-left: 10px;
+}
+
+.reverse-icon :global(.bp4-icon-double-chevron-right) {
+  transition: all 0.1s linear;
+}
+
+.reverse :global(.bp4-icon-double-chevron-right) {
+  transform: rotate(180deg);
+}
+
+.speed-setter {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+}
+
+.frame-setter {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+}
+
+.number-input {
+  display: inline-block!important;
+  margin-left: 20px;
+}
+
+.number-input > input {
+  height: 20px;
+  line-height: 20px;
+  max-width: 35px;
+  padding: 2px;
+}

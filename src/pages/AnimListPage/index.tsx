@@ -34,7 +34,7 @@ type State = {
   creating?: NewAnimProject,
 }
 
-const actionReducer: React.Reducer<State, Action | ResetAction> = (state: State, action: Action | ResetAction) => {
+const actionReducer: React.Reducer<State, Action | ResetAction> = (state, action) => {
   if (action.type === "reset")
     return {}
 

@@ -67,6 +67,10 @@ function ApiButton(props: {name: Api["name"]}) {
     dragData.set("payload", JSON.stringify({name: props.name}))
   }, [props.name])
 
+  const onDragEnd = useCallback(()=> {
+    appWindow.emit("global_dragend", "ApiPicker")
+  }, [])
+
   const onClick = ()=> {
     window.alert("CLICK")
   }
@@ -75,7 +79,7 @@ function ApiButton(props: {name: Api["name"]}) {
     <div style={{display: "inline-block", margin: 2}}
       draggable={true}
       onDragStart={onDragStart}
-      onDragEnd={()=> appWindow.emit("global_dragend")}
+      onDragEnd={onDragEnd}
       onClick={onClick}
     >
       <Tag interactive minimal>

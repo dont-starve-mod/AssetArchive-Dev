@@ -1,9 +1,9 @@
 import React, { Children, useState } from 'react'
-import { Button, ButtonGroup, ButtonProps, Collapse, H5, Icon, IconName } from '@blueprintjs/core'
+import { Button, ButtonGroup, ButtonProps, Callout, Card, Collapse, H5, H6, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
 import style from './index.module.css'
 import ApiPicker from '../ApiPicker'
 import ApiList from '../ApiList'
-import { Popover2 } from '@blueprintjs/popover2'
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 
 interface ActionProps {
   icon: IconName,
@@ -56,7 +56,7 @@ export default function ControlPanel(props: IProps) {
 }
 
 function ApiPanel() {
-  return <>
+  return (
     <ControlPanel 
       title="指令面板"
       actions={[
@@ -69,7 +69,7 @@ function ApiPanel() {
       ]}>
       <ApiList />
     </ControlPanel>
-  </>
+  )
 }
 
 function Skeleton() {
@@ -84,8 +84,60 @@ function ColourPalette() {
 
 }
 
-ControlPanel.ApiPanel = ApiPanel
+function Export() {
+  return (
+    <ControlPanel
+      title="导出"
+      actions={[]}>
+      <div style={{padding: 8}}>
 
+      <p><strong>文件格式</strong></p>
+      <RadioGroup>
+        <div>
+          <Tooltip2 content={"易于预览的格式"} placement="right">
+            <Radio label="动图（gif）"/>
+          </Tooltip2>
+        </div>
+        <div>
+          <Tooltip2 content={"易于预览的格式，不支持透明背景，较小的文件体积"} placement="right">
+            <Radio label="视频（mp4）"/>
+          </Tooltip2>
+        </div>
+        <div>
+          <Tooltip2 content={"支持透明背景，适合用作视频素材，较大的文件体积"} placement="right">
+            <Radio label="无损视频（mov）"/>
+          </Tooltip2>
+        </div>
+        <div>
+          <Tooltip2 content={"支持透明背景，便于修改，较大的文件体积"} placement="right">
+            <Radio label="图片序列（png）"/>
+          </Tooltip2>
+        </div>
+      </RadioGroup>
+      <br/>
+      <p><strong>帧率</strong></p>
+      <InputGroup type="number" min={1} max={60} />
+      <p><strong>背景颜色</strong></p>
+      <RadioGroup>
+        <Radio label="透明"/>
+        <Radio label="纯色"/>
+      </RadioGroup>
+      <div style={{padding: 5, color: "#ff0000", backgroundColor: "#fee", border: "1px solid #f00", borderRadius: 2}}>
+        当前格式（mp4）不支持透明，背景色将被填充为纯黑
+        当前格式（gif）在透明背景下，图像边缘可能有锯齿，这是正常现象。
+      </div>
+      
+
+
+      </div>
+
+    </ControlPanel>
+  )
+
+}
+
+ControlPanel.ApiPanel = ApiPanel
+ControlPanel.Export = Export
 
 // utils
 function SmallButton(props: ButtonProps) {
