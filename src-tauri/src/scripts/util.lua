@@ -33,6 +33,17 @@ function table.contains(table, element)
     return false
 end
 
+function table.reverse(tab)
+    local size = #tab
+    local result = {}
+
+    for i,v in ipairs(tab) do
+        result[size-i+1] = v
+    end
+
+    return result
+end
+
 function table.merge(...)
 	local result = {}
 	for i = 1, select("#", ...) do

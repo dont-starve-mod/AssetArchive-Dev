@@ -432,7 +432,7 @@ function Provider:Load(args)
 	timeit(1)
 	local type = args.type
 	if type == "build" then
-		return self:GetBuild(args)
+		return self:GetBuildData(args)
 	elseif type == "animation" then
 		return self:GetAnimation(args)
 	elseif type == "atlas" then
@@ -470,13 +470,18 @@ function Provider:GetBuild(args)
 			local path_build = path:sub(1, #path - 4) .. ".zip"
 			if self.root:Exists(path_build) then
 				local build = self:LoadBuild(path_build)
-				return build and build.builddata
+				return build
 			end
 		else
 			local build = self:LoadBuild(path)
-			return build and build.builddata
+			return build
 		end
 	end
+end
+
+function Provider:GetBuildData(args)
+	local build = self:GetBuild(args)
+	return build and build.builddata
 end
 
 function Provider:LoadBuild(path)
@@ -727,6 +732,8 @@ function Provider:GetSymbolElement(args)
 
 				if args.format == "png" then
 					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh):save_png_bytes()
+				elseif args.format == "img" then
+					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
 				elseif args.format == "copy" then
 					if atlas.is_dyn and not allow_copy then
 						return DYN_ENCRYPT

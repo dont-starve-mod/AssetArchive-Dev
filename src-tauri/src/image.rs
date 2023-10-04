@@ -760,12 +760,12 @@ pub mod lua_image {
         table.set("NEAREST", Resampler::Nearest as u8)?;
         table.set("BILINEAR", Resampler::Bilinear as u8)?;
         table.set("Filter", lua_ctx.create_function(|_, fns: Table|{
-            Ok(Filter::from_lua(
+            Filter::from_lua(
                 fns.get(1)?, 
                 fns.get(2)?,
                 fns.get(3)?,
                 fns.get(4)?
-            ))
+            )
         })?)?;
 
         let globals = lua_ctx.globals();

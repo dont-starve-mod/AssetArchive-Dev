@@ -15,6 +15,8 @@ require "facing"
 require "assetloader"
 require "richtext"
 require "entry"
+require "color"
+local Renderer = require "renderer"
 local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot
 local Provider =  require "assetprovider".Provider
@@ -110,6 +112,13 @@ end)
 
 IpcHandlers.Register("animproject", function(param)
 	return GLOBAL.projectmanager:OnIpc(param)
+end)
+
+IpcHandlers.Register("render_animation_sync", function(param)
+	local r = Renderer(param.api_list)
+	r:SetRoot(GLOBAL.root)
+	r:SetRenderParam(param.render_param)
+	r:Run()
 end)
 
 IpcHandlers.Register("debug_analyze", function()

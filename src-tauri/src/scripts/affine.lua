@@ -51,6 +51,15 @@ function Affine:Translate(x, y)
 	)
 end
 
+function Affine:ToLinear()
+	return Affine(
+		self.a,
+		self.b,
+		self.c,
+		self.d,
+		0, 0)
+end
+
 function Affine:OnPoint(x, y)
 	return self.tx + self.a * x + self.c * y, 
       	   self.ty + self.b * x + self.d * y

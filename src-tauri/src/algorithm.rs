@@ -166,6 +166,34 @@ pub mod lua_algorithm {
         table.set("DivAlpha", lua_ctx.create_function(|lua: Context, bytes: LuaString|{
             Ok(lua.create_string(&div_alpha(bytes.as_bytes()))?)
         })?)?;
+        table.set("Min", lua_ctx.create_function(|_, table: rlua::Table<'_>|{
+            let len = table.len()?;
+            if len == 0 {
+                Err(LuaError::RuntimeError("table len is 0".to_string()))
+            }
+            else {
+                let mut result = f64::MAX;
+                for pair in table.pairs::<usize, f64>() {
+                    let (_, value) = pair?;
+                    result = f64::min(result, value);
+                }
+                Ok(result)
+            }
+        })?)?;
+        table.set("Max", lua_ctx.create_function(|_, table: rlua::Table<'_>|{
+            let len = table.len()?;
+            if len == 0 {
+                Err(LuaError::RuntimeError("table len is 0".to_string()))
+            }
+            else {
+                let mut result = -f64::MAX;
+                for pair in table.pairs::<usize, f64>() {
+                    let (_, value) = pair?;
+                    result = f64::max(result, value);
+                }
+                Ok(result)
+            }
+        })?)?;
 
         let globals = lua_ctx.globals();
         globals.set("Algorithm", table)?;

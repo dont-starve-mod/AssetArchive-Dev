@@ -449,7 +449,6 @@ export class AnimState {
   }
 
   rebuildSymbolSource(): this {
-    console.log("Rebuild symbol", this.frameList)
     // TODO: 当loadBuild获取新材质时，应该触发一次rebuild  (确认机制运行正常)
     if (this.frameList === undefined) return this
     // get all symbols / layers used in animation
@@ -470,7 +469,6 @@ export class AnimState {
         }
       }
     }
-    console.log('-----', this.symbolCollection)
     // iter cmds
     this.symbolSource = Object.fromEntries(
       Array.from(this.symbolCollection.keys()).map(symbol=> [symbol, [null, -1]]))

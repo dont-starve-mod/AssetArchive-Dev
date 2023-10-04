@@ -85,6 +85,9 @@ function ColourPalette() {
 }
 
 function Export() {
+  const [fileExtension, setFileExtension] = useState<"gif"|"mp4"|"mov"|"png">()
+  const [bgcType, setBgcType] = useState<"transparent"|"solid">()
+  const [colorValue, setColorValue] = useState<string>()
   return (
     <ControlPanel
       title="导出"
@@ -92,25 +95,25 @@ function Export() {
       <div style={{padding: 8}}>
 
       <p><strong>文件格式</strong></p>
-      <RadioGroup>
+      <RadioGroup selectedValue={fileExtension} onChange={e=> setFileExtension(e.currentTarget.value as typeof fileExtension)}>
         <div>
           <Tooltip2 content={"易于预览的格式"} placement="right">
-            <Radio label="动图（gif）"/>
+            <Radio label="动图（gif）" value={"gif"}/>
           </Tooltip2>
         </div>
         <div>
           <Tooltip2 content={"易于预览的格式，不支持透明背景，较小的文件体积"} placement="right">
-            <Radio label="视频（mp4）"/>
+            <Radio label="视频（mp4）" value={"mp4"}/>
           </Tooltip2>
         </div>
         <div>
           <Tooltip2 content={"支持透明背景，适合用作视频素材，较大的文件体积"} placement="right">
-            <Radio label="无损视频（mov）"/>
+            <Radio label="无损视频（mov）" value={"mov"}/>
           </Tooltip2>
         </div>
         <div>
           <Tooltip2 content={"支持透明背景，便于修改，较大的文件体积"} placement="right">
-            <Radio label="图片序列（png）"/>
+            <Radio label="图片序列（png）" value={"png"}/>
           </Tooltip2>
         </div>
       </RadioGroup>
@@ -118,10 +121,11 @@ function Export() {
       <p><strong>帧率</strong></p>
       <InputGroup type="number" min={1} max={60} />
       <p><strong>背景颜色</strong></p>
-      <RadioGroup>
-        <Radio label="透明"/>
-        <Radio label="纯色"/>
+      <RadioGroup selectedValue={bgcType} onChange={e=> setBgcType(e.currentTarget.value as typeof bgcType)}>
+        <Radio label="透明" value={"transparent"}/>
+        <Radio label="纯色" value={"solid"}/>
       </RadioGroup>
+      <Button>使用当前背景色</Button>
       <div style={{padding: 5, color: "#ff0000", backgroundColor: "#fee", border: "1px solid #f00", borderRadius: 2}}>
         当前格式（mp4）不支持透明，背景色将被填充为纯黑
         当前格式（gif）在透明背景下，图像边缘可能有锯齿，这是正常现象。
