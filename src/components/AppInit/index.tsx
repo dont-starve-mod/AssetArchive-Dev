@@ -40,14 +40,17 @@ export default function AppInit() {
           searchengine.initPayload = ()=> assets
         }),
         await globalListen<string>("assetdesc", ({payload})=> {
-          const assetdesc: {[K: string]: AssetDesc[]} = JSON.parse(payload)
+          const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
           Object.keys(assetdesc).forEach(k=> {
+            // console.log(assetdesc[k])
             window.assets_map[k].description = assetdesc[k]
+            window.assets_map[k].description_debug = assetdesc[k].find(d=> d.type === "plain").value
           })
         }),
         await globalListen<string>("anim_predictable_data", ({payload})=> {
           const data = JSON.parse(payload)
           const {hashmap} = data
+          window.hash = window.hash || new Map()
           hashmap.forEach(([k,v])=> {
             window.hash.set(v, k)
           })

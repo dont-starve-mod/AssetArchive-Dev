@@ -40,7 +40,10 @@ export default function AnimationPanel(props: IProps) {
   const ref = useRef<HTMLDivElement>()
 
   const createFilter = useCallback(()=> {
-    return new PIXI.Filter(null, tint, { add: [0, 0, 0, 0], mult: [1, 1, 0, 1] })
+    const filter = new PIXI.Filter(null, tint, { add: [0, 0, 0, 0], mult: [1, 1, 0, 1] })
+    filter.uniforms.add = [0,0,0,0]
+    filter.uniforms.mult = [1,1,0,1]
+    return filter
   }, [])
 
   const filter = useRef(createFilter()).current
@@ -116,7 +119,6 @@ export default function AnimationPanel(props: IProps) {
         // set tint value
         // sp.filters[0].uniforms.mult = tint.mult
         // sp.filters[0].uniforms.add = tint.add
-        // console.log(tint)
         root.filters[0].uniforms.mult = tint.mult
         root.filters[0].uniforms.add = tint.add
         sp.position.set(0,0)
@@ -135,14 +137,14 @@ export default function AnimationPanel(props: IProps) {
   }, [])
 
   const {left} = props
-  const [colorType, setColorType] = useState<"solid" | "grid">("solid")
+  const [colorType, setColorType] = useState<"solid" | "transparent">("solid")
   const [colorValue, setColorValue] = useState("#aaaaaa")
-  const gridStyle: React.CSSProperties = colorType === "grid" && {
+  const gridStyle: React.CSSProperties = colorType === "transparent" && {
     backgroundImage: "linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%)",
     backgroundSize: "16px 16px",
     backgroundPosition: "0 0, 8px 8px",
   }
-  const axisColor = colorType === "grid" ? "#111" : 
+  const axisColor = colorType === "transparent" ? "#111" : 
     "#aaa"
   
   const onMove = useCallback((x: number, y: number)=> {
@@ -225,20 +227,26 @@ function Tools(props: {colorSetterProps: any}) {
 }
 
 function BackgroundSetter(props: any) {
+  const {render} = useContext(animstateContext)
   const { colorType, colorValue, setColorType, setColorValue } = props
   const onChangeColor = useCallback((e: React.ChangeEvent<HTMLInputElement>)=> {
     setColorType("solid")
     setColorValue(e.target.value)
   }, [setColorType, setColorValue])
 
+  useEffect(()=> {
+    render.bgcType = colorType
+    render.bgc = colorValue
+  }, [render, colorType, colorValue])
+
   return (
     <div className={style["tools-panel"]}>
       <H6>背景色</H6>
       <div className={style["tools-panel-sep"]} />
       {/* <RadioGroup> */}
+        <Radio label='透明' inline checked={colorType === "transparent"} onChange={()=> setColorType("transparent")}/>
         <Radio label='纯色' inline checked={colorType === "solid"} onChange={()=> setColorType("solid")}/>
         <input type="color" style={{display: "inline-block"}} value={colorValue} onChange={onChangeColor}/>
-        <Radio label='网格' inline checked={colorType === 'grid'} onChange={()=> setColorType("grid")}/>
       {/* </RadioGroup> */}
 
     </div>

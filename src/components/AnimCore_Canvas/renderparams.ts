@@ -5,7 +5,7 @@ export interface IRenderParams {
   defaultScale?: number,
   axis?: "none" | "front" | "back",
   centerStyle?: "center" | "ground" | "bottom",
-  bgcStyle?: "solid" | "grid",
+  bgcType?: "solid" | "transparent",
   bgc?: string,
 }
 
@@ -26,7 +26,7 @@ export class RenderParams implements IRenderParams{
   globalScale = 1.0
   axis = "none" as IRenderParams["axis"]
   centerStyle = "ground" as IRenderParams["centerStyle"]
-  bgcStyle = "solid"as IRenderParams["bgcStyle"]
+  bgcType = "solid"as IRenderParams["bgcType"]
   bgc = "#cccccc"
 
   _transform: affine_matrix | null = null
@@ -108,5 +108,13 @@ export class RenderParams implements IRenderParams{
     const scale = this.scale * Math.pow(.99, y*0.5) // TODO: 根据系统类型决定滚动方向
     this.scale = Math.min(this.MAX_SCALE, Math.max(this.MIN_SCALE, scale))
     // console.log("scaleTo", this.scale)
+  }
+
+  serialize() {
+    return {
+      bgc: this.bgcType === "transparent" ? this.bgcType : this.bgc,
+      facing: undefined,
+      fps: undefined,
+    }
   }
 }

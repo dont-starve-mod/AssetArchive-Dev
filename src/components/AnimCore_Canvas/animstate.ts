@@ -159,6 +159,7 @@ const dummy = ()=> {}
 
 export class AnimState {
   private _facing?: facing = "all"
+  facingList: number[]
   autoFacing?: true
 
   animLoader: (param: {bank: hash, animation: string})=> AnimationData[] = dummy as any
@@ -180,7 +181,10 @@ export class AnimState {
     this.symbolSource = {}
     this.symbolCollection = new Map()
     this.layerCollection = new Map()
-    this.tint = {} as any
+    this.tint = {
+      mult: [1,1,1,1], add: [0,0,0,0],
+      symbolMult: {}, symbolAdd: {}
+    }
     this.player = new AnimPlayer(this)
     this.autoFacing = true
 
@@ -193,6 +197,7 @@ export class AnimState {
       this.insert({name: "PlayAnimation", args: [animation]})
 
     this.facing = facing
+    this.facingList = []
 
     // debug handlers
     Object.keys(ALL_API).forEach((key)=> {
@@ -371,6 +376,7 @@ export class AnimState {
 
   getActualFacing(animList: AnimationData[]): AnimationData | undefined {
     const anim = animList.find(a=> a.facing === this.facing)
+    this.facingList = animList.map(a=> a.facing)
     if (anim !== undefined)
       return anim
     else if (this.autoFacing)
@@ -543,7 +549,7 @@ export class AnimState {
 class AnimPlayer {
   anim: AnimState
   speed = 1
-  reversed = false
+  _reversed = false
   currentFrame = 0
   totalFrame = 0
   time = 0
@@ -554,7 +560,16 @@ class AnimPlayer {
     this.anim = anim
   }
 
+  /** time of miliseconds per frame, eg: 33(ms) */
   get frameInterval(){ return 1000/this.frameRate }
+
+  get reversed() { return this._reversed }
+  set reversed(v: boolean) {
+    if (v !== this._reversed){
+      this.time = this.frameInterval - this.time
+    }
+    this._reversed = v
+  }
 
   update(dt: number){
     if (this.paused) return
@@ -601,6 +616,15 @@ class AnimPlayer {
       this.currentFrame = f
       this.time = 0
     }
+  }
+
+  getSmoothPercent(): number {
+    if (this.totalFrame === 0) return 0
+    const percentInFrame = this.time / this.frameInterval
+    if (!this.reversed)
+      return (this.currentFrame + percentInFrame) / this.totalFrame
+    else
+      return (this.currentFrame + 1 - percentInFrame) / this.totalFrame 
   }
 
   setPercent(percent: number){

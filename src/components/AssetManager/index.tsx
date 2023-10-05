@@ -7,6 +7,7 @@ import { PredictableData } from '../../renderer_predict'
 import { appWindow } from '@tauri-apps/api/window'
 import smallhash from '../../smallhash'
 import { message } from '@tauri-apps/api/dialog'
+import { RenderParams } from '../AnimCore_Canvas/renderparams'
 
 type AssetData<T> = {
   state: "loading",

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import style from './index.module.css'
-import { Button, InputGroup } from '@blueprintjs/core'
+import { Button, InputGroup, useHotkeys } from '@blueprintjs/core'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import { appWindow } from '@tauri-apps/api/window'
 import TinySlider from '../TinySlider'
@@ -87,30 +87,44 @@ export default function AnimPlayerWidget(props: IProps) {
     forceUpdate()
   }, [player])
 
+  useHotkeys([
+    {
+      label: "play/pause",
+      global: true,
+      combo: "space",
+      preventDefault: true,
+      onKeyDown() {
+        togglePlaying()
+      },
+    },
+    {
+      label: "forward",
+      global: true,
+      combo: "]",
+      preventDefault: true,
+      onKeyDown() {
+        forward()
+      },
+    },
+    {
+      label: "backward",
+      global: true,
+      combo: "[",
+      preventDefault: true,
+      onKeyDown() {
+        backward()
+      },
+    },
+  ])
+
   const [frame, setFrame] = useState<string>("")
-
-  useEffect(()=> {
-    const onKeyDown = (event: React.KeyboardEvent)=> {
-      event.preventDefault()
-      console.log(event.key)
-      switch (event.key) {
-        case " ":
-          return togglePlaying()
-        case "]":
-          return forward()
-        case "[":
-          return backward()
-      }
-
-    }
-    document.addEventListener("keydown", onKeyDown)
-    return ()=> document.removeEventListener("keydown", onKeyDown)
-  }, [])
+  const [smoothPercent, setSmoothPercent] = useState<number>(0)
 
   useEffect(()=> {
     let timer: number = -1
     const update = ()=> {
       setFrame(`${player.currentFrame + 1}/${player.totalFrame}`)
+      setSmoothPercent(player.getSmoothPercent())
       timer = requestAnimationFrame(update)
     }
     update()
@@ -120,6 +134,8 @@ export default function AnimPlayerWidget(props: IProps) {
   return (
     <div className={style["container"]}>
       <div className={style["bar"]}>
+        <div style={{width: 2, height: "100%", position: "absolute", backgroundColor: "#7562d4",
+          left: `${smoothPercent* 100}%`}} />
       </div>
       <div className={style["control"]}>
         <div className={style["player-icon-group"]}>
@@ -145,7 +161,8 @@ export default function AnimPlayerWidget(props: IProps) {
           </span>}>
             <Button icon="step-forward" onClick={forward}/>
           </Tooltip2>
-          <Tooltip2 placement="top" content={<span>切换倒放</span>}>
+          <Tooltip2 placement="top" content={<span
+          >切换倒放</span>}>
             <Button icon="double-chevron-right"
               intent={player.reversed ? "warning" : "none"}
               className={[style["reverse-icon"], player.reversed ? style["reverse"] : ""].join(" ")}

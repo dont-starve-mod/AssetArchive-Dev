@@ -435,7 +435,8 @@ function Render:Run()
 
 	f:drop()
 	IpcEmitEvent("render_event", json.encode_compliant({
-		state = "finish"
+		state = "finish",
+		path = self.path,
 	}))
 end
 
@@ -485,6 +486,6 @@ local function test()
 	r:Run()
 end
 
-test()
+-- test()
 
 return Render

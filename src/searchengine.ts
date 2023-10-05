@@ -82,7 +82,7 @@ export class SearchEngine {
       },
       "file",
       "tex",
-      "description", // TODO: 只搜索plain text，忽略rich text
+      "description_debug", // TODO: 只搜索plain text，忽略rich text
     ]
   }
   searcher: {

@@ -88,7 +88,9 @@ type rLuaAPI =
   "setroot" | "showroot" | 
   "copy" | 
   "animproject.init" | "animproject" | 
-  "set" 
+  "set" |
+  "render_animation_sync" | 
+  "render_animation_async"
   
 type LuaCallCb<T> = (response: T, param?: any)=> void
 

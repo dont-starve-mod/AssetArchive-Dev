@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import SidePanel from './sidepanel'
 import AnimationPanel from './animationpanel'
 import AppRendererInit from '../../components/AppRendererInit'
+import RenderProgress from '../../components/RenderProgress'
 import { useParams } from 'react-router-dom'
 import animstateContext from './globalanimstate'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
@@ -32,6 +33,7 @@ export default function AnimRendererPage(props: IProps) {
   const assetStateRef = useRef<any>()
 
   useEffect(()=> {
+    return
     animstate.clear()
     animstate.insert({name: "SetBuild", args: ["wilson"]})
     animstate.insert({name: "SetBankAndPlayAnimation", args: ["wilson", "run_loop"]})
@@ -63,6 +65,7 @@ export default function AnimRendererPage(props: IProps) {
       </div>
       <AppRendererInit/>
       <AssetManager animstate={animstate} stateRef={state=> assetStateRef.current = state}/>
+      <RenderProgress/>
     </animstateContext.Provider>
   )
 }

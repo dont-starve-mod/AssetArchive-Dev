@@ -116,6 +116,7 @@ end)
 
 IpcHandlers.Register("render_animation_sync", function(param)
 	local r = Renderer(param.api_list)
+	r.path = assert(param.path, "path not provided")
 	r:SetRoot(GLOBAL.root)
 	r:SetRenderParam(param.render_param)
 	r:Run()
