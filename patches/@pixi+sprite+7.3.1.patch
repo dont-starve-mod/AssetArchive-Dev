@@ -1,0 +1,56 @@
+diff --git a/node_modules/@pixi/sprite/.DS_Store b/node_modules/@pixi/sprite/.DS_Store
+new file mode 100644
+index 0000000..99f1292
+Binary files /dev/null and b/node_modules/@pixi/sprite/.DS_Store differ
+diff --git a/node_modules/@pixi/sprite/lib/Sprite.js b/node_modules/@pixi/sprite/lib/Sprite.js
+index 5a05faf..8d383be 100644
+--- a/node_modules/@pixi/sprite/lib/Sprite.js
++++ b/node_modules/@pixi/sprite/lib/Sprite.js
+@@ -9,7 +9,7 @@ class Sprite extends display.Container {
+       this,
+       texture ? texture.defaultAnchor.x : 0,
+       texture ? texture.defaultAnchor.y : 0
+-    ), this._texture = null, this._width = 0, this._height = 0, this._tintColor = new core.Color(16777215), this._tintRGB = null, this.tint = 16777215, this.blendMode = core.BLEND_MODES.NORMAL, this._cachedTint = 16777215, this.uvs = null, this.texture = texture || core.Texture.EMPTY, this.vertexData = new Float32Array(8), this.vertexTrimmedData = null, this._transformID = -1, this._textureID = -1, this._transformTrimmedID = -1, this._textureTrimmedID = -1, this.indices = indices, this.pluginName = "batch", this.isSprite = !0, this._roundPixels = core.settings.ROUND_PIXELS;
++    ), this._texture = null, this._width = 0, this._height = 0, this._tintColor = new core.Color(16777215), this._tintRGB = null, this._addColor = new core.Color(new Uint8ClampedArray([0, 0, 0, 0])), this.tint = 16777215, this.blendMode = core.BLEND_MODES.NORMAL, this._cachedTint = 16777215, this.uvs = null, this.texture = texture || core.Texture.EMPTY, this.vertexData = new Float32Array(8), this.vertexTrimmedData = null, this._transformID = -1, this._textureID = -1, this._transformTrimmedID = -1, this._textureTrimmedID = -1, this.indices = indices, this.pluginName = "batch", this.isSprite = !0, this._roundPixels = core.settings.ROUND_PIXELS;
+   }
+   /** When the texture is updated, this event will fire to update the scale and frame. */
+   _onTextureUpdate() {
+@@ -185,6 +185,12 @@ class Sprite extends display.Container {
+   get tintValue() {
+     return this._tintColor.toNumber();
+   }
++  set add(value) {
++    this._addColor.value = value;
++  }
++  get add() {
++    return this._addColor;
++  }
+   /** The texture that the sprite is using. */
+   get texture() {
+     return this._texture;
+diff --git a/node_modules/@pixi/sprite/lib/Sprite.mjs b/node_modules/@pixi/sprite/lib/Sprite.mjs
+index d9c6f40..491ae2b 100644
+--- a/node_modules/@pixi/sprite/lib/Sprite.mjs
++++ b/node_modules/@pixi/sprite/lib/Sprite.mjs
+@@ -9,7 +9,7 @@ class Sprite extends Container {
+       this,
+       texture ? texture.defaultAnchor.x : 0,
+       texture ? texture.defaultAnchor.y : 0
+-    ), this._texture = null, this._width = 0, this._height = 0, this._tintColor = new Color(16777215), this._tintRGB = null, this.tint = 16777215, this.blendMode = BLEND_MODES.NORMAL, this._cachedTint = 16777215, this.uvs = null, this.texture = texture || Texture.EMPTY, this.vertexData = new Float32Array(8), this.vertexTrimmedData = null, this._transformID = -1, this._textureID = -1, this._transformTrimmedID = -1, this._textureTrimmedID = -1, this.indices = indices, this.pluginName = "batch", this.isSprite = !0, this._roundPixels = settings.ROUND_PIXELS;
++    ), this._texture = null, this._width = 0, this._height = 0, this._tintColor = new Color(16777215), this._tintRGB = null, this._addColor = new Color(new Uint8ClampedArray([0, 0, 0, 0])), this.tint = 16777215, this.blendMode = BLEND_MODES.NORMAL, this._cachedTint = 16777215, this.uvs = null, this.texture = texture || Texture.EMPTY, this.vertexData = new Float32Array(8), this.vertexTrimmedData = null, this._transformID = -1, this._textureID = -1, this._transformTrimmedID = -1, this._textureTrimmedID = -1, this.indices = indices, this.pluginName = "batch", this.isSprite = !0, this._roundPixels = settings.ROUND_PIXELS;
+   }
+   /** When the texture is updated, this event will fire to update the scale and frame. */
+   _onTextureUpdate() {
+@@ -185,6 +185,12 @@ class Sprite extends Container {
+   get tintValue() {
+     return this._tintColor.toNumber();
+   }
++  set add(value) {
++    this._addColor.value = value;
++  }
++  get add() {
++    return this._addColor;
++  }
+   /** The texture that the sprite is using. */
+   get texture() {
+     return this._texture;

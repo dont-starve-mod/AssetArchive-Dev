@@ -510,7 +510,7 @@ end
 function Provider:GetAnimation(args)
 	if type(args.name) == "string" and 
 		(type(args.bank) == "string" or type(args.bank) == "number") then
-		-- convert to number
+		-- convert bank to number
 		local bank = type(args.bank) == "string" and Algorithm.SmallHash_Impl(args.bank) or args.bank 
 		local paths = self.index:GetAnimFileList(bank, args.name)
 		if paths then
@@ -525,6 +525,7 @@ function Provider:GetAnimation(args)
 					end
 				end
 			end
+			table.sort(result, function(a, b) return a.facing < b.facing end)
 			return result
 		end
 	end

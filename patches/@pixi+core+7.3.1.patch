@@ -1,0 +1,198 @@
+diff --git a/node_modules/@pixi/core/.DS_Store b/node_modules/@pixi/core/.DS_Store
+new file mode 100644
+index 0000000..702945f
+Binary files /dev/null and b/node_modules/@pixi/core/.DS_Store differ
+diff --git a/node_modules/@pixi/core/lib/.DS_Store b/node_modules/@pixi/core/lib/.DS_Store
+new file mode 100644
+index 0000000..df46efc
+Binary files /dev/null and b/node_modules/@pixi/core/lib/.DS_Store differ
+diff --git a/node_modules/@pixi/core/lib/batch/BatchGeometry.js b/node_modules/@pixi/core/lib/batch/BatchGeometry.js
+index f069960..944271d 100644
+--- a/node_modules/@pixi/core/lib/batch/BatchGeometry.js
++++ b/node_modules/@pixi/core/lib/batch/BatchGeometry.js
+@@ -1,12 +1,13 @@
+ "use strict";
+ var constants = require("@pixi/constants"), Buffer = require("../geometry/Buffer.js"), Geometry = require("../geometry/Geometry.js");
+ class BatchGeometry extends Geometry.Geometry {
+   /**
+    * @param {boolean} [_static=false] - Optimization flag, where `false`
+    *        is updated every frame, `true` doesn't change frame-to-frame.
+    */
+   constructor(_static = !1) {
+-    super(), this._buffer = new Buffer.Buffer(null, _static, !1), this._indexBuffer = new Buffer.Buffer(null, _static, !0), this.addAttribute("aVertexPosition", this._buffer, 2, !1, constants.TYPES.FLOAT).addAttribute("aTextureCoord", this._buffer, 2, !1, constants.TYPES.FLOAT).addAttribute("aColor", this._buffer, 4, !0, constants.TYPES.UNSIGNED_BYTE).addAttribute("aTextureId", this._buffer, 1, !0, constants.TYPES.FLOAT).addIndex(this._indexBuffer);
++    super(), this._buffer = new Buffer.Buffer(null, _static, !1), this._indexBuffer = new Buffer.Buffer(null, _static, !0), this.addAttribute("aVertexPosition", this._buffer, 2, !1, constants.TYPES.FLOAT).addAttribute("aTextureCoord", this._buffer, 2, !1, constants.TYPES.FLOAT).addAttribute("aColor", this._buffer, 4, !0, constants.TYPES.UNSIGNED_BYTE).addAttribute("aAddColor", this._buffer, 4, !0, constants.TYPES.UNSIGNED_BYTE).addAttribute("aTextureId", this._buffer, 1, !0, constants.TYPES.FLOAT).addIndex(this._indexBuffer);
+   }
+ }
+ exports.BatchGeometry = BatchGeometry;
+diff --git a/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs b/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs
+index e7b128b..ba851cb 100644
+--- a/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs
++++ b/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs
+@@ -1,13 +1,14 @@
+ import { TYPES } from "@pixi/constants";
+ import { Buffer } from "../geometry/Buffer.mjs";
+ import { Geometry } from "../geometry/Geometry.mjs";
+ class BatchGeometry extends Geometry {
+   /**
+    * @param {boolean} [_static=false] - Optimization flag, where `false`
+    *        is updated every frame, `true` doesn't change frame-to-frame.
+    */
+   constructor(_static = !1) {
+-    super(), this._buffer = new Buffer(null, _static, !1), this._indexBuffer = new Buffer(null, _static, !0), this.addAttribute("aVertexPosition", this._buffer, 2, !1, TYPES.FLOAT).addAttribute("aTextureCoord", this._buffer, 2, !1, TYPES.FLOAT).addAttribute("aColor", this._buffer, 4, !0, TYPES.UNSIGNED_BYTE).addAttribute("aTextureId", this._buffer, 1, !0, TYPES.FLOAT).addIndex(this._indexBuffer);
++    super(), this._buffer = new Buffer(null, _static, !1), this._indexBuffer = new Buffer(null, _static, !0), this.addAttribute("aVertexPosition", this._buffer, 2, !1, TYPES.FLOAT).addAttribute("aTextureCoord", this._buffer, 2, !1, TYPES.FLOAT).addAttribute("aColor", this._buffer, 4, !0, TYPES.UNSIGNED_BYTE).addAttribute("aAddColor", this._buffer, 4, !0, TYPES.UNSIGNED_BYTE).addAttribute("aTextureId", this._buffer, 1, !0, TYPES.FLOAT).addIndex(this._indexBuffer);
+   }
+ }
+ export {
+diff --git a/node_modules/@pixi/core/lib/batch/BatchRenderer.js b/node_modules/@pixi/core/lib/batch/BatchRenderer.js
+index ba1e1e6..cb17f65 100644
+--- a/node_modules/@pixi/core/lib/batch/BatchRenderer.js
++++ b/node_modules/@pixi/core/lib/batch/BatchRenderer.js
+@@ -7,7 +7,7 @@ const _BatchRenderer = class _BatchRenderer2 extends ObjectRenderer.ObjectRender
+    * @param {PIXI.Renderer} renderer - The renderer this works for.
+    */
+   constructor(renderer) {
+-    super(renderer), this.setShaderGenerator(), this.geometryClass = BatchGeometry.BatchGeometry, this.vertexSize = 6, this.state = State.State.for2d(), this.size = _BatchRenderer2.defaultBatchSize * 4, this._vertexCount = 0, this._indexCount = 0, this._bufferedElements = [], this._bufferedTextures = [], this._bufferSize = 0, this._shader = null, this._packedGeometries = [], this._packedGeometryPoolSize = 2, this._flushId = 0, this._aBuffers = {}, this._iBuffers = {}, this.maxTextures = 1, this.renderer.on("prerender", this.onPrerender, this), renderer.runners.contextChange.add(this), this._dcIndex = 0, this._aIndex = 0, this._iIndex = 0, this._attributeBuffer = null, this._indexBuffer = null, this._tempBoundTextures = [];
++    super(renderer), this.setShaderGenerator(), this.geometryClass = BatchGeometry.BatchGeometry, this.vertexSize = 7, this.state = State.State.for2d(), this.size = _BatchRenderer2.defaultBatchSize * 4, this._vertexCount = 0, this._indexCount = 0, this._bufferedElements = [], this._bufferedTextures = [], this._bufferSize = 0, this._shader = null, this._packedGeometries = [], this._packedGeometryPoolSize = 2, this._flushId = 0, this._aBuffers = {}, this._iBuffers = {}, this.maxTextures = 1, this.renderer.on("prerender", this.onPrerender, this), renderer.runners.contextChange.add(this), this._dcIndex = 0, this._aIndex = 0, this._iIndex = 0, this._attributeBuffer = null, this._indexBuffer = null, this._tempBoundTextures = [];
+   }
+   /**
+    * The maximum textures that this device supports.
+@@ -228,9 +228,9 @@ const _BatchRenderer = class _BatchRenderer2 extends ObjectRenderer.ObjectRender
+     const {
+       uint32View,
+       float32View
+-    } = attributeBuffer, packedVertices = aIndex / this.vertexSize, uvs = element.uvs, indicies = element.indices, vertexData = element.vertexData, textureId = element._texture.baseTexture._batchLocation, alpha = Math.min(element.worldAlpha, 1), argb = color.Color.shared.setValue(element._tintRGB).toPremultiplied(alpha, element._texture.baseTexture.alphaMode > 0);
++    } = attributeBuffer, packedVertices = aIndex / this.vertexSize, uvs = element.uvs, indicies = element.indices, vertexData = element.vertexData, textureId = element._texture.baseTexture._batchLocation, alpha = Math.min(element.worldAlpha, 1), tint = color.Color.shared.setValue(element._tintRGB).toPremultiplied(alpha, element._texture.baseTexture.alphaMode > 0), { r, g, b, a } = element.add.toRgba(), add = (a * 255 << 24) + (b * 255 << 16) + (g * 255 << 8) + (r * 255 << 0);
+     for (let i = 0; i < vertexData.length; i += 2)
+-      float32View[aIndex++] = vertexData[i], float32View[aIndex++] = vertexData[i + 1], float32View[aIndex++] = uvs[i], float32View[aIndex++] = uvs[i + 1], uint32View[aIndex++] = argb, float32View[aIndex++] = textureId;
++      float32View[aIndex++] = vertexData[i], float32View[aIndex++] = vertexData[i + 1], float32View[aIndex++] = uvs[i], float32View[aIndex++] = uvs[i + 1], uint32View[aIndex++] = tint, uint32View[aIndex++] = add, float32View[aIndex++] = textureId;
+     for (let i = 0; i < indicies.length; i++)
+       indexBuffer[iIndex++] = packedVertices + indicies[i];
+   }
+diff --git a/node_modules/@pixi/core/lib/batch/BatchRenderer.mjs b/node_modules/@pixi/core/lib/batch/BatchRenderer.mjs
+index 7184f15..7f53c29 100644
+--- a/node_modules/@pixi/core/lib/batch/BatchRenderer.mjs
++++ b/node_modules/@pixi/core/lib/batch/BatchRenderer.mjs
+@@ -23,7 +23,7 @@ const _BatchRenderer = class _BatchRenderer2 extends ObjectRenderer {
+    * @param {PIXI.Renderer} renderer - The renderer this works for.
+    */
+   constructor(renderer) {
+-    super(renderer), this.setShaderGenerator(), this.geometryClass = BatchGeometry, this.vertexSize = 6, this.state = State.for2d(), this.size = _BatchRenderer2.defaultBatchSize * 4, this._vertexCount = 0, this._indexCount = 0, this._bufferedElements = [], this._bufferedTextures = [], this._bufferSize = 0, this._shader = null, this._packedGeometries = [], this._packedGeometryPoolSize = 2, this._flushId = 0, this._aBuffers = {}, this._iBuffers = {}, this.maxTextures = 1, this.renderer.on("prerender", this.onPrerender, this), renderer.runners.contextChange.add(this), this._dcIndex = 0, this._aIndex = 0, this._iIndex = 0, this._attributeBuffer = null, this._indexBuffer = null, this._tempBoundTextures = [];
++    super(renderer), this.setShaderGenerator(), this.geometryClass = BatchGeometry, this.vertexSize = 7, this.state = State.for2d(), this.size = _BatchRenderer2.defaultBatchSize * 4, this._vertexCount = 0, this._indexCount = 0, this._bufferedElements = [], this._bufferedTextures = [], this._bufferSize = 0, this._shader = null, this._packedGeometries = [], this._packedGeometryPoolSize = 2, this._flushId = 0, this._aBuffers = {}, this._iBuffers = {}, this.maxTextures = 1, this.renderer.on("prerender", this.onPrerender, this), renderer.runners.contextChange.add(this), this._dcIndex = 0, this._aIndex = 0, this._iIndex = 0, this._attributeBuffer = null, this._indexBuffer = null, this._tempBoundTextures = [];
+   }
+   /**
+    * The maximum textures that this device supports.
+@@ -244,9 +244,9 @@ const _BatchRenderer = class _BatchRenderer2 extends ObjectRenderer {
+     const {
+       uint32View,
+       float32View
+-    } = attributeBuffer, packedVertices = aIndex / this.vertexSize, uvs = element.uvs, indicies = element.indices, vertexData = element.vertexData, textureId = element._texture.baseTexture._batchLocation, alpha = Math.min(element.worldAlpha, 1), argb = Color.shared.setValue(element._tintRGB).toPremultiplied(alpha, element._texture.baseTexture.alphaMode > 0);
++    } = attributeBuffer, packedVertices = aIndex / this.vertexSize, uvs = element.uvs, indicies = element.indices, vertexData = element.vertexData, textureId = element._texture.baseTexture._batchLocation, alpha = Math.min(element.worldAlpha, 1), tint = Color.shared.setValue(element._tintRGB).toPremultiplied(alpha, element._texture.baseTexture.alphaMode > 0), { r, g, b, a } = element.add.toRgba(), add = (a * 255 << 24) + (b * 255 << 16) + (g * 255 << 8) + (r * 255 << 0);
+     for (let i = 0; i < vertexData.length; i += 2)
+-      float32View[aIndex++] = vertexData[i], float32View[aIndex++] = vertexData[i + 1], float32View[aIndex++] = uvs[i], float32View[aIndex++] = uvs[i + 1], uint32View[aIndex++] = argb, float32View[aIndex++] = textureId;
++      float32View[aIndex++] = vertexData[i], float32View[aIndex++] = vertexData[i + 1], float32View[aIndex++] = uvs[i], float32View[aIndex++] = uvs[i + 1], uint32View[aIndex++] = tint, uint32View[aIndex++] = add, float32View[aIndex++] = textureId;
+     for (let i = 0; i < indicies.length; i++)
+       indexBuffer[iIndex++] = packedVertices + indicies[i];
+   }
+diff --git a/node_modules/@pixi/core/lib/batch/texture.frag.js b/node_modules/@pixi/core/lib/batch/texture.frag.js
+index 9ff9373..7253857 100644
+--- a/node_modules/@pixi/core/lib/batch/texture.frag.js
++++ b/node_modules/@pixi/core/lib/batch/texture.frag.js
+@@ -2,13 +2,14 @@
+ Object.defineProperty(exports, "__esModule", { value: !0 });
+ var defaultFragment = `varying vec2 vTextureCoord;
+ varying vec4 vColor;
++varying vec4 vAddColor;
+ varying float vTextureId;
+ uniform sampler2D uSamplers[%count%];
+ 
+ void main(void){
+     vec4 color;
+     %forloop%
+-    gl_FragColor = color * vColor;
++    gl_FragColor = color * vColor + vAddColor;
+ }
+ `;
+ exports.default = defaultFragment;
+diff --git a/node_modules/@pixi/core/lib/batch/texture.frag.mjs b/node_modules/@pixi/core/lib/batch/texture.frag.mjs
+index f4492e6..aae7f72 100644
+--- a/node_modules/@pixi/core/lib/batch/texture.frag.mjs
++++ b/node_modules/@pixi/core/lib/batch/texture.frag.mjs
+@@ -1,12 +1,13 @@
+ var defaultFragment = `varying vec2 vTextureCoord;
+ varying vec4 vColor;
++varying vec4 vAddColor;
+ varying float vTextureId;
+ uniform sampler2D uSamplers[%count%];
+ 
+ void main(void){
+     vec4 color;
+     %forloop%
+-    gl_FragColor = color * vColor;
++    gl_FragColor = color * vColor + vAddColor;
+ }
+ `;
+ export {
+diff --git a/node_modules/@pixi/core/lib/batch/texture.vert.js b/node_modules/@pixi/core/lib/batch/texture.vert.js
+index c9683ce..b68aab0 100644
+--- a/node_modules/@pixi/core/lib/batch/texture.vert.js
++++ b/node_modules/@pixi/core/lib/batch/texture.vert.js
+@@ -4,6 +4,7 @@ var defaultVertex = `precision highp float;
+ attribute vec2 aVertexPosition;
+ attribute vec2 aTextureCoord;
+ attribute vec4 aColor;
++attribute vec4 aAddColor;
+ attribute float aTextureId;
+ 
+ uniform mat3 projectionMatrix;
+@@ -12,6 +13,7 @@ uniform vec4 tint;
+ 
+ varying vec2 vTextureCoord;
+ varying vec4 vColor;
++varying vec4 vAddColor;
+ varying float vTextureId;
+ 
+ void main(void){
+@@ -19,7 +21,8 @@ void main(void){
+ 
+     vTextureCoord = aTextureCoord;
+     vTextureId = aTextureId;
+-    vColor = aColor * tint;
++    vColor = aColor;
++    vAddColor = vec4(aAddColor.rgb * aAddColor.a, 0.0);
+ }
+ `;
+ exports.default = defaultVertex;
+diff --git a/node_modules/@pixi/core/lib/batch/texture.vert.mjs b/node_modules/@pixi/core/lib/batch/texture.vert.mjs
+index 70cf784..1ce2a7f 100644
+--- a/node_modules/@pixi/core/lib/batch/texture.vert.mjs
++++ b/node_modules/@pixi/core/lib/batch/texture.vert.mjs
+@@ -2,6 +2,7 @@ var defaultVertex = `precision highp float;
+ attribute vec2 aVertexPosition;
+ attribute vec2 aTextureCoord;
+ attribute vec4 aColor;
++attribute vec4 aAddColor;
+ attribute float aTextureId;
+ 
+ uniform mat3 projectionMatrix;
+@@ -10,6 +11,7 @@ uniform vec4 tint;
+ 
+ varying vec2 vTextureCoord;
+ varying vec4 vColor;
++varying vec4 vAddColor;
+ varying float vTextureId;
+ 
+ void main(void){
+@@ -17,7 +19,8 @@ void main(void){
+ 
+     vTextureCoord = aTextureCoord;
+     vTextureId = aTextureId;
+-    vColor = aColor * tint;
++    vColor = aColor;
++    vAddColor = vec4(aAddColor.rgb * aAddColor.a, 0.0);
+ }
+ `;
+ export {
+diff --git a/node_modules/@pixi/core/lib/textures/.DS_Store b/node_modules/@pixi/core/lib/textures/.DS_Store
+new file mode 100644
+index 0000000..59d13e6
+Binary files /dev/null and b/node_modules/@pixi/core/lib/textures/.DS_Store differ

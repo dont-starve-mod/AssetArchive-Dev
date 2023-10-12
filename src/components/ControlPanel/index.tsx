@@ -77,18 +77,6 @@ function ApiPanel() {
   )
 }
 
-function Skeleton() {
-
-}
-
-function Swap() {
-
-}
-
-function ColourPalette() {
-
-}
-
 function Export() {
   const [fileExtension, setFileExtension] = useState<"gif"|"mp4"|"mov"|"png">("gif")
   const handleExtensionCheck = useCallback((e: React.FormEvent<HTMLInputElement>, value: typeof fileExtension)=> {
