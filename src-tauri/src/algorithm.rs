@@ -60,20 +60,21 @@ pub mod lua_algorithm {
 
     #[inline]
     fn crop_bytes(bytes: &[u8], width: usize, height: usize,
-        x: usize, y: usize, cw: usize, ch: usize) -> Result<Vec<u8>, &'static str> {
-        if bytes.len() != width* height* 4 {
-            Err("Not a RGBA sequence")
+        x: usize, y: usize, cw: usize, ch: usize, pixel_size: usize) -> Result<Vec<u8>, String> {
+        if bytes.len() != width* height* pixel_size {
+            Err(format!("Invalid input sequence ({} <-> {}x{}x{} = {})", 
+                bytes.len(), width, height, pixel_size, width*height*pixel_size))
         }
         else if x + cw > width || y + ch > height {
-            Err("Rect out of bound")
+            Err("Rect out of bound".to_string())
         }
         else {
-            let mut result = Vec::<u8>::with_capacity(cw*ch*4);
+            let mut result = Vec::<u8>::with_capacity(cw*ch*pixel_size);
             for py in y..y + ch {
-                let start = (py* width + x)* 4;
-                result.extend_from_slice(&bytes[start..start+cw*4]);
+                let start = (py* width + x)* pixel_size;
+                result.extend_from_slice(&bytes[start..start+cw*pixel_size]);
             }
-            assert!(result.len() == cw*ch*4);
+            assert!(result.len() == cw*ch*pixel_size);
             Ok(result)
         }
     }
@@ -151,10 +152,10 @@ pub mod lua_algorithm {
             Ok(kleihash(s.as_bytes()))
         })?)?;
         table.set("CropBytes", lua_ctx.create_function(|lua: Context,
-            (bytes, width, height, x, y, cw, ch): (LuaString, usize, usize, usize, usize, usize, usize)|{
-            crop_bytes(bytes.as_bytes(), width, height, x, y, cw, ch)
+            (bytes, width, height, x, y, cw, ch, pixel_size): (LuaString, usize, usize, usize, usize, usize, usize, Option<usize>)|{
+            crop_bytes(bytes.as_bytes(), width, height, x, y, cw, ch, pixel_size.unwrap_or(4))
                 .map(|r|lua.create_string(&r))
-                .map_err(|e|LuaError::RuntimeError(e.to_string()))
+                .map_err(|e|LuaError::RuntimeError(e))
         })?)?;
         table.set("FlipBytes", lua_ctx.create_function(|lua: Context,
             (bytes, linewidth): (LuaString, usize)|{

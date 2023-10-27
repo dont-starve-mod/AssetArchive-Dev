@@ -528,6 +528,12 @@ pub mod lua_image {
                 gif.duration = f64::round(duration / 10.0) as u64;
                 Ok(())
             });
+            _methods.add_meta_method(MetaMethod::ToString, |_, gif: &Self, ()|{
+                Ok(format!("GifWriter<fd={}>", match gif.fd {
+                    Some(n)=> format!("{:?}", n),
+                    None=> "[CLOSED]".to_string(),
+                }))
+            });
         }
         
     }

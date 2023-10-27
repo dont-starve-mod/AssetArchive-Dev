@@ -25,6 +25,7 @@ const bodyStyle: React.CSSProperties = {
 
 export default function AnimRendererPage(props: IProps) {
   const {id} = useParams()
+  console.log(id)
   const [panelWidth, setPanelWidth] = useState<number>(250)
   const animstate = useRef(new AnimState()).current
   const animstateHooks = useAnimStateHook(animstate)
@@ -33,7 +34,7 @@ export default function AnimRendererPage(props: IProps) {
   const assetStateRef = useRef<any>()
 
   useEffect(()=> {
-    return
+    // return
     animstate.clear()
     animstate.insert({name: "SetBuild", args: ["wilson"]})
     animstate.insert({name: "SetBankAndPlayAnimation", args: ["wilson", "run_loop"]})

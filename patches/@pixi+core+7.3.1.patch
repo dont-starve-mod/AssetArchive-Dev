@@ -1,16 +1,8 @@
-diff --git a/node_modules/@pixi/core/.DS_Store b/node_modules/@pixi/core/.DS_Store
-new file mode 100644
-index 0000000..702945f
-Binary files /dev/null and b/node_modules/@pixi/core/.DS_Store differ
-diff --git a/node_modules/@pixi/core/lib/.DS_Store b/node_modules/@pixi/core/lib/.DS_Store
-new file mode 100644
-index 0000000..df46efc
-Binary files /dev/null and b/node_modules/@pixi/core/lib/.DS_Store differ
 diff --git a/node_modules/@pixi/core/lib/batch/BatchGeometry.js b/node_modules/@pixi/core/lib/batch/BatchGeometry.js
 index f069960..944271d 100644
 --- a/node_modules/@pixi/core/lib/batch/BatchGeometry.js
 +++ b/node_modules/@pixi/core/lib/batch/BatchGeometry.js
-@@ -1,12 +1,13 @@
+@@ -1,12 +1,12 @@
  "use strict";
  var constants = require("@pixi/constants"), Buffer = require("../geometry/Buffer.js"), Geometry = require("../geometry/Geometry.js");
  class BatchGeometry extends Geometry.Geometry {
@@ -28,7 +20,7 @@ diff --git a/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs b/node_modules/
 index e7b128b..ba851cb 100644
 --- a/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs
 +++ b/node_modules/@pixi/core/lib/batch/BatchGeometry.mjs
-@@ -1,13 +1,14 @@
+@@ -1,13 +1,13 @@
  import { TYPES } from "@pixi/constants";
  import { Buffer } from "../geometry/Buffer.mjs";
  import { Geometry } from "../geometry/Geometry.mjs";
@@ -192,7 +184,3 @@ index 70cf784..1ce2a7f 100644
  }
  `;
  export {
-diff --git a/node_modules/@pixi/core/lib/textures/.DS_Store b/node_modules/@pixi/core/lib/textures/.DS_Store
-new file mode 100644
-index 0000000..59d13e6
-Binary files /dev/null and b/node_modules/@pixi/core/lib/textures/.DS_Store differ

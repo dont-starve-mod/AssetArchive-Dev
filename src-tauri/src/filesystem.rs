@@ -471,7 +471,7 @@ pub mod lua_filesystem {
         }
         
         #[inline]
-        fn to_string(&self) -> String {
+        pub fn to_string(&self) -> String {
             self.inner.to_string_lossy().to_string()
         }
 

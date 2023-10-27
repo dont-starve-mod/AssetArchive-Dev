@@ -431,6 +431,7 @@ function Render:Run()
 			progress = index/#framebuffer,
 		}))
 		f:encode(canvas)
+		collectgarbage("collect")
 	end
 
 	f:drop()

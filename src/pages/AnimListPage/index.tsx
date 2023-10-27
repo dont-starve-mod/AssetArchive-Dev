@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useReducer, useMemo } from 'react'
-import { Alert, Button, ButtonGroup, Card, H3, H5, Icon, PopoverInteractionKind, ToastProps } from '@blueprintjs/core'
+import { Alert, Button, ButtonGroup, H3, H5, Icon, PopoverInteractionKind, ToastProps } from '@blueprintjs/core'
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import style from './style.module.css'
@@ -176,7 +176,6 @@ export default function AnimListPage() {
     <H3>动画渲染器</H3>
     <p>将饥荒动画转换为视频和图片格式。</p>
     <div style={{height: 30}}></div>
-    <Button onClick={()=> openAnimSubwindow({id: "test"})}>测试1</Button>
     <H5>近期的项目
     <Button icon="sort-alphabetical" onClick={()=> setSorting(["title", false])} minimal></Button>
     <Button icon="sort-alphabetical-desc" onClick={()=> setSorting(["title", true])} minimal></Button>

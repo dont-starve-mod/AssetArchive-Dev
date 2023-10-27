@@ -4,6 +4,7 @@ local Config = Persistant.Config
 local AssetIndex = require "assetindex"
 local smallhash = Algorithm.SmallHash_Impl
 local CropBytes = Algorithm.CropBytes
+local Filenamify = FileSystem.Filenamify
 local floor = math.floor
 
 local DST_DataRoot = Class(function(self, explicit_path)
@@ -93,7 +94,7 @@ function DST_DataRoot:SetRoot(path, explicit)
 	end
 
 	self.root = path
-	local databundles = self.root/"databundles"
+	local databundles = self:GetDataBundlesRoot()
 
 	if databundles:is_dir() then
 		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts"}do
@@ -102,6 +103,7 @@ function DST_DataRoot:SetRoot(path, explicit)
 			if fs then
 				local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL_LAZY)
 				if not zip.error then
+					zip.filepath = zippath
 					self.databundles[k:gsub("_", "/").."/"] = zip
 				end
 				zip:Close()
@@ -198,6 +200,10 @@ function DST_DataRoot:Iter(path)
 		end
 		return result
 	end
+end
+
+function DST_DataRoot:GetDataBundlesRoot()
+	return self.root/"databundles"
 end
 
 function DST_DataRoot:__div(path)
@@ -429,7 +435,6 @@ function Provider:ResolveMinimapImage(file)
 end
 
 function Provider:Load(args)
-	timeit(1)
 	local type = args.type
 	if type == "build" then
 		return self:GetBuildData(args)
@@ -452,8 +457,18 @@ function Provider:Load(args)
 	elseif type == "animbin" then
 		return self:GetAnimBin(args)
 	elseif type == "show" then
-		--
+		return self:ShowAssetInFolder(args)
 	end
+end
+
+local old_Load = Provider.Load
+function Provider:Load(args)
+	local type = args.type
+	local time = now()
+	local result = { old_Load(self, args) }
+	print("[LOAD] type="..type..", args="..json.encode(args))
+	print("  time = "..string.format("%.1f", now() - time))
+	return unpack(result)
 end
 
 function Provider:GetBuild(args)
@@ -525,7 +540,7 @@ function Provider:GetAnimation(args)
 					end
 				end
 			end
-			table.sort(result, function(a, b) return a.facing < b.facing end)
+			table.sort(result, function(a, b) return a.facing > b.facing end)
 			return result
 		end
 	end
@@ -943,6 +958,138 @@ function Provider:GetXml(args)
 			return result
 		end
 	end
+end
+
+function Provider:BatchDownload(args)
+	local type = args.type
+	local target_dir = assert(args.target_dir, "args.target_dir not provided")
+	target_dir = FileSystem.Path(target_dir)
+	assert(target_dir:exists(), "target_dir not exists")
+	assert(target_dir:is_dir(), "target_dir is not a directory")
+	local function CreateOutputDir(file)
+		local output_dir_name = Filenamify(NameOf(file))
+		local output_dir_path = target_dir/output_dir_name
+		for i = 1, 1000 do
+			if not output_dir_path:exists() then
+				assert(output_dir_path:create_dir(), "Failed to create new directory: "..tostring(output_dir_path))
+				break
+			else
+				output_dir_path = target_dir/(output_dir_name.."_"..i)
+			end
+		end
+		return output_dir_path
+	end
+	if type == "xml" then
+		local file = args.file
+		local xml, tex = self:LoadXmlWithTex(file)
+		assert(xml, "Failed to load xml: "..tostring(file))
+		local total = GetTableSize(xml.imgs)
+		local function OnProgress(i)
+			IpcEmitEvent("progress", json.encode_compliant{ current = 0, total = total })
+		end
+		local i = 0
+		local atlas_bytes = tex:GetImageBytes(0)
+		local w, h = tex:GetSize()
+		local output_dir_path = CreateOutputDir(file)
+		for k,info in pairs(xml.imgs)do
+			local name = info.name
+			local u1, u2, v1, v2 = info.u1, info.u2, info.v1, info.v2
+			local rect = {
+				math.max(0, floor(w*u1)), math.max(0, floor(h*(1-v2))), 
+				math.min(w, floor(w*u2)+1), math.min(h, floor(h*(1-v1))+1)
+			}
+			local crop = CropBytes(atlas_bytes, w, h, 
+				rect[1], rect[2], rect[3] - rect[1], rect[4] - rect[2])
+			local img = Image.From_RGBA(crop, rect[3] - rect[1], rect[4] - rect[2])
+			if name:endswith(".tex") then
+				name = name:sub(1, #name - 4)..".png"
+			end
+			if not name:endswith(".png") then
+				name = name..".png"
+			end
+			img:save((output_dir_path/name):as_string())
+			i = i + 1
+			OnProgress(i)
+			-- TODO: write xls file
+		end
+		IpcEmitEvent("progress", json.encode_compliant{ done = true })
+		return json.encode_compliant{ success = true, output_dir_path = output_dir_path:as_string() }
+	elseif type == "build" then
+		local file = args.build or args.file
+		local build = self:LoadBuild(self.index:GetBuildFile(file))
+		assert(build, "Failed to load build "..tostring(file))
+		local atlaslist = self:LoadAtlas(file)
+		assert(atlaslist, "Failed to load atlaslist "..tostring(file))
+		local output_dir_path = CreateOutputDir(file)
+		-- TODO: progress
+		for hash, v in pairs(build.symbol_map)do
+			local symbol_name = HashLib:Hash2String(hash) or "HASH-"..hash
+			for _, img in ipairs(v.imglist)do
+				local index = img.index
+				local sampler = img.sampler
+				local atlas = assert(atlaslist[sampler], "Failed to get build sampler ["..sampler.."]")
+				if atlas.is_dyn and not (hash == SWAP_ICON and index == 0) then
+					-- skip export
+				else
+					local w, h = atlas:GetSize()
+					local x_scale = w / img.cw
+					local y_scale = h / img.ch
+					local bbx, bby, subw, subh = 
+						unsigned(img.bbx * x_scale),
+						unsigned(img.bby * y_scale),
+						unsigned(img.w * x_scale),
+						unsigned(img.h * y_scale)
+					local f = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+					f:save((output_dir_path/(symbol_name.."-"..index..".png")):as_string())
+					-- TODO: xls info
+				end
+			end
+		end
+		IpcEmitEvent("progress", json.encode_compliant{ done = true })
+		return json.encode_compliant{ success = true, output_dir_path = output_dir_path:as_string() }
+	end
+end
+
+function Provider:ShowAssetInFolder(args)
+	if not self.root or not self.root:IsValid() then 
+		return false 
+	end
+
+	local file = args.file
+	local fullpath = self.root/file
+	local parent = fullpath:parent()
+	local is_subitem = false
+	for i = 1, 10 do
+		if parent == self.root.root then
+			is_subitem = true
+			break
+		else
+			parent = parent:parent()
+		end
+	end
+	assert(is_subitem, "Param invalid: "..args.file)
+	if fullpath:exists() then
+		return SelectFileInFolder(fullpath:as_string())
+	end
+
+	for k,v in pairs(self.root.databundles)do
+		if file:startswith(k) then
+			if v:Exists(file) then
+				if args.select_databundle == true then
+					return SelectFileInFolder(v.filepath:as_string())
+				else
+				 	local extracted_path = self.root:GetDataBundlesRoot()/file
+				 	if extracted_path:is_file() then
+				 		return SelectFileInFolder(extracted_path)
+				 	else
+						return json.encode_compliant({is_databundle = true, path = v.filepath:name()})
+					end
+				end
+			end
+		end
+	end
+
+	error("Failed to select asset file:\n"..json.encode_compliant(args))
 end
 
 return {

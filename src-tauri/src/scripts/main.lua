@@ -98,6 +98,12 @@ IpcHandlers.Register("load", function(param)
 	return result
 end)
 
+IpcHandlers.Register("batch_download", function(param)
+	assert(type(param) == "table", "Ipc<batch_download> only accept table param")
+	local result = GLOBAL.prov:BatchDownload(param)
+	return result
+end)
+
 IpcHandlers.Register("copy", function(text)
 	if type(text) == "string" then
 		return Clipboard.WriteText(text)

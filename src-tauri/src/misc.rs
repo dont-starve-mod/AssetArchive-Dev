@@ -1,6 +1,6 @@
 pub mod lua_misc {
     use rlua::prelude::{LuaResult, LuaString, LuaError};
-    use rlua::{Nil, UserData, Context, Value};
+    use rlua::{Nil, UserData, Context, Value, AnyUserData};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
     use webbrowser;
@@ -97,11 +97,21 @@ pub mod lua_misc {
 
         // select file
         #[cfg(unix)]
-        globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: String|{
+        globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: Value|{
             use std::process;
+            use crate::filesystem::lua_filesystem::Path;
+
+            let path = match path {
+                Value::String(s)=> s.to_str()?.to_string(),
+                Value::UserData(data)=> {
+                    let path = data.borrow::<Path>()?;
+                    path.to_string()
+                },
+                _ => return Ok(false)
+            };
             Ok(process::Command::new("/usr/bin/open")
                 .arg("-R")
-                .arg(path)
+                .arg(path.as_str())
                 .status()
                 .is_ok())
         })?)?;

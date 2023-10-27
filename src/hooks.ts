@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api"
 import { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { appWindow } from "@tauri-apps/api/window"
-import { save } from "@tauri-apps/api/dialog"
+import { open, save } from "@tauri-apps/api/dialog"
 import type { AppSettings } from "./redux/reducers/appsettings"
 import { update as UpdateSetting, update } from "./redux/reducers/appsettings"
 import { useDispatch, useSelector } from "./redux/store"
@@ -56,13 +56,13 @@ export function useMouseDrag(onMoveCb: (x: number, y: number, px: number, py: nu
   return [onMouseDown]
 }
 
-export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true):
+export function useMouseScroll(onScrollCb: (y: number, e?: React.WheelEvent)=> void, lockGlobal = true):
 [(e: React.WheelEvent)=> void, (e: React.MouseEvent)=> void, (e: React.MouseEvent)=> void]
 {
   const [hover, setHover] = useState(false)
   const onScroll = useCallback((e: React.WheelEvent)=> {
-    onScrollCb(e.deltaY)
-  }, [])
+    onScrollCb(e.deltaY, e)
+  }, [onScrollCb])
 
   const onMouseEnter = useCallback(()=> setHover(true), [])
   const onMouseLeave = useCallback(()=> setHover(false), [])
@@ -82,11 +82,32 @@ export function useMouseScroll(onScrollCb: (y: number)=> void, lockGlobal = true
   return [onScroll, onMouseEnter, onMouseLeave]
 }
 
+export function useMouseDragClick():
+[(e: React.MouseEvent)=> void, (e: React.MouseEvent)=> void, ()=> boolean]
+{
+  const downPos = useRef([0, 0])
+  const upPos = useRef([1000, 1000])
+  const onMouseDown = useCallback((e: React.MouseEvent)=> {
+    downPos.current = [e.clientX, e.clientY]
+  }, [])
+  const onMouseUp = useCallback((e: React.MouseEvent)=> {
+    upPos.current = [e.clientX, e.clientY]
+  }, [])
+  const isDragClick = useCallback(()=> {
+    return Math.max(
+      Math.abs(upPos.current[0] - downPos.current[0]),
+      Math.abs(upPos.current[1] - downPos.current[1])
+    ) >= 4
+  }, [])
+  return [onMouseDown, onMouseUp, isDragClick]
+}
+
 type rLuaAPI = 
   "appinit" |
   "load" | 
   "setroot" | "showroot" | 
   "copy" | 
+  "batch_download" |
   "animproject.init" | "animproject" | 
   "set" |
   "render_animation_sync" | 
@@ -145,8 +166,8 @@ export function useLuaCallLax(api: rLuaAPI, fn, defaultParams = {}, deps: React.
   }, deps)
 }
 
-export function useCopySuccess(type) {
-  let message = (type === "image" ? "图片" : "") 
+export function useCopySuccess(type?: "image" | "path") {
+  let message = (type === "image" ? "图片" : type === "path" ? "路径" : "") 
     + "已拷贝至剪切板"
   return ()=> appWindow.emit("toast", { message, icon: "endorsed", intent: "success"})
 }
@@ -221,6 +242,21 @@ export function useSaveFileDialog(saveFn, filters, defaultPath: string) {
     if (filepath)
       saveFn({...param, path: filepath})
   }, [saveFn])
+  return fn
+}
+
+/** common batch save dialog */
+export function useBatchDownloadDialog(type: "xml" | "build", data?: {[K in "file" | "build"]?: string}) {
+  const call = useLuaCall("batch_download", ()=> {})
+  
+  const fn = useCallback(async ()=> {
+    const dirpath = await open({
+      directory: true,
+      multiple: false,
+      title: ""
+    })
+    call({type, ...data, target_dir: dirpath})
+  }, [call])
   return fn
 }
 

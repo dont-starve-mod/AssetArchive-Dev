@@ -5,6 +5,7 @@ local DXT5_Decompress = Algorithm.DXT5_Decompress
 local DXT1_Decompress = Algorithm.DXT1_Decompress
 local FlipBytes = Algorithm.FlipBytes
 local DivAlpha = Algorithm.DivAlpha
+local CropBytes = Algorithm.CropBytes
 local slaxdom = require "slaxdom"
 local ZIP_SIG = ZIP_SIG
 local DYN_SIG = DYN_SIG
@@ -502,6 +503,12 @@ function TexLoader:NormalizeMipIndex(i)
     return math.clamp(i, 1, #self.mipmaps)
 end
 
+function TexLoader:GetSize(i)
+    i = self:NormalizeMipIndex(i or 1)
+    local info = self.mipmaps[i]
+    return info.width, info.height
+end
+
 function TexLoader:GetTextureData(i)
     i = self:NormalizeMipIndex(i)
     return self.mipmaps[i] and self.mipmaps[i].data
@@ -544,10 +551,22 @@ function TexLoader:GetImageBytes(i)
     end
 end
 
-function TexLoader:GetSize(i)
-    i = self:NormalizeMipIndex(i or 1)
-    local info = self.mipmaps[i]
-    return info.width, info.height
+function TexLoader:GetImageBytesWithRegion(i, bbox --[[x, y, w, h]])
+    i = self:NormalizeMipIndex(i)
+    local m = self.mipmaps[i]
+    local x = math.floor(bbox[1] + 0.5)
+    local y = math.floor(bbox[2] + 0.5)
+    local w = math.floor(bbox[3] + 0.5)
+    local h = math.floor(bbox[4] + 0.5)
+    if m ~= nil then
+        if m.pixels ~= nil then
+            return CropBytes(m.pixels, x, y, w, h), w, h
+        end
+
+        if self.pixelformat == 2 then
+            --
+        end
+    end
 end
 
 function TexLoader:__tostring()

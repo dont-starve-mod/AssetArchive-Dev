@@ -6,14 +6,13 @@ const uuidNS = uuidv5("Asset Archive", uuidv5.URL)
 
 export function openAnimSubwindow({id}: {id: string}) {
   const label = uuidv5(id, uuidNS)
-  console.log("Create window with label: ", label)
   if (WebviewWindow.getByLabel(label)) {
     console.log(`Window <${id}> - ${label} is open, skip`)
   }
   else {
     const w = new WebviewWindow(label, {
-      // tabbingIdentifier: "anim",
-      url: "/anim/" + encodeURIComponent(id),
+      title: "Anim Renderer",
+      url: "/anim/" + encodeURIComponent(id).replace(".", "%2E"),
       minWidth: 700,
       minHeight: 500,
       fileDropEnabled: false,

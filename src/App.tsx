@@ -15,12 +15,19 @@ import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
 import type { AllAssetTypes } from './searchengine'
+import type { Xml, Tex, AnimDyn, AnimZip } from './searchengine'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
 		app_init?: boolean,
-		assets: {[K in AllAssetTypes["type"]]: AllAssetTypes[]},
+		// assets: {[K in "allxmlfile" | "alldynfile" | "allzipfile" | "alltexelement" | "alltexture"]: AllAssetTypes[]},
+		assets: {
+			allxmlfile: Xml[],
+			alltexelement: Tex[],
+			alldynfile: AnimDyn[],
+			allzipfile: AnimZip[],
+		}
 		assets_map: {[K: string]: AllAssetTypes},
 		hash: Map<number, string>,
 	}

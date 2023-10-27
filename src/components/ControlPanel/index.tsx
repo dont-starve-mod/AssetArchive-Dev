@@ -205,19 +205,6 @@ function Export() {
         <Radio label="纯色" value={"solid"} inline style={{display: "inline-block"}}/>
         <input type="color" style={{display: "inline-block", marginLeft: 10}} value={colorValue} onChange={onChangeColor}/>
       </RadioGroup>
-      {/* {
-        (fileExtension === "mp4" || fileExtension === "gif") && bgcType === "transparent" &&
-        <div style={{margin: "10px 0", padding: 5, color: "#ff0000", backgroundColor: "#fee", border: "1px solid #f00", borderRadius: 2}}>
-          {
-            fileExtension === "mp4" &&
-            <span>当前格式（mp4）不支持透明，背景色将被填充为纯黑。</span>
-          }
-          {
-            fileExtension === "gif" &&
-            <span>当前格式（gif）以透明背景导出时，图像边缘可能有锯齿，这是正常现象。</span>
-          }
-        </div>
-      } */}
       <br/>
       <br/>
       <p><strong>文件路径</strong></p>

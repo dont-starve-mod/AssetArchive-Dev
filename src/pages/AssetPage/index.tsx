@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox } from '@blueprintjs/core'
 import { Collapse, ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
-import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useGenericSaveFileCb, useSaveFileDialog } from '../../hooks'
+import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useSaveFileDialog, useBatchDownloadDialog } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
 import style from './index.module.css'
@@ -13,6 +13,9 @@ import Hash from '../../components/HumanHash'
 import FacingIcon from '../../components/FacingIcon'
 import CCMiniPlayground from '../../components/CCMiniPlayground'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
+import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
+import AssetFilePath from '../../components/AssetFilepath'
+import BatchDownloadButton from '../../components/BatchDownloadButton'
 
 function KeepAlive(props) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -30,7 +33,7 @@ export default function AssetPage() {
       return <AssetInvalidPage type="waiting" forceUpdate={forceUpdate}/>
     }
     else {
-      console.warning("Invalid asset id: ", id)
+      console.warn("Invalid asset id: ", id)
       return <AssetInvalidPage type="invalid-id" id={id}/>
     }
   }
@@ -88,7 +91,7 @@ function TexPage({id, xml, tex}) {
   const navigate = useNavigate()
   const xmlDef = window.assets.allxmlfile.find(a=> a.file === xml)
   const atlasPath = xmlDef ? xmlDef.texpath : "获取失败"
-  const ref = useRef()
+  const ref = useRef<HTMLImageElement>()
   const [resolution, setResolution] = useState([0, 0])
   const [loading, setLoading] = useState(true)
   
@@ -97,17 +100,13 @@ function TexPage({id, xml, tex}) {
     setLoading(false)
   }
 
-  const call = useLuaCall("load", result=> {
+  useLuaCallOnce<number[]>("load", result=> {
     const array = Uint8Array.from(result)
     const blob = new Blob([array])
-    if (ref.current) ref.current.src = URL.createObjectURL(blob)
+    if (ref.current)
+      ref.current.src = URL.createObjectURL(blob)
   }, {type: "image", xml, tex, format: "png", debug:1}, 
     [id, xml, tex])
-
-  useEffect(()=> {
-    // setLoading(true)
-    call()
-  }, [call])
 
   const download = useSaveFileCall(
     {type: "image", xml, tex}, 
@@ -132,16 +131,9 @@ function TexPage({id, xml, tex}) {
         下载
       </Button>
       <H5>基本信息</H5>
-      <Card elevation={1}>
       <p>分辨率: {resolution[0]}x{resolution[1]}</p>
-      <p>所属图集: {xml} &nbsp;
-        <Button icon="link" minimal={true}/>
-        <Button icon="document-open" minimal={true}/>
-      </p>
-      <p>资源路径: {atlasPath} &nbsp;
-        <Button icon="document-open" minimal={true}/>
-      </p>
-      </Card>
+      <AssetFilePath type="xml_link" path={xml}/>
+      <AssetFilePath type="tex" path={atlasPath}/>
     </div>
   </div>
 }
@@ -156,7 +148,7 @@ function TexNoRefPage({id, file, is_cc}) {
     setLoading(false)
   }
 
-  useLuaCallOnce("load", result=> {
+  useLuaCallOnce<number[]>("load", result=> {
     const array = Uint8Array.from(result)
     const blob = new Blob([array])
     setURL(URL.createObjectURL(blob))
@@ -202,30 +194,37 @@ function TexNoRefPage({id, file, is_cc}) {
   </div>
 }
 
-function XmlPage({id, file, texpath, _numtex}) {
-  const [display, setDisplay] = useState("grid") // TODO: 应该是config
-  const [loading, setLoading] = useState(false)
-  const [data, setData] = useState({})
+export type XmlData = {
+  xml: string,
+  width: number,
+  height: number,
+  elements: Array<{
+    name: string,
+    uv: [number, number, number, number],
+    width: number,
+    height: number,
+    id: string,
+  }>
+}
 
-  const call = useLuaCall("load", result=> {
-    result = JSON.parse(result)
-    setData(result)
+function XmlPage({id, file, texpath, _numtex}) {
+  const [display, setDisplay] = useState<"grid"|"list"|"atlas">("grid") // TODO: 应该是可保存的config
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<XmlData>()
+
+  useLuaCallOnce<string>("load", result=> {
+    setData(JSON.parse(result))
     setLoading(false)
-    requestAnimationFrame(()=> appWindow.emit("restore_scroll", {key: id}))
   }, {type: "xml", file},
     [file])
   
-  useEffect(()=> {
-    setData({})
-    // setLoading(true)
-    call()
-  }, [call])
-
   return <div>
     <H3>{file} <AssetType type="xml"/></H3>
     <div className="bp4-running-text">
       <H5>图片列表 </H5>
-      <p>本图集包含了{_numtex}张图片</p>
+      <p>本图集包含{_numtex}张图片&nbsp; 
+        <BatchDownloadButton type="xml" file={file}/>
+      </p>
       <p>
         视图&nbsp;&nbsp;
         <ButtonGroup minimal={false} style={{verticalAlign: "middle"}}>
@@ -236,24 +235,33 @@ function XmlPage({id, file, texpath, _numtex}) {
       </p>
       <Loading loading={loading}/>
       {
-        data.elements && data.xml === file && (
-          display === "grid" ? <XmlPageDisplay.Grid data={data} xml={file}/> : 
-          display === "list" ? <XmlPageDisplay.List data={data} xml={file}/> :
-          display === "widget" ? <XmlPageDisplay.Atlas data={data} xml={file}/> :
-          <></>
-        )
+        data && data.elements && data.xml === file && (<>
+          <div style={{display: display === "grid" ? "block" : "none"}}>
+            <XmlPageDisplay.Grid data={data} xml={file}/>
+          </div>
+          <div style={{display: display === "list" ? "block" : "none"}}>
+            <XmlPageDisplay.List data={data} xml={file}/>
+          </div>
+          <div style={{display: display === "atlas" ? "block" : "none"}}>
+            <XmlPageDisplay.Atlas data={data} xml={file} texpath={texpath}/>
+          </div>
+        </>)
       }
       <H5>基本信息</H5>
-      <Card elevation={1}>
-        <p>xml文件路径: {file}</p>
-        <p>tex文件路径: {texpath}</p>
-      </Card>
+      <AssetFilePath type="xml" path={file}/>
+      <AssetFilePath type="tex" path={texpath}/>
     </div>
   </div>
 }
 
+type XmlDisplayProps = {
+  data: XmlData,
+  xml: string,
+}
+
 const XmlPageDisplay = {
-  Grid({data, xml}) {
+  Grid(props: XmlDisplayProps) {
+    const {data, xml} = props
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
     const download = useSaveFileCall(
@@ -268,7 +276,7 @@ const XmlPageDisplay = {
         data.elements.map((element, _)=> 
         <div className={style["grid"]} key={element.id}>
           <div className='bp4-card'>
-            <Preview.Image xml={xml} tex={element.name}/>
+            <Preview.Image xml={xml} tex={element.name} width={80} height={80}/>
             <div className={style['grid-name']}>
               <p className="bp4-monospace-text">
                 {element.name}
@@ -289,7 +297,8 @@ const XmlPageDisplay = {
     </div>
   },
 
-  List({data, xml}) {
+  List(props: XmlDisplayProps) {
+    const {data, xml} = props
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
     const download = useSaveFileCall(
@@ -331,28 +340,39 @@ const XmlPageDisplay = {
     </table>
   },
 
-  Atlas({data, xml}) {
-    return <>TODO: 还没做</>
+  Atlas(props: XmlDisplayProps & { texpath: string }) {
+    const {data, texpath} = props
+    return <div>
+      <AtlasUVMapViewer data={data} texpath={texpath} xml={props.xml}/>
+    </div>
   },
 }
+
+const SWAP_ICON = 4138393349
 
 function ZipPage({type, file, id}) {
   const [build, setBuildData] = useState(undefined)
   const [foldSymbol, setFoldSymbol] = useState({})
   const [animList, setAnimList] = useState(undefined)
   const [atlas, setAtlas] = useState({})
+  const [swap_icon, setSwapIconData] = useState<any>()
 
-  const buildCall = useLuaCall("load", result=> {
+  useLuaCallOnce<string>("load", result=> {
     if (result == "nil") {
       // `build.bin` not exists
       setBuildData(false)
     }
     else {
-      setBuildData(JSON.parse(result))
+      const data = JSON.parse(result)
+      setBuildData(data)
+      const swap_icon = data.symbol.find(v=> v.imghash === SWAP_ICON)
+      if (swap_icon && swap_icon.imglist.length) {
+        setSwapIconData(swap_icon.imglist[0])
+      }
     }
   }, {type: "build", file}, [file])
 
-  const animCall = useLuaCall("load", result=> {
+  useLuaCallOnce<string>("load", result=> {
     if (result == "nil") {
       // `anim.bin` not exists
       setAnimList(false)
@@ -362,23 +382,15 @@ function ZipPage({type, file, id}) {
     }
   }, {type: "animbin", file}, [file])
 
-  useEffect(()=> {
-    buildCall()
-    setAtlas({})
-  }, [buildCall])
-
-  useEffect(()=> {
-    animCall()
-  }, [animCall])
 
   const copyAtlas = useCopyBuildAtlas(file)
   const copyElement = useCopySymbolElement(file)
   const downloadAtlas = useSaveFileCall({
     type: "atlas", build: file  
-  }, "image", "TODO: name.png", [file])
+  }, "image", "atlas.png", [file])
   const downloadElement = useSaveFileCall({
     type: "symbol_element", build: file,
-  }, "image", "TODO: name.png", [file])
+  }, "image", "image.png", [file])
 
   const onSuccess = useCopySuccess()
 
@@ -394,6 +406,20 @@ function ZipPage({type, file, id}) {
             {build.name}&nbsp;<Button icon="duplicate" onClick={()=> 
               writeText(build.name).then(()=> onSuccess())}/>
           </p>
+          {
+            Boolean(swap_icon) &&
+            <div>
+              <p><strong>皮肤图标</strong></p>
+              <div style={{marginBottom: 10, display: "flex"}}>
+                <Preview.SymbolElement atlas={atlas} data={swap_icon} width={50} height={50}/>
+                <div style={{width: 10}}/>
+                <Button icon="duplicate" style={{margin: "auto 2px"}} 
+                  onClick={()=> copyElement({imghash: SWAP_ICON, index: 0})}/>
+                <Button icon="download" style={{margin: "auto 2px"}}
+                  onClick={()=> downloadElement({imghash: SWAP_ICON, index: 0, defaultPath: "swap_icon-0.png"})}/>
+              </div>
+            </div>
+          }
           <p><strong>贴图</strong></p>
           <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
             <table className={style["list-container"]}>
@@ -418,7 +444,7 @@ function ZipPage({type, file, id}) {
                       <td>
                         <Button icon="duplicate" onClick={()=> copyAtlas({sampler: i})}/>
                         <span style={{display: "inline-block", width: 10}}/>
-                        <Button icon="download" intent='primary' onClick={()=> downloadAtlas({sampler: i})}></Button>
+                        <Button icon="download" onClick={()=> downloadAtlas({sampler: i, defaultPath: name})}></Button>
                       </td>
                     </tr>)
                 }
@@ -427,14 +453,14 @@ function ZipPage({type, file, id}) {
           </div>
           <p><strong>符号</strong></p>
           <p>
-            <Button icon="download" intent="primary" onClick={()=> alert("TODO:这个还没写")}>批量下载</Button>
+            <BatchDownloadButton type="build" file={file}/>
           </p>
           <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
             <table className={style["list-container"]}>
               <thead>
                 <th></th>
-                <th>哈希值</th>
                 <th>Symbol</th>
+                <th>Hash</th>
                 <th>图片数量</th>
               </thead>
               <tbody>
@@ -448,10 +474,10 @@ function ZipPage({type, file, id}) {
                           className='no-select'
                         /> 
                       </td>
-                      <td>{imghash}</td>
                       <td className='bp4-monospace-text'>
                         <Hash hash={imghash}/>
                       </td>
+                      <td>{imghash}</td>
                       <td>{imglist.length}</td>
                     </tr>
                     {
@@ -468,7 +494,8 @@ function ZipPage({type, file, id}) {
                           <td>
                             <Button icon="duplicate" onClick={()=> copyElement({imghash, index: img.index})}/>
                             <span style={{display: "inline-block", width: 10}}/>
-                            <Button icon="download" intent='primary' onClick={()=> downloadElement({imghash, index: img.index})}/>
+                            <Button icon="download" onClick={()=> downloadElement({imghash, index: img.index,
+                              defaultPath: (window.hash.get(imghash) || `Hash-${imghash}`) + `-${img.index}.png`})}/>
                           </td>
                         </tr>)
                     }
@@ -517,7 +544,15 @@ function ZipPage({type, file, id}) {
   </div>
 }
 
-function AssetInvalidPage({type, typeName, id, forceUpdate}) {
+type AssetInvalidPageProps = {
+  type: "null" | "waiting" | "invalid-id" | "invalid-type",
+  typeName?: any,
+  id?: string,
+  forceUpdate?: ()=> void,
+}
+
+function AssetInvalidPage(props: AssetInvalidPageProps) {
+  const {type, typeName, id, forceUpdate} = props
   const navigate = useNavigate()  
   useEffect(()=> {
     const token = setInterval(()=> {
@@ -537,7 +572,8 @@ function AssetInvalidPage({type, typeName, id, forceUpdate}) {
   else{
     return <div style={{marginTop: 30}}>
       <NonIdealState title="加载失败" icon="search" layout="vertical"
-        description={<>
+        description={
+        <div>
           {
             type === "invalid-id" && 
             <p>{"错误信息: 资源地址无效" + 
@@ -553,8 +589,7 @@ function AssetInvalidPage({type, typeName, id, forceUpdate}) {
           <Button icon="envelope" onClick={()=> navigate("/report-bug")}>反馈</Button>
           &nbsp;&nbsp;&nbsp;&nbsp;
           <Button onClick={()=> navigate("/home")}>回到首页</Button>
-        </>}
-        style={{maxWidth: 500, width: 500}}
+        </div>}
       />
     </div>
   }

@@ -8,12 +8,13 @@ import { Button, Dialog, Icon, Spinner, Tag } from '@blueprintjs/core'
 import { appWindow } from '@tauri-apps/api/window'
 
 interface PreviewProps {
-  width: number,
-  height: number,
+  width?: number,
+  height?: number,
+  lazy?: boolean,
 }
 
 function useCanvasPreviewSetup(
-  props: {width: number, height: number, lazy?: boolean}, 
+  props: PreviewProps, 
   [defaultWidth, defaultHeight]: [number, number])
 {
   const {width = defaultWidth, height = defaultHeight} = props
