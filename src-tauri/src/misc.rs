@@ -55,6 +55,13 @@ pub mod lua_misc {
                 .as_millis();
             Ok(time)
         })?)?;
+        globals.set("now_s", lua_ctx.create_function(|_, ()|{
+            let time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs_f64();
+            Ok(time)
+        })?)?;
         // clipboard writing
         let clipboard = lua_ctx.create_table()?;
         clipboard.set("WriteImage", lua_ctx.create_function(|_, img: Value|{

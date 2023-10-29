@@ -73,12 +73,14 @@ BuildLoader = Class(function(self, f, lazy)
 
     local allimgs = {}
     local symbol = {}
+    local symbol_collection = {}
     for i = 1, numsymbols do
         local imghash = f:read_u32()
         local numimgs = f:read_u32()
         if numimgs == nil then
             return error(ERROR.UNEXPECTED_EOF)
         end
+        table.insert(symbol_collection, imghash)
         if lazy and imghash ~= self.SWAP_ICON then
             f:seek_forward(numimgs * 32)
         else
@@ -191,6 +193,7 @@ BuildLoader = Class(function(self, f, lazy)
 
     self.builddata = {name = name, atlas = self.atlas, symbol = symbol}
     self.symbol_map = {}
+    self.symbol_collection = symbol_collection
     for _,v in ipairs(symbol)do
         self.symbol_map[v.imghash] = v
     end
@@ -207,7 +210,7 @@ BuildLoader = Class(function(self, f, lazy)
     f:close()
 end)
 
-BuildLoader.SWAP_ICON = HashLib:String2Hash("SWAP_ICON")
+BuildLoader.SWAP_ICON = SWAP_ICON
 
 function BuildLoader:GetSymbol(hash)
     assert(not self.lazy, "Cannot get symbol from a lazy build loader, use `GetSwapIcon` instead")

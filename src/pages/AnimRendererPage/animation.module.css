@@ -2,6 +2,7 @@
   position: absolute;
   height: 100vh;
   background-color: azure;
+  /* overflow: hidden; */
 }
 
 .pixi-app {
@@ -27,22 +28,29 @@
 }
 
 .player {
-  position: absolute;
+  /* position: absolute; */
   background-color: #ccc;
   width: 100%;
 }
 
-.tools {
+.tools, .facing {
   /* padding: 3px; */
   background-color: white;
   border: 1px solid #9c9c9c;
   border-radius: 2px;
   /* width: 30px;
   height: 500px; */
-  position: fixed;
+  position: absolute;
   right: 10px;
-  top: 10px;
   /* background-color: #fff; */
+}
+
+.tools {
+  top: 10px;
+}
+
+.facing {
+  bottom: 10px;
 }
 
 .tools-panel {

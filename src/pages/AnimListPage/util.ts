@@ -6,19 +6,20 @@ const uuidNS = uuidv5("Asset Archive", uuidv5.URL)
 
 export function openAnimSubwindow({id}: {id: string}) {
   const label = uuidv5(id, uuidNS)
-  if (WebviewWindow.getByLabel(label)) {
-    console.log(`Window <${id}> - ${label} is open, skip`)
+  let subwindow = WebviewWindow.getByLabel(label)
+  if (subwindow) {
+    console.log(`Window <${id}> - ${label} is open`)
+    subwindow.setFocus()
   }
   else {
-    const w = new WebviewWindow(label, {
+    subwindow = new WebviewWindow(label, {
       title: "Anim Renderer",
       url: "/anim/" + encodeURIComponent(id).replace(".", "%2E"),
       minWidth: 700,
       minHeight: 500,
       fileDropEnabled: false,
     })
-    // w.once("tauri://created", (e)=> console.log(e))
-    w.once("tauri://error", (e)=> appWindow.emit("alert", {
+    subwindow.once("tauri://error", (e)=> appWindow.emit("alert", {
       title: "警告", 
       message: "无法创建窗口 - " + label + " \n" + e.payload
     }))

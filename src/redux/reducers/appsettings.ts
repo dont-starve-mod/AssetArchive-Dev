@@ -6,6 +6,7 @@ export interface AppSettings {
   root: string | null,
   last_dst_root: string | null,
   volume: number,
+  /** color theme of frontend */
   theme: "light" | "dark" | "auto",
   resolution: "full" | "half",
   quick_search_desc: "on" | "off",

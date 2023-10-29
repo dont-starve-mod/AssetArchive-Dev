@@ -22,24 +22,25 @@ export default class Searcher {
     this.workers = {}
   }
 
+  newWorkerFromURL(url: WorkerFileName): Worker {
+    switch (url){
+      case "renderer_predict_worker":
+        return new Worker(new URL("./renderer_predict_worker", import.meta.url), {type: "module"})
+      case "searchengine_worker":
+        return new Worker(new URL("./searchengine_worker", import.meta.url), {type: "module"})
+      case "renderer_fuse_worker":
+        return new Worker(new URL("./renderer_fuse_worker", import.meta.url), {type: "module"})
+      default:
+        throw Error("Invalid url: " + url)
+    }
+  }
+
   newWorker(id: string): ComlinkWorker {
-    let core: Worker
-    if (this.url === "renderer_predict_worker"){
-      core = new Worker(new URL("./renderer_predict_worker", import.meta.url), {type: "module"})
-    }
-    else if (this.url === "searchengine_worker"){
-      core = new Worker(new URL("./searchengine_worker", import.meta.url), {type: "module"})
-    }
-    else if (this.url === "renderer_fuse_worker"){
-      core = new Worker(new URL("./renderer_fuse_worker", import.meta.url), {type: "module"})
-    }
-    else {
-      throw Error("Invalid url: " + this.url)
-    }
-    const worker = Comlink.wrap(core)
+    let core: Worker = this.newWorkerFromURL(this.url)
+    const worker: Comlink.Remote<any> = Comlink.wrap(core)
     this.workers[id] = { core, worker, state: "new" }
-    if (this.initPayload) {
-      this.workers[id].worker.init(this.initPayload?.()).then(
+    if (typeof this.initPayload === "function") {
+      this.workers[id].worker.init(this.initPayload()).then(
         ()=> this.workers[id].state = "idle",
         ()=> this.workers[id].state = "error"
       )
@@ -48,7 +49,7 @@ export default class Searcher {
   }
 
   getWorker(id?: string) {
-    if (!id) id = v4()
+    id = id || v4() // generate a new unique id
     const worker = this.workers[id]
     if (!worker) return this.newWorker(id)
     const {state} = worker
@@ -74,8 +75,9 @@ export default class Searcher {
     return this.initPayload !== undefined
   }
 
-  async search(type: string, payload: any, id?: string): Promise<any[]> {
-    return new Promise(async (resolve, reject)=> {
+  search<T>(type: string, payload: any, id?: string): Promise<T[]> & { id: string } {
+    id = id || v4()
+    const result = new Promise<T[]>(async (resolve, reject)=> {
       if (!this.ready) return resolve([])
       let worker = this.getWorker(id)
       worker.state = "working"
@@ -88,18 +90,33 @@ export default class Searcher {
       }, this.timeout)
 
       worker.worker.search(type, payload).then(
-        response=> { 
+        (response: T[])=> { 
           clearTimeout(timer)
           resolve(response)
           worker.state = "idle"
         },
-        error=> {
+        (error: any)=> {
           reject(error)
           console.error(error)
           worker.state = "error"
         }
       )
     })
+    // attach id to return promise, so that the worker can be terminated from outside.
+    // @ts-ignore
+    result.id = id
+    // @ts-ignore
+    return result
+  }
+
+  /** terminate search worker by id */
+  terminate(id: string) {
+    const worker = this.workers[id]
+    if (worker) {
+      worker.core.terminate()
+      worker.state = "terminated"
+      worker.isTerminated = true
+    }
   }
 }
 

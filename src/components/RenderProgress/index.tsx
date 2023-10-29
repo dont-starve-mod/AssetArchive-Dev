@@ -22,7 +22,7 @@ const STEP_1_WIDTH = 0.4
 const STEP_2_WIDTH = 0.6
 
 export default function RenderProgress() {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const handleClose = useCallback(()=> {
     setOpen(false)
     invoke("interupt", { type: "render_animation_sync" } )

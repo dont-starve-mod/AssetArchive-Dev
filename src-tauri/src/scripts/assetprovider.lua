@@ -437,7 +437,11 @@ end
 function Provider:Load(args)
 	local type = args.type
 	if type == "build" then
-		return self:GetBuildData(args)
+		if args["get_symbol_list"] then
+			return self:GetBuildSymbolList(args)
+		else
+			return self:GetBuildData(args)
+		end
 	elseif type == "animation" then
 		return self:GetAnimation(args)
 	elseif type == "atlas" then
@@ -476,19 +480,19 @@ function Provider:GetBuild(args)
 	if type(args.file) == "string" then
 		path = args.file
 	end
-	if type(args.name) == "string" then
-		path = self.index:GetBuildFile(args.name)
+	if type(args.name) == "string" or type(args.build) == "string" then
+		path = self.index:GetBuildFile(args.name or args.build)
 	end
 	if path ~= nil then
 		if path:endswith(".dyn") then
 			-- check build file for dyn
 			local path_build = path:sub(1, #path - 4) .. ".zip"
 			if self.root:Exists(path_build) then
-				local build = self:LoadBuild(path_build)
+				local build = self:LoadBuild(path_build, args.lazy)
 				return build
 			end
 		else
-			local build = self:LoadBuild(path)
+			local build = self:LoadBuild(path, args.lazy)
 			return build
 		end
 	end
@@ -499,7 +503,14 @@ function Provider:GetBuildData(args)
 	return build and build.builddata
 end
 
-function Provider:LoadBuild(path)
+function Provider:GetBuildSymbolList(args)
+	args.lazy = true
+	local build = self:GetBuild(args)
+	print(json.encode_compliant(build and build.symbol_collection))
+	return build and build.symbol_collection
+end
+
+function Provider:LoadBuild(path, lazy)
 	if self.loaders.build[path] then
 		return self.loaders.build[path]
 	end
@@ -513,9 +524,11 @@ function Provider:LoadBuild(path)
 				self.loaders.build[path] = false
 				return false
 			end
-			local build = build_raw and BuildLoader(CreateBytesReader(build_raw))
+			local build = build_raw and BuildLoader(CreateBytesReader(build_raw), lazy)
 			if build and not build.error then
-				self.loaders.build[path] = build
+				if not lazy then -- don't cache lazy loader
+					self.loaders.build[path] = build
+				end
 				return build
 			end
 		end

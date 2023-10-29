@@ -1,6 +1,5 @@
 import { settings } from "pixi.js"
 import { Transform } from "pixi.js"
-
 settings.RESOLUTION = window.devicePixelRatio
 settings.RENDER_OPTIONS = {
   ...settings.RENDER_OPTIONS,

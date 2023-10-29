@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react'
-import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
 import { ErrorHandler} from '../AppInit'
@@ -7,17 +6,21 @@ import { PredictableData } from '../../renderer_predict'
 import { useLuaCall } from '../../hooks'
 import { predict } from '../../asyncsearcher'
 import { AllAssetTypes } from '../../searchengine'
+import { setState } from '../../redux/reducers/appstates'
+import { useDispatch } from '../../redux/store'
 
 window.assets = {} as any
 window.assets_map = {}
 
 export default function AppRendererInit() {
+  const dispatch = useDispatch()
   const initCall = useLuaCall<string>("animproject.init", (result)=> {
     const data = JSON.parse(result)
     predict.initPayload = ()=> {
       return data.anim_predictable_data as PredictableData
     }
     window.hash = new Map(data.anim_predictable_data.hashmap.map(([k,v])=> [v,k]))
+    dispatch(setState({key: "predict_init_flag", value: true}))
   })
 
   useEffect(()=> {

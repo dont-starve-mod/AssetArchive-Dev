@@ -1,12 +1,11 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import style from './animation.module.css'
 import * as PIXI from 'pixi.js'
-import { Select2, Suggest2 } from '@blueprintjs/select'
 import animstateContext from './globalanimstate'
+import { byte2facing } from '../../facing'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
 import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
-import { tint } from './sprite_shader'
-import { Button, ButtonGroup, H6, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
+import { Button, ButtonGroup, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Popover2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
 import { useMouseDrag, useMouseScroll } from '../../hooks'
@@ -38,15 +37,6 @@ export default function AnimationPanel(props: IProps) {
   const {animstate, render} = useContext(animstateContext)
   const [currentApp, setApp] = useState<PIXI.Application>()
   const ref = useRef<HTMLDivElement>()
-
-  const createFilter = useCallback(()=> {
-    const filter = new PIXI.Filter(null, tint, { add: [0, 0, 0, 0], mult: [1, 1, 0, 1] })
-    filter.uniforms.add = [0,0,0,0]
-    filter.uniforms.mult = [1,1,0,1]
-    return filter
-  }, [])
-
-  const filter = useRef(createFilter()).current
   
   useEffect(()=> {
     const app = new PIXI.Application({backgroundAlpha: 0, resizeTo: ref.current})
@@ -55,8 +45,6 @@ export default function AnimationPanel(props: IProps) {
     setApp(app)
 
     const root = app.stage.addChild(new PIXI.Container())
-    root.filters = [filter]
-    
     const sprites: PIXI.Sprite[] = []
     const anim = animstate
 
@@ -79,14 +67,13 @@ export default function AnimationPanel(props: IProps) {
       // update animation 
       const animList = anim.animLoader({bank: anim.bank, animation: anim.animation})
       if (!animList || animList.length === 0) return
-      const animData = anim.getActualFacing(animList)
+      const animData = anim.getActualAnimData(animList)
       if (!animData) return
       anim.setFrameList(animData.frame)
       anim.update(app.ticker.elapsedMS)
       const frame = anim.frameList[anim.currentFrame]
       // const frame = anim.frameList[0]
       if (!frame) return
-      const tint = animstate.getTint()
       // render frame
       frame.forEach(({imghash, imgindex, layerhash, matrix})=> {
         if (!anim.shouldRender({imghash, layerhash})) return
@@ -104,26 +91,34 @@ export default function AnimationPanel(props: IProps) {
         if (!atlas.imgs[id]){
           const {width: WIDTH, height: HEIGHT} = atlas
           const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
-          // TODO: check performance
           atlas.imgs[id] = new PIXI.Texture(
             PIXI.Texture.from(atlas).baseTexture,
             new PIXI.Rectangle(int(bbx*x_scale), int(bby*y_scale), int(w*x_scale), int(h*y_scale)),
-            new PIXI.Rectangle(0, 0, cw, ch))
-            atlas.imgs[id].defaultAnchor = new PIXI.Point(-x/w+0.5, -y/h+0.5)
+            new PIXI.Rectangle(0, 0, cw, ch)
+          )
+          // @ts-ignore
+          atlas.imgs[id].atlasScale = [x_scale, y_scale]
+          atlas.imgs[id].defaultAnchor = new PIXI.Point(-x/w+0.5, -y/h+0.5)
         }
+        const {mult, add} = animstate.getSymbolActualTint(imghash)
         const sp = new PIXI.Sprite(atlas.imgs[id])
-        // sp.tint = 0xFF0000
-        // sp.alpha = 0.1
-        // sp.filters = [filter]
-        // sp.filterArea = new PIXI.Rectangle(0,0,1,2)
-        // set tint value
-        // sp.filters[0].uniforms.mult = tint.mult
-        // sp.filters[0].uniforms.add = tint.add
-        root.filters[0].uniforms.mult = tint.mult
-        root.filters[0].uniforms.add = tint.add
+        sp.tint = new Float32Array(mult)
+        sp.alpha = mult[3]
+        // @ts-ignore see patches/@pixi+xxxxxxxx.patch
+        sp.add = add
+
         sp.position.set(0,0)
         // @ts-ignore
-        sp.transform.affineTransform = [...matrix]
+        const [x_scale, y_scale] = atlas.imgs[id].atlasScale
+        // @ts-ignore see pixiconfig.ts
+        sp.transform.affineTransform = [
+          matrix[0] / x_scale, 
+          matrix[1] / y_scale,
+          matrix[2] / x_scale,
+          matrix[3] / y_scale,
+          matrix[4],
+          matrix[5]
+        ]
         sprites.push(root.addChild(sp))
       })
     })
@@ -169,39 +164,40 @@ export default function AnimationPanel(props: IProps) {
           height: `calc(100vh - 120px)`,
           backgroundColor: colorType === "solid" ? colorValue : "#ccc",
           ...gridStyle,
-        }}>
-        {
-          render.axis === "back" && 
-          <>
-            <div className={style["x-axis"]} style={{left: 0, top: `calc(75% + ${render.y}px)`, backgroundColor: axisColor}}/>
-            <div className={style["y-axis"]} style={{left: `calc(50% + ${render.x}px)`, top: 0, backgroundColor: axisColor}}/>
-          </>
-        }
-        <div ref={ref} className={style["pixi-app"]}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}
-          onWheel={onScroll}
-          onMouseDown={onMouseDown}/>
-        {
-          render.axis === "front" && 
-          <>
-            <div className={style["x-axis"]} style={{left: 0, top: `calc(75% + ${render.y}px)`, backgroundColor: axisColor}}/>
-            <div className={style["y-axis"]} style={{left: `calc(50% + ${render.x}px)`, top: 0, backgroundColor: axisColor}}/>
-          </>
-        }
-  
+      }}>
+        <div style={{width: "100%", height: "100%", position: "relative", overflow: "hidden"}}>
+          {
+            render.axis === "back" && 
+            <>
+              <div className={style["x-axis"]} style={{left: 0, top: `calc(75% + ${render.y}px)`, backgroundColor: axisColor}}/>
+              <div className={style["y-axis"]} style={{left: `calc(50% + ${render.x}px)`, top: 0, backgroundColor: axisColor}}/>
+            </>
+          }
+          <div ref={ref} className={style["pixi-app"]}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+            onWheel={onScroll}
+            onMouseDown={onMouseDown}/>
+          {
+            render.axis === "front" && 
+            <>
+              <div className={style["x-axis"]} style={{left: 0, top: `calc(75% + ${render.y}px)`, backgroundColor: axisColor}}/>
+              <div className={style["y-axis"]} style={{left: `calc(50% + ${render.x}px)`, top: 0, backgroundColor: axisColor}}/>
+            </>
+          }
+          <div className={style["tools"]}>
+            <Tools
+              colorSetterProps={{colorType, colorValue, setColorType, setColorValue}}/>
+          </div>
+          <div className={style["facing"]}>
+            <Facing/>
+          </div>
+        </div>
         <div 
           className={style["player"]}
           style={{height: 120}}
         >
           <AnimPlayerWidget animstate={animstate}/>
-
-        </div>
-
-        <div
-          className={style["tools"]}>
-          <Tools
-            colorSetterProps={{colorType, colorValue, setColorType, setColorValue}}/>
 
         </div>
       </div>
@@ -248,7 +244,6 @@ function BackgroundSetter(props: any) {
         <Radio label='纯色' inline checked={colorType === "solid"} onChange={()=> setColorType("solid")}/>
         <input type="color" style={{display: "inline-block"}} value={colorValue} onChange={onChangeColor}/>
       {/* </RadioGroup> */}
-
     </div>
   )
 }
@@ -268,5 +263,33 @@ function AxisSetter() {
         <Radio label="关" value="none"/>
       </RadioGroup>
     </div>
+  )
+}
+
+function Facing() {
+  const {animstate, render} = useContext(animstateContext)
+  const facingList = animstate.facingList
+  const onChangeFacing = useCallback((value: string)=> {
+    let facing = Number(value)
+    animstate.facing = facing
+    appWindow.emit("forceupdate", "ChangeFacingTo<" + byte2facing(facing) + ">")
+  }, [])
+  return (
+    <ButtonGroup vertical minimal>
+      <Popover2 minimal placement="left-end" popoverClassName={style["tools-popover"]}
+        content={<div className={style["tools-panel"]}>
+          <H6>切换朝向</H6>
+          <RadioGroup 
+            selectedValue={animstate.getActualFacing()}
+            onChange={e=> onChangeFacing(e.currentTarget.value)}>
+            {
+              Boolean(facingList) && facingList.map(f=> 
+                <Radio key={f} value={f} label={byte2facing(f)}/>)
+            }
+          </RadioGroup>
+        </div>}>
+        <Button icon="cube"/>
+      </Popover2>
+    </ButtonGroup>
   )
 }

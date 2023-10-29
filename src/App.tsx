@@ -1,8 +1,6 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import React, { useContext, useEffect, useRef } from 'react'
 import { appWindow, getCurrent } from '@tauri-apps/api/window'
 import "./App.css"
-
 import Nav from './components/Nav'
 import MainMenu from './components/MainMenu'
 import Footer from './components/Footer'
@@ -15,18 +13,18 @@ import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
 import type { AllAssetTypes } from './searchengine'
-import type { Xml, Tex, AnimDyn, AnimZip } from './searchengine'
+import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef } from './searchengine'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
 		app_init?: boolean,
-		// assets: {[K in "allxmlfile" | "alldynfile" | "allzipfile" | "alltexelement" | "alltexture"]: AllAssetTypes[]},
 		assets: {
 			allxmlfile: Xml[],
 			alltexelement: Tex[],
 			alldynfile: AnimDyn[],
 			allzipfile: AnimZip[],
+			alltexture: TexNoRef
 		}
 		assets_map: {[K: string]: AllAssetTypes},
 		hash: Map<number, string>,
@@ -35,11 +33,12 @@ declare global {
 
 export default function App() {
 	const isSubwindow = getCurrent().label !== "main"
+	// const isSubwindow = true
 	return !isSubwindow ? <AppMain/> : <AppSub/>
 }
 
 function AppMain() {
-	const articleRef = useRef(null)
+	const articleRef = useRef<HTMLDivElement>(null)
 	const { setScrollableWidget } = useContext(cacheContext)
 
 	useEffect(()=> {
@@ -58,7 +57,7 @@ function AppMain() {
 					<Nav/>
 				</div>
 			</header>
-			<div className='main'>
+			<div className="main">
 				<menu>
 					<MainMenu/>
 				</menu>

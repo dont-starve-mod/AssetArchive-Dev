@@ -101,7 +101,7 @@ index 9ff9373..7253857 100644
      vec4 color;
      %forloop%
 -    gl_FragColor = color * vColor;
-+    gl_FragColor = color * vColor + vAddColor;
++    gl_FragColor = color * vColor + vAddColor; gl_FragColor.rgb = vec3(gl_FragColor.rgb * gl_FragColor.a);
  }
  `;
  exports.default = defaultFragment;
@@ -120,7 +120,7 @@ index f4492e6..aae7f72 100644
      vec4 color;
      %forloop%
 -    gl_FragColor = color * vColor;
-+    gl_FragColor = color * vColor + vAddColor;
++    gl_FragColor = color * vColor + vAddColor; gl_FragColor.rgb = vec3(gl_FragColor.rgb * gl_FragColor.a);
  }
  `;
  export {

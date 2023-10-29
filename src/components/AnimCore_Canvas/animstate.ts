@@ -82,6 +82,8 @@ export function getDefaultArgs(name: Api["name"]): any[] {
     return ["", ...getDefaultArgs("SetAddColour")]
   else if (name === "OverrideSkinSymbol" || name === "OverrideSymbol")
     return ["", "", ""]
+  else if (name === "SetBankAndPlayAnimation")
+    return ["", ""]
   else 
     throw Error("default args not defined: " + name)
 }
@@ -105,6 +107,7 @@ export enum SwapApi {
   "HideLayer",
   "OverrideSymbol",
   "OverrideSkinSymbol",
+  "ClearOverrideSymbol",
   "AddOverrideBuild",
   "ClearOverrideBuild",
 }
@@ -158,7 +161,8 @@ interface IData {
 const dummy = ()=> {}
 
 export class AnimState {
-  private _facing?: facing = "all"
+  private _facing?: number = facing2byte("all")
+  private _event: EventTarget
   facingList: number[]
   autoFacing?: true
 
@@ -187,6 +191,7 @@ export class AnimState {
     }
     this.player = new AnimPlayer(this)
     this.autoFacing = true
+    this._event = new EventTarget()
 
     const {bank, build, animation, facing} = data || {}
     if (build !== undefined)
@@ -215,11 +220,15 @@ export class AnimState {
   get build(){ return this.getActualBuild() }
   get bank(){ return this.getActualBank() }
   get animation() { return this.getActualAnimation() }
-  get facing(){ return this._facing }
-  set facing(v) { this._facing = facing2byte(v) }
+  get facing(): number { return this._facing }
+  set facing(v: facing) { this._facing = facing2byte(v) }
 
   getApiList() {
     return this.api_list
+  }
+
+  setApiList(list: Api[]) {
+    this.api_list = list
   }
 
   // api handlers
@@ -245,6 +254,12 @@ export class AnimState {
     const api = this.api_list[index]
     api.disabled = true
     this.reviewApi(api)
+    return this
+  }
+
+  deleteApi(index: number): this {
+    const api = this.api_list.splice(index, 1)
+    this.reviewApi(api[0])
     return this
   }
 
@@ -315,6 +330,9 @@ export class AnimState {
     if (name.startsWith("Show") || name.startsWith("Hide")){
       return this
     }
+    if (name === "ClearOverrideBuild" || name === "ClearOverrideSymbol"){
+      return this
+    }
     if (name === "OverrideSymbol" || name === "OverrideSkinSymbol"){
       this.buildLoader({build: args[1]})
       return this
@@ -374,7 +392,7 @@ export class AnimState {
     }
   }
 
-  getActualFacing(animList: AnimationData[]): AnimationData | undefined {
+  getActualAnimData(animList: AnimationData[]): AnimationData | undefined {
     const anim = animList.find(a=> a.facing === this.facing)
     this.facingList = animList.map(a=> a.facing)
     if (anim !== undefined)
@@ -385,8 +403,31 @@ export class AnimState {
       return undefined
   }
 
+  getActualFacing(): number {
+    if (this.facingList){
+      if (this.facingList.indexOf(this.facing) !== -1)
+        return this.facing
+      else if (this.autoFacing)
+        return this.facingList[0]
+    }
+    return -1
+  }
+
   getTint() {
     return this.tint
+  }
+
+  getSymbolActualTint(symbol: number) {
+    let {mult, add, symbolMult, symbolAdd} = this.getTint()
+    if (symbolMult[symbol]) {
+      mult = mult.map((c, i)=> c * symbolMult[symbol][i]) as Color
+    }
+    if (symbolAdd[symbol]){
+      add = add.map((c, i)=> i === 3 ? 1 : (
+        c * add[3] + symbolAdd[symbol][i] * symbolAdd[symbol][3]
+      )) as Color
+    }
+    return {mult, add}
   }
 
   shouldRender({imghash, layerhash}: {imghash: hash, layerhash: hash}): boolean {
@@ -445,8 +486,7 @@ export class AnimState {
   rebuildFrameList(): this {
     const animList: AnimationData[] = this.animLoader({bank: this.bank, animation: this.animation})
     if (animList && animList.length){
-      console.log(animList)
-      const animData = this.getActualFacing(animList)
+      const animData = this.getActualAnimData(animList)
       if (animData) {
         this.setFrameList(animData.frame)
       }
@@ -460,7 +500,6 @@ export class AnimState {
     // get all symbols / layers used in animation
     this.symbolCollection = new Map()
     this.layerCollection = new Map()
-    console.log(this.frameList)
     this.frameList.forEach(frame=>
       frame.forEach(element=> {
         this.symbolCollection.set(element.imghash, -1)
@@ -487,7 +526,7 @@ export class AnimState {
           buildData.symbol.forEach(symbol=> {
             const hash = symbol.imghash
             if (!this.symbolSource[hash]) return
-            this.symbolSource[hash] = name.startsWith("Add") ? [
+            this.symbolSource[hash] = name === "AddOverrideBuild" ? [
               buildData,
               hash,
             ] : [null, -1]
@@ -506,9 +545,10 @@ export class AnimState {
       }
       else if (name == "ClearOverrideSymbol") {
         const hash = smallhash(args[0])
-        delete this.symbolSource[hash]
+        this.symbolSource[hash] = [null, -1]
       }
     })
+    this._event.dispatchEvent(new Event("rebuildsymbolsource"))
     return this
   }
 
@@ -527,6 +567,17 @@ export class AnimState {
     this.animLoader = animLoader
     this.buildLoader = buildLoader
     this.atlasLoader = atlasLoader
+  }
+
+  // event
+  addEventListener(type: "rebuildsymbolsource", 
+    callback: EventListenerOrEventListenerObject) {
+    this._event.addEventListener(type, callback)
+  }
+
+  removeEventListener(type: "rebuildsymbolsource",
+    callback: EventListenerOrEventListenerObject) {
+    this._event.removeEventListener(type, callback)
   }
 
   // player methods

@@ -1,5 +1,5 @@
 import { AnimState, Api, ApiArgType } from "./animstate"
-import { useCallback, useReducer } from "react"
+import { useCallback, useEffect, useReducer } from "react"
 
 export function useAnimStateHook(animstate: AnimState) {
   const [_, forceUpdate] = useReducer(v=> v > 1000 ? 0 : v + 1, 0)
@@ -20,6 +20,11 @@ export function useAnimStateHook(animstate: AnimState) {
     forceUpdate()
   }, [])
 
+  const deleteApi = useCallback((index: number)=> {
+    animstate.deleteApi(index)
+    forceUpdate()
+  }, [])
+
   const changeApiArg = useCallback((index: number, args: ApiArgType[])=> {
     animstate.changeApiArg(index, args)
     forceUpdate()
@@ -35,10 +40,17 @@ export function useAnimStateHook(animstate: AnimState) {
     forceUpdate()
   }, [])
 
+  useEffect(()=> {
+    const onRebuild = ()=> forceUpdate()
+    animstate.addEventListener("rebuildsymbolsource", onRebuild)
+    return ()=> animstate.removeEventListener("rebuildsymbolsource", onRebuild)
+  }, [])
+
   return {
     insertApi,
     enableApi,
     disableApi,
+    deleteApi,
     changeApiArg,
     rearrange,
     toggleFoldApi,

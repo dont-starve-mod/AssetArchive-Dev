@@ -32,6 +32,12 @@ const initDataReducer: React.Reducer<initData, initAction> = (state, action)=> {
   }
 }
 
+enum SearchId {
+  Bank = "Bank",
+  Build = "Build",
+  Animation = "Animation",
+}
+
 export default function AnimProjectInitFromParam(props: {
   isOpen?: boolean,
   onClose: ()=> void, 
@@ -111,7 +117,7 @@ function InitInput(props: {
       dispatch({type: field, payload: {value}})
       if (value !== "") {
         setLoading(true)
-        const result = await predict.search(field, value)
+        const result = await predict.search(field, value, field === "bank" ? SearchId.Bank : SearchId.Build)
         setItems(result)
         setLoading(false)
       }
@@ -127,7 +133,7 @@ function InitInput(props: {
       dispatch({type: "animation", payload: {value}})
       if (value !== "") {
         setLoading(true)
-        const result = await predict.search("animation", {bank: bankValue, animation: value})
+        const result = await predict.search("animation", {bank: bankValue, animation: value}, SearchId.Animation)
         setItems(result)
         setLoading(false)
       }

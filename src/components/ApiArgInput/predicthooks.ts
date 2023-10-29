@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useState, useMemo } from "react"
 import animstateContext from "../../pages/AnimRendererPage/globalanimstate"
 import { predict, fuseworker } from "../../asyncsearcher"
 import { FuseResult } from "../../searchengine"
+import { useSelector } from "../../redux/store"
 
 /** get global animstate instance, this hook can only use in animrenderer subwindow */
 export function useGlobalAnimState() {
@@ -14,16 +15,19 @@ export function useBasicPredicter(
   matchPredicate?: (match: any, query: any)=> boolean) {
 
   const [result, setResult] = useState(undefined)
+  const predict_ready = useSelector(({appstates})=> appstates.predict_init_flag)
   useEffect(()=> {
-    let skip = false
-    predict.search(field, payload).then(
-      result=> {
-        if (skip) return
-        setResult(result)
-      }
+    if (!predict_ready) return
+    let unmountFlag = false
+    let session = predict.search(field, payload)
+    session.then(
+      result=> !unmountFlag && setResult(result)
     )
-    return ()=> { skip = true }
-  }, [payload])
+    return ()=> { 
+      predict.terminate(session.id)
+      unmountFlag = true 
+    }
+  }, [payload, predict_ready])
 
   const hasPredicted = result !== undefined
   const bestMatch = result && result.length && result[0].matches[0].value
@@ -43,16 +47,18 @@ export function useHashPredicter(
 
   const [result, setResult] = useState(undefined)
   useEffect(()=> {
-    console.log("this is list:", query, items)
-    let skip = false
-    fuseworker.search(query, {items, options: {isCaseSensitive: false}}).then(
+    let unmountFlag = false
+    let session = fuseworker.search(query, {items, options: {isCaseSensitive: false}})
+    session.then(
       result=> {
-        if (skip) return
+        if (unmountFlag) return
         setResult(result)
-        console.log(result)
       }
     )
-    return ()=> { skip = true }
+    return ()=> { 
+      unmountFlag = true
+      fuseworker.terminate(session.id)
+    }
   }, [query, items])
 
   const hasPredicted = result !== undefined

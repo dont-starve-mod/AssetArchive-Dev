@@ -1,7 +1,7 @@
 .side-panel {
   position: absolute;
   top: 0;
-  background-color: pink;
+  background-color: transparent;
   min-width: 200px;
   height: 100vh;
   overflow: hidden;
@@ -25,4 +25,10 @@
 .control-panel-container {
   height: 100%;
   overflow-y: auto;
+  scrollbar-width: none;
+  overscroll-behavior: none;
+}
+
+.control-panel-container::-webkit-scrollbar {
+  width: 0;
 }

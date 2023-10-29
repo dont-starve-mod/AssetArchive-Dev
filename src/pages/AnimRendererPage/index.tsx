@@ -6,10 +6,14 @@ import RenderProgress from '../../components/RenderProgress'
 import { useParams } from 'react-router-dom'
 import animstateContext from './globalanimstate'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
+import type { Api } from '../../components/AnimCore_Canvas/animstate'
 import { useAnimStateHook } from '../../components/AnimCore_Canvas/animhook'
 import AssetManager from '../../components/AssetManager'
 import { appWindow } from '@tauri-apps/api/window'
 import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
+import { useLuaCall, useLuaCallOnce } from '../../hooks'
+import { ContextMenu2, ContextMenu2Popover } from '@blueprintjs/popover2'
+import { Menu, MenuItem } from '@blueprintjs/core'
 
 interface IProps {
   
@@ -25,7 +29,6 @@ const bodyStyle: React.CSSProperties = {
 
 export default function AnimRendererPage(props: IProps) {
   const {id} = useParams()
-  console.log(id)
   const [panelWidth, setPanelWidth] = useState<number>(250)
   const animstate = useRef(new AnimState()).current
   const animstateHooks = useAnimStateHook(animstate)
@@ -33,18 +36,19 @@ export default function AnimRendererPage(props: IProps) {
 
   const assetStateRef = useRef<any>()
 
-  useEffect(()=> {
-    // return
+  useLuaCallOnce<string>("animproject", (result)=> {
+    const data: any = JSON.parse(result)
+    console.log(data)
+    const cmds: Api[] = data.cmds
     animstate.clear()
-    animstate.insert({name: "SetBuild", args: ["wilson"]})
-    animstate.insert({name: "SetBankAndPlayAnimation", args: ["wilson", "run_loop"]})
-    animstate.insert({name: "HideSymbol", args: ["face"]})
-    animstate.insert({name: "Hide", args: ["SWAP_object_0"]})
-    animstate.insert({name: "SetAddColour", args: [1,1,1,0]})
-    animstate.insert({name: "SetSymbolAddColour", args: ["", 1, 1, 1, 1]})
-    setPanelWidth(251)
-  }, [])
+    animstate.setApiList(cmds)
+    animstateHooks.forceUpdate()
+  }, {id, type: "load"}, [id])
 
+  useEffect(()=> {
+
+    animstate.insert({name: "SetBank", args: ["1"]}, 0)
+  }, [])
   useEffect(()=> {
     const unlisten = appWindow.listen<any>("forceupdate", ({payload})=> {
       console.log("ForceUpdate event from:", payload)

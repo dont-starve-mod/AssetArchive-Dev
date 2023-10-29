@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react'
 import { Popover2 } from '@blueprintjs/popover2'
 import style from './index.module.css'
-import { H6, InputGroup, Tag } from '@blueprintjs/core'
-import { Api, SkeletonApi, SwapApi, RenderApi } from '../AnimCore_Canvas/animstate'
+import { H5, H6, InputGroup, Tag, Button } from '@blueprintjs/core'
+import { Api } from '../AnimCore_Canvas/animstate'
 import { useDragData } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 
@@ -10,9 +10,16 @@ interface IProps {
 
 }
 
+const buttonStyle: React.CSSProperties = {
+  margin: "4px 0",
+  display: "block",
+  minWidth: 180,
+}
+
 export default function ApiPicker(props: IProps) {
   return (
     <div className={style["box"]}>
+      <H5>新增指令</H5>
       <InputGroup placeholder='TODO:还没写好代码的输入框...' 
         inputRef={ref=> ref?.select()}
         round small 
@@ -55,6 +62,15 @@ export default function ApiPicker(props: IProps) {
         <ApiButton name="Resume"/>
         <ApiButton name="SetDeltaTimeMultiplier"/>
       </div>
+      <hr/>
+      <H5>删除/禁用指令</H5>
+      <p>右键点击名字，可删除或禁用一条指令。</p>
+      <H6>批量操作</H6>
+      <Button icon="eye-off" style={buttonStyle}>禁用所有的错误指令</Button>
+      <Button icon="eye-off" style={buttonStyle}>禁用所有的调色指令</Button>
+      <Button icon="eye-open" style={buttonStyle}>启用所有的调色指令</Button>
+      <Button icon="eye-open" style={buttonStyle}>启用所有的指令</Button>
+      <Button icon="trash" style={buttonStyle} intent="danger">删除所有的错误指令</Button>   
     </div>
   )
 }

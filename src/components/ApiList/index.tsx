@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useReducer, useState, useContext, useMemo, useRef } from 'react'
 import { AnimState, Api, ApiArgType, getDefaultArgs } from '../AnimCore_Canvas/animstate'
 import style from './index.module.css'
-import { MenuItem, Menu, EditableText, Tag, Switch, Checkbox, useHotkeys } from '@blueprintjs/core'
+import { MenuItem, Menu, EditableText, Tag, Switch, Checkbox, useHotkeys, Button } from '@blueprintjs/core'
 import { useDragData } from '../../hooks'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { appWindow } from '@tauri-apps/api/window'
 import { v4 as uuidv4 } from 'uuid'
-import ArgInput from '../ArgInput'
+import ApiArgInput from '../ApiArgInput'
 import AnimProjectInitFromParam from '../AnimProjectInitFromParam'
-
+import { ContextMenu2, ContextMenu2Popover, Popover2 } from '@blueprintjs/popover2'
+import { showContextMenu, hideContextMenu } from '@blueprintjs/popover2'
 interface ApiListProps {
 
 }
@@ -34,7 +35,6 @@ export default function ApiList(props: ApiListProps) {
   // TODO: fix this bug
   useEffect(()=> {
     let unlisten = appWindow.listen("global_dragend", ()=> {
-      console.log("END--->")
       setInsertPosition(-1)
     })
     return ()=> { unlisten.then(f=> f()) }
@@ -151,7 +151,7 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
     onInsertHover(props.index + (calcInsertPosition(e) === "up" ? 0 : 1))
   }, [props])
 
-  const {rearrange, insertApi, disableApi, enableApi, changeApiArg, toggleFoldApi} = useContext(animstateContext)
+  const {rearrange, insertApi, disableApi, enableApi, deleteApi, changeApiArg, toggleFoldApi} = useContext(animstateContext)
 
   const onDrop = useCallback(async (e: React.DragEvent)=> {
     const source = await dragData.get("source")
@@ -170,26 +170,53 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
     onInsertHover(-1)
   }, [props, onInsertHover])
 
+  const menu = useMemo(()=> 
+    <Menu style={{width: 100, maxWidth: 100}}>
+      {
+        props.disabled ? 
+        <MenuItem icon="eye-open" text="启用" onClick={()=> enableApi(props.index)} /> :
+        <MenuItem icon="eye-off" text="禁用" onClick={()=> disableApi(props.index)} /> 
+      }
+      <MenuItem icon="trash" text="删除" intent="danger" onClick={()=> deleteApi(props.index)}/>
+    </Menu>
+  , [props])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
+      e.preventDefault()
+      showContextMenu({
+          content: menu,
+          onClose: ()=> hideContextMenu(),
+          targetOffset: {
+              left: e.clientX,
+              top:  e.clientY,
+          },
+      })
+  }, [menu])
 
   return (
     <div ref={dragArea} 
-      style={{position: "relative", opacity: dragging ? 0.2 : 1, padding: "4px"}}
+      style={{position: "relative", padding: "4px",
+        opacity: dragging ? 0.2 : 1,
+        transition: "all 0.1s linear",
+        filter: props.disabled ? "grayscale(80%) opacity(50%)" : undefined
+      }}
       className={fold ? style["api-item-fold"] : ""}
       onDragOver={onDragOver}
       onDragLeave={()=> onInsertHover(-1)}
       onDrop={onDrop}
       >
-      <MenuItem
-        draggable
-        multiline
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        text={text} 
-        intent='primary' 
-        style={{padding: "2px 4px", color: disabled ? "#aaa" : undefined}}
-        // labelElement={<Button icon="eye-on" small minimal></Button>} 
-        onClick={()=> toggleFoldApi(props.index)}
-      />
+      <div onContextMenu={handleContextMenu}>
+        <MenuItem
+          draggable
+          multiline
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          text={text} 
+          intent="primary"
+          style={{padding: "2px 4px", color: disabled ? "#aaa" : undefined}}
+          onClick={()=> toggleFoldApi(props.index)}
+        />
+      </div>
       {
         !fold && <div className={style["arg-list"]}>
           {/* <span>开启</span>
@@ -200,7 +227,7 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
               disableApi(props.index)
             }
           }} inline/> */}
-          <ArgInput 
+          <ApiArgInput
             api={props} 
             onChange={(value: any, index: number)=> {
               if (index === -1) {

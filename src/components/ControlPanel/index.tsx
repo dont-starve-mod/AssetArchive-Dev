@@ -2,6 +2,7 @@ import React, { Children, useCallback, useContext, useState } from 'react'
 import { Button, ButtonGroup, ButtonProps, Callout, Card, Collapse, H5, H6, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
 import style from './index.module.css'
 import ApiPicker from '../ApiPicker'
+import ApiOperator from '../ApiOperator'
 import ApiList from '../ApiList'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
@@ -26,7 +27,10 @@ export default function ControlPanel(props: IProps) {
   const [showTools, setShowTools] = useState(false)
   const [unfold, setUnfold] = useState(true)
   return (
-    <div style={{"overscrollBehavior": "none"}} onMouseEnter={()=> setShowTools(true)} onMouseLeave={()=> setShowTools(false)}>
+    <div 
+      className={style["main"]}
+      onMouseEnter={()=> setShowTools(true)} 
+      onMouseLeave={()=> setShowTools(false)}>
       <div className={style["header"]} onClick={()=> setUnfold(v=> !v)}>
         <Icon icon={unfold ? "chevron-down" : "chevron-right"}/> 
         <span>{title}</span>
@@ -49,13 +53,15 @@ export default function ControlPanel(props: IProps) {
           </ButtonGroup>
         }
       </div>
-      <Collapse isOpen={unfold} keepChildrenMounted={true}>
-        <div className={style["content"]}>
-          {
-            props.children
-          }
-        </div>
-      </Collapse>
+      <div style={{position: "relative"}}>
+        <Collapse isOpen={unfold} keepChildrenMounted={true}>
+          <div className={style["content"]}>
+            {
+              props.children
+            }
+          </div>
+        </Collapse>
+      </div>
     </div>
   )
 }
@@ -67,10 +73,15 @@ function ApiPanel() {
       actions={[
         {icon: "translate", cb: console.log},
         <div onClick={e=> e.stopPropagation()}>
-          <Popover2 minimal position='right' content={<ApiPicker />} >
-            <SmallButton icon={"plus"}/>
+          <Popover2 minimal position="right" content={<ApiPicker />} >
+            <SmallButton icon="plus"/>
           </Popover2>
-        </div>
+        </div>,
+        // <div onClick={e=> e.stopPropagation()}>
+        //   <Popover2 minimal position="right" content={<ApiOperator/>}>
+        //     <SmallButton icon="minus"/>
+        //   </Popover2>
+        // </div>
       ]}>
       <ApiList />
     </ControlPanel>
@@ -97,6 +108,8 @@ function Export() {
     setColorValue(render.bgc)
   }, [render])
 
+  const [resolution, setResolution] = useState(1)
+
   const [filepath, setPath] = useState<string>("")
   const selectExportFilepath = useCallback((cb?: (path: string)=> void)=> {
     save({
@@ -118,12 +131,12 @@ function Export() {
     if (path || filepath){
       path = path || filepath
       console.log("Export to path: ", path)
-      console.log(animstate.getApiList())
       call({
         path,
         api_list: animstate.getApiList(),
         render_param: {
           ...render.serialize(),
+          resolution,
           fps: 30,
           facing: 8, // TODO: !!!!!!!!!
         },
@@ -132,7 +145,7 @@ function Export() {
     else{
       selectExportFilepath(requestExport)
     }
-  }, [filepath])
+  }, [filepath, resolution])
 
   return (
     <ControlPanel
@@ -159,7 +172,7 @@ function Export() {
           </Tooltip2>
         </div>
         <div>
-          <Tooltip2 content={"支持透明背景，适合用作视频素材，较大的文件体积"} placement="right">
+          <Tooltip2 content={"支持透明背景，适合用作二创素材，较大的文件体积"} placement="right">
             <Radio 
               label="无损视频（mov）" 
               checked={fileExtension === "mov"}
@@ -167,9 +180,9 @@ function Export() {
           </Tooltip2>
         </div>
         <div>
-          <Tooltip2 content={"支持透明背景，便于修改，较大的文件体积"} placement="right">
+          <Tooltip2 content={"支持透明背景，便于逐帧修改，较大的文件体积"} placement="right">
             <Radio 
-              label="图片序列（png）" 
+              label="无损图片序列（png）" 
               checked={fileExtension === "png"}
               onChange={e=> handleExtensionCheck(e, "png")}/>
           </Tooltip2>
@@ -206,6 +219,18 @@ function Export() {
         <input type="color" style={{display: "inline-block", marginLeft: 10}} value={colorValue} onChange={onChangeColor}/>
       </RadioGroup>
       <br/>
+      <Tooltip2 content={"该选项仅在mp4或gif格式下生效。"}>
+        <p><strong>分辨率</strong>&nbsp;
+            <Icon icon="small-info-sign"/>
+        </p>
+      </Tooltip2>
+      <RadioGroup 
+        selectedValue={resolution}
+        onChange={e=> setResolution(Number(e.currentTarget.value))}
+        disabled={fileExtension !== "gif" && fileExtension !== "mp4"}>
+        <Radio label="原图" value={1} style={{display: "inline-block"}}/>
+        <Radio label="1/2" value={0.5} style={{display: "inline-block", marginLeft: 20}}/>
+      </RadioGroup>
       <br/>
       <p><strong>文件路径</strong></p>
       <InputGroup

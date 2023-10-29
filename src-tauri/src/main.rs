@@ -101,6 +101,7 @@ fn main() {
             get_drag_data,
             clear_drag_data,
             get_drag_data_all,
+            shutdown,
         ])
         // .menu(menu())
         .run(tauri::generate_context!())
@@ -148,6 +149,12 @@ fn select_file_in_folder(path: String) -> bool {
 #[tauri::command]
 fn select_file_in_folder(path: String) -> bool {
     unimplemented!();
+}
+
+#[tauri::command]
+fn shutdown(reason: String) {
+    println!("App shutdown <{}>", reason);
+    std::process::exit(0);
 }
 
 enum LuaBytes{

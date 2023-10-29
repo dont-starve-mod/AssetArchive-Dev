@@ -96,7 +96,7 @@ function onUpdate(time: number){
       canvas.anims.forEach(anim=> {
         const animList: AnimationData[] = anim.animLoader({bank: anim.bank, animation: anim.animation})
         if (!animList || animList.length === 0) return
-        const animData = anim.getActualFacing(animList)
+        const animData = anim.getActualAnimData(animList)
         if (!animData) return
         anim.setFrameList(animData.frame)
         anim.update(dt)

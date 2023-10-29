@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
-import { appWindow } from '@tauri-apps/api/window'
+import { appWindow, getCurrent } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
-import { Alert, AlertProps, H3, useHotkeys } from '@blueprintjs/core'
+import { Alert, AlertProps, Button, H3, useHotkeys } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
 import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
 import { AppSettings, init as initSettings, update as updateSetting } from '../../redux/reducers/appsettings'
 import { AllAssetTypes } from '../../searchengine'
 import type { AssetDesc } from '../../assetdesc'
+
+// shutdown app if main window is closed. (so that all sub windows will be closed, too)
+globalListen("tauri://destroyed", (e)=> {
+  if (e.windowLabel === "main")
+    invoke("shutdown", {reason: "MainWindowDestroyed"})
+})
 
 export default function AppInit() {
   const root = useSelector(({appsettings})=> appsettings.last_dst_root)

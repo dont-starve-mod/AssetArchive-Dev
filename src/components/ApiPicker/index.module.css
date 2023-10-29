@@ -1,6 +1,6 @@
 .box {
-  width: 320px;
-  height: 420px;
+  width: 350px;
+  height: 450px;
   padding: 10px;
   overflow: scroll;
   overscroll-behavior: none;

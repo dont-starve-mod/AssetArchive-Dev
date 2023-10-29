@@ -4,33 +4,9 @@ import style from './index.module.css'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { AnimState, Api, BasicApi } from '../AnimCore_Canvas/animstate'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
-import { useBasicPredicter, useGlobalAnimState, useHashPredicter, usePredicterFormatter } from "./util"
+import { useBasicPredicter, useGlobalAnimState, useHashPredicter, usePredicterFormatter } from "./predicthooks"
 import { FuseResult } from '../../searchengine'
-
-// export function ArgInput_(props: IProps) {
-//   const {value, onChange} = props
-//   const handleKeyDown = useCallback((e: React.KeyboardEvent)=> {
-//     if (e.key === "Enter") {
-//       props.onEnter?.()
-//     }
-//   }, [])  
-//   return (
-//     <div style={{position: "relative", display: "flex"}}>
-//       <span className={style["arg-type"]}>参数</span>
-//       <InputGroup 
-//         inputRef={props.inputRef}
-//         spellCheck={false}
-//         autoComplete={"none"}
-//         className={style["arg-input"]}
-//         value={value}
-//         onFocus={props.onFocus}
-//         onChange={(e)=> onChange(e.target.value)}
-//         onKeyDown={handleKeyDown}
-//       />
-//       <ColorSetter/>
-//     </div>
-//   )
-// }
+import { useLuaCall, useLuaCallOnce } from '../../hooks'
 
 type Color = [number, number, number, number]
 
@@ -43,7 +19,9 @@ interface IProps {
   inputRef?: (input: HTMLInputElement | null)=> void,
 }
 
-// TODO: 实现快速聚焦
+// TODO: 实现快速聚焦, 通过点击参数值直接进入编辑模式
+
+// TODO: 目前还没必要，但是以后应该要实现对hash输入的支持
 
 export default function ArgInput(props: IProps) {
   const {api, onChange, onEnter, editing, onEdit} = props
@@ -58,12 +36,12 @@ export default function ArgInput(props: IProps) {
       <AnimSetter name={name} value={args[1]} onChange={(v: string)=> onChange(v, 1)}/>
     </>
   else if (name === "SetAddColour" || name === "SetMultColour"){
-    return <ColorSetter value={args} onChangeColor={(v: Color)=> onChange(v, -1)} />
+    return <ColorSetter value={args} onChange={(v: Color)=> onChange(v, -1)} />
   }
   else if (name === "SetSymbolAddColour" || name === "SetSymbolMultColour"){
     return <>
       <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)}/>
-      <ColorSetter value={args.slice(1) as any} onChangeColor={(v: Color)=> onChange([args[0], ...v], -1)}/>
+      <ColorSetter value={args.slice(1) as any} onChange={(v: Color)=> onChange([args[0], ...v], -1)}/>
     </>
   }
   else if (name === "Show" || name === "Hide" || name === "ShowLayer" || name === "HideLayer") {
@@ -77,7 +55,7 @@ export default function ArgInput(props: IProps) {
     // TODO: 非标准警告 额外参数
   }
   else if (name === "OverrideSymbol" || name === "OverrideSkinSymbol") {
-    return <OverrideSymbolSetter args={args} onChange={onChange}/>
+    return <OverrideSymbolSetter args={args as string[]} onChange={onChange}/>
   }
   else if (name === "AddOverrideBuild" || name === "ClearOverrideBuild") {
     return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)}/>
@@ -108,11 +86,11 @@ const rgb2value = (s: string): number[] => {
 
 interface ColorSetterProps {
   value: [number, number, number, number],
-  onChangeColor: (value: ColorSetterProps["value"])=> void,
+  onChange: (value: ColorSetterProps["value"])=> void,
 }
 
 function ColorSetter(props: ColorSetterProps) {
-  const {value, onChangeColor} = props
+  const {value, onChange} = props
   const rgbCode = value2rgb(value)
   const alpha = value[3]
 
@@ -120,11 +98,11 @@ function ColorSetter(props: ColorSetterProps) {
   const invalid = typeof invalidInputValue === "string"
 
   const handleColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>)=> {
-    onChangeColor([...rgb2value(e.target.value), value[3]] as ColorSetterProps["value"])
+    onChange([...rgb2value(e.target.value), value[3]] as ColorSetterProps["value"])
   }, [value])
 
   const setAlpha = useCallback((v: number)=> {
-    onChangeColor([value[0], value[1], value[2], v])
+    onChange([value[0], value[1], value[2], v])
   }, [value])
 
   const setAlphaFromBar = useCallback((v: number)=> {
@@ -154,11 +132,11 @@ function ColorSetter(props: ColorSetterProps) {
   return (
     <>
       <div>
-        <ArgType text="颜色" />
+        <ArgType text="颜色" intent="success"/>
         <input className={style["color-picker"]} value={rgbCode} type="color" onChange={handleColorChange}/>
       </div>
       <div>
-        <ArgType text="强度" intent={invalid ? "danger" : "none"} tooltip={invalid ? "输入0–100之间的数字" : undefined}/>
+        <ArgType text="强度" intent={invalid ? "danger" : "success"} tooltip={invalid ? "输入0–100之间的数字" : undefined}/>
         <div className={style["slider-container"]}>
           <Slider
             min={0} max={1} 
@@ -196,7 +174,7 @@ function AnimSetter(props: { name: string, value: string, onChange: (animation: 
   const {value} = props
   const animstate = useGlobalAnimState()
   const bank = animstate.getActualBank()
-  // TODO: 也许可以改为获取这一个api的上一个有效bank？但真的有必要吗？
+  // TODO: 也许可以改为获取这一个api的上一个有效bank, 但真的有必要吗？
 
   const payload = useMemo(()=> ({
     bank, animation: value
@@ -230,10 +208,26 @@ function LayerSetter(props: { value: string, onChange: (layer: string)=> void })
 
 function OverrideSymbolSetter(props: { args: string[], onChange: (value: string, index: number)=> void }){
   const {args, onChange} = props
+  const [symbolNames, setSymbolNames] = useState<string[]>([])
+
+  useLuaCallOnce<string>("load", (result)=> {
+    if (result.startsWith("[")){
+      const list: number[] = JSON.parse(result) // symbol list of this build
+      const names = list.map(hash=> window.hash.get(hash))
+        .filter(v=> typeof v === "string")
+      setSymbolNames(names)
+    }
+    else {
+      setSymbolNames([])
+    }
+  }, {type: "build", get_symbol_list: true, build: args[1]}, [args[1]])
+
+  const predict = useHashPredicter(args[2], symbolNames)
+
   return <>
     <SymbolSetter value={args[0]} onChange={v=> onChange(v, 0)}/>
-    <StringInput label="材质" value={args[1]} onChange={v=> onChange(v, 1)}/>
-    <StringInput label="符号" value={args[2]} onChange={v=> onChange(v, 2)}/>
+    <BuildSetter value={args[1]} onChange={v=> onChange(v, 1)}/>
+    <StringInput label="符号" value={args[2]} onChange={v=> onChange(v, 2)} predict={predict}/>
   </>
 }
 
@@ -273,8 +267,9 @@ function StringInput(props: StringInputProps) {
 
 function ArgType(props: {text: string, tooltip?: JSX.Element | string, intent?: Intent, onClick?: any}) {
   const {tooltip, intent = "none"} = props
+  const cursorStyle = (intent === "none" || intent === "success") ? "default" : "pointer"
   return (
-    <div style={{display: "inline-block", minWidth: 30}}>
+    <div style={{display: "inline-block", minWidth: 30, cursor: cursorStyle}}>
       <Tooltip2 
         disabled={tooltip === undefined} 
         content={<span style={{whiteSpace: "pre-wrap"}}>{tooltip}</span>} 

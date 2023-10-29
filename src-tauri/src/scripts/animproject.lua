@@ -300,21 +300,25 @@ function AnimProjectManager:ReloadProjectById(id, project)
 	if project == nil then
 		local path = self.basedir/id
 		local mtime = path:mtime()
-		local success, content = pcall(function() return v:read_to_string() end)
+		local success, content = pcall(function() return path:read_to_string() end)
 		if success and #content > 0 then
 			project = AnimProject()
 			if not project:LoadSource(content) then
 				error("Failed to reload project: "..id)
 			end
+			project = project:Serialize({id = id, mtime = mtime})
+		else
+			error("Failed to read project file content: "..id)
 		end
 	end
 	for i,v in ipairs(self.project_list)do
 		if v.id == id then
 			self.project_list[i] = project
-			return
+			return project
 		end
 	end
 	table.insert(self.project_list, project)
+	return project
 end
 
 function AnimProjectManager:NewUid(title, prefix)
@@ -336,11 +340,18 @@ function AnimProjectManager:NewUid(title, prefix)
 end
 
 function AnimProjectManager:OnIpc(param)
+	-- list
 	if param.type == "list" then
 		return {
 			template = self.template_list,
 			project = self.project_list,
 		}
+	-- load/save
+	elseif param.type == "load" then
+		local id = param.id
+		local project = self:ReloadProjectById(id)
+		project.is_editing = true
+		return project
 	end
 	-- create | duplicate | use_template | change | delete
 	local id = param.id
@@ -354,7 +365,7 @@ function AnimProjectManager:OnIpc(param)
 		new_id = id
 		project.title = title
 		project.description = description
-		local data = project:Serialize{id = new_id, mtime = now()/1000}
+		local data = project:Serialize{id = new_id, mtime = math.floor(now_s())}
 		self:ReloadProjectById(id, data)
 		path:write(AnimProject.Static_ToFile(data))
 	elseif param.type == "duplicate" then
@@ -367,7 +378,7 @@ function AnimProjectManager:OnIpc(param)
 			if project:LoadSource(content) then
 				project.title = title
 				project.description = description
-				local data = project:Serialize({id = new_id, mtime = now()/1000})
+				local data = project:Serialize({id = new_id, mtime = math.floor(now_s())})
 				table.insert(self.project_list, data)
 				path:write(AnimProject.Static_ToFile(data))
 			else
@@ -390,7 +401,7 @@ function AnimProjectManager:OnIpc(param)
 		local data = template
 		data.title = title
 		data.description = description
-		data.mtime = now()/1000
+		data.mtime = math.floor(now_s())
 		table.insert(self.project_list, data)
 		path:write(AnimProject.Static_ToFile(data))
 	elseif param.type == "change" then
@@ -401,7 +412,7 @@ function AnimProjectManager:OnIpc(param)
 				v.description = param.description or v.description
 				-- v.facing = param.facing or v.facing
 				-- v.preview_scale = param.preview_scale or v.preview_scale
-				v.mtime = now()/1000
+				v.mtime = math.floor(now_s())
 				local path = self.basedir/id
 				path:write(AnimProject.Static_ToFile(v))
 			end
