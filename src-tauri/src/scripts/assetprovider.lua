@@ -506,7 +506,6 @@ end
 function Provider:GetBuildSymbolList(args)
 	args.lazy = true
 	local build = self:GetBuild(args)
-	print(json.encode_compliant(build and build.symbol_collection))
 	return build and build.symbol_collection
 end
 

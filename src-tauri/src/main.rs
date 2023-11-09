@@ -9,24 +9,26 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Mutex;
 
-use ffmpeg_sidecar::event::FfmpegEvent;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil, Value};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
-// use include_lua::{include_lua, ContextExt};
 
 use tauri::Manager;
+
+#[macro_use]
+extern crate json;
 
 mod image;
 mod filesystem;
 mod algorithm;
 mod misc;
 mod ffmpeg;
+mod fmod;
 mod unzip;
 mod args;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
-use crate::ffmpeg::FfmpegManager;
+use fmod::FmodChild;
 
-// use fmod;
+use fmod::fmod_handler::*;
 use include_lua::ContextExt;
 use include_lua_macro;
 
@@ -65,30 +67,25 @@ impl LuaEnv {
 }
 
 #[derive(Default)]
+pub struct FmodHandler {
+    fmod: Mutex<Option<FmodChild>>,
+    init_error: Mutex<String>,
+}
+
+#[derive(Default)]
 struct FE_Communi {
     drag_data: Mutex<HashMap<String, String>>,
-}
-
-struct Ffmpeg {
-    inner: Mutex<FfmpegManager>,
-}
-
-impl Ffmpeg {
-    fn new() -> Self {
-        Ffmpeg {
-            inner: Mutex::new(FfmpegManager::new())
-        }
-    }
 }
 
 fn main() {
     
     tauri::Builder::default()
         .manage(LuaEnv::new())
-        .manage(Ffmpeg::new())
         .manage(FE_Communi::default())
+        .manage(FmodHandler::default())
         .setup(move|app| {
             lua_init(app)?;
+            fmod_init(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -96,6 +93,9 @@ fn main() {
             lua_console, 
             lua_call, 
             lua_interrupt,
+            fmod_send_message,
+            fmod_update,
+            fmod_get_data,
             select_file_in_folder,
             set_drag_data,
             get_drag_data,
@@ -115,7 +115,7 @@ fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
         Err(init_error)
     }
     else {
-        lua_call(app, window, state, String::from("appinit"), String::new())
+        lua_call(app, window, state, "appinit".into(), "".into())
             .map(|b|"TODO:".to_string())
     }
 }
@@ -225,7 +225,7 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
                     e
                 }
             },
-            other=> format!("{:?}", other),
+            other=> other.to_string(),
         }
     )
 }
@@ -313,6 +313,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         algorithm::lua_algorithm::init(lua_ctx).unwrap_or_else(init_error("lua_algorithm"));
         misc::lua_misc::init(lua_ctx).unwrap_or_else(init_error("lua_misc"));
         args::lua_args::init(lua_ctx).unwrap_or_else(init_error("lua_args"));
+        ffmpeg::lua_ffmpeg::init(lua_ctx).unwrap_or_else(init_error("ffmpeg"));
 
         // delete some functions
         globals.set("dofile", Nil)?;
@@ -377,7 +378,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         if !success {
             match err {
                 Value::String(s)=> {
-                    let mut s = bstr::BString::new(s.as_bytes().to_vec()).to_string();
+                    let mut s = String::from_utf8_lossy(s.as_bytes()).to_string();
                     s.push('\n');
                     eprintln!("Error init lua: {:?}", &s);
                     state.init_error.lock().unwrap().push_str(&s);
@@ -397,5 +398,22 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         
         Ok(())
     })
+}
 
+fn fmod_init(app: &mut tauri::App) -> Result<(), String> {
+    let state = app.state::<FmodHandler>();
+    let app_data_dir = app.path_resolver().app_data_dir()
+        .ok_or("Failed to get app_data_dir".to_string())?;
+    let bin_dir = app_data_dir.join("bin");
+    match FmodChild::new(bin_dir) {
+        Ok(child)=> {
+            println!("[FMOD] child process spawned");
+            let _ = state.fmod.lock().unwrap().insert(child);
+        },
+        Err(e)=> {
+            eprintln!("[FMOD] Error in fmod_init(): {}", &e);
+            *state.init_error.lock().unwrap() = e;
+        },
+    }
+    Ok(())
 }

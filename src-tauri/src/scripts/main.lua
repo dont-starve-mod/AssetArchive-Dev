@@ -16,6 +16,7 @@ require "assetloader"
 require "richtext"
 require "entry"
 require "color"
+require "ffmpeg"
 local Renderer = require "renderer"
 local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot
@@ -30,7 +31,6 @@ GLOBAL = {
 	root = nil,
 	prov = nil,
 }
-
 
 IpcHandlers.Register("appinit", function()
 	-- Events:

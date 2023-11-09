@@ -8,6 +8,11 @@ local Render = Class(function(self, api_list)
 	self.bgc = "#00FF00"
 
 	self.symbol_element_cache = {}
+
+	self.path = nil
+	self.format = "auto"
+	self.scale = nil
+	self.rate = nil
 end)
 
 local function tohash(v)
@@ -243,17 +248,26 @@ function Render:Run()
 	IpcEmitEvent("render_event", json.encode_compliant{
 		state = "start",
 	})
-	local path = self.path or "1.gif"
-	local f = Image.GifWriter(path)
-	if f == nil then
-		print("[Render] failed to create gif writer")
-		return {
-			success = false,
-			message = "Error: failed to create gif writer",
-		}
+	local path = self.path or "test.gif"
+	if type(path) == "string" then
+		path = FileSystem.Path(path)
 	end
-	f:set_duration(33) -- TODO
+	if not path:is_file() then
+		path:write("\0\0\0") -- test if target path is writable
+	end
 
+	local format = self.format:lower()
+	if format == "auto" then
+		for suffix in ipairs{ "gif", "mp4", "mov" }do
+			if path:check_extention(suffix) then
+				format = suffix
+				break
+			end
+		end
+	end
+	assert(format ~= "auto", "Failed to infer export format from file path: "..path:as_string())
+	assert(table.contains({"gif", "mp4", "mov", "png"}, format), "Invalid export format: "..format)
+	
 	local basic = self:Refine()
 	local anim = basic.anim
 	local color = basic.color
@@ -411,6 +425,17 @@ function Render:Run()
 		state = "render_canvas",
 		progress = 0,
 	}))
+	local enc = nil 
+	if format == "mov" or format == "mp4" or format == "gif" then
+		enc = FFcore.Encoder {
+			bin = "path/to/ffmpeg",
+			path = path:as_string(),
+			format = format,
+			scale = self.scale or 1.0,
+			rate = self.rate or anim.framerate or error("Failed to get export framerate"),
+		}
+	end
+
 	local background = string.rep(
 		self.bgc == "transparent" and "\0\0\0\0" or string.char(HexToRGB(self.bgc)).."\255",
 		width* height)
@@ -430,11 +455,12 @@ function Render:Run()
 			state = "render_canvas",
 			progress = index/#framebuffer,
 		}))
-		f:encode(canvas)
-		collectgarbage("collect")
+		enc:encode_frame(canvas)
 	end
 
-	f:drop()
+	enc:close() -- close encoder stdin pipe
+	enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
+	
 	IpcEmitEvent("render_event", json.encode_compliant({
 		state = "finish",
 		path = self.path,

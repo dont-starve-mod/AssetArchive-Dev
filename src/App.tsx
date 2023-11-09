@@ -14,6 +14,7 @@ import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
 import type { AllAssetTypes } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef } from './searchengine'
+import MyTest from './components/MyTest'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
@@ -63,6 +64,7 @@ function AppMain() {
 				</menu>
 				<article ref={articleRef} id="app-article">
 					<MainRoutes/>
+					<MyTest/>
 				</article>
 			</div>
 			<footer>

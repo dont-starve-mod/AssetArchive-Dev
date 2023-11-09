@@ -64,6 +64,10 @@ local function compile()
 	require("compiler.cmain").main(env)
 end
 
+local function install_ffmpeg()
+	require "cli_ffmpeg"
+end
+
 local function cli_main()
 	local name = Args.subcommand
 	if name == "render-animation" then
@@ -72,6 +76,8 @@ local function cli_main()
 	elseif name == "compile" then
 		load_root()
 		compile()
+	elseif name == "install-ffmpeg" then
+		install_ffmpeg()
 	elseif name == "dummy" then
 		load_root()
 	end

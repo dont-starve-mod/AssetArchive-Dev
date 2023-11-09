@@ -333,6 +333,16 @@ pub mod lua_image {
             self.inner.save(path)
         }
 
+        pub fn save_png_bytes(&self) -> Vec<u8> {
+            let mut writer = std::io::Cursor::new(Vec::<u8>::with_capacity(10000));
+            image::write_buffer_with_format(&mut writer, 
+                self.inner.as_bytes(), 
+                self.width, self.height, 
+                self.inner.color(), 
+                image::ImageFormat::Png).unwrap();
+            writer.get_ref().to_vec()
+        }
+
         pub fn apply_filter(&mut self, filter: &Filter) {
             match &mut self.inner {
                 DynamicImage::ImageRgba8(buffer)=> {
@@ -637,13 +647,7 @@ pub mod lua_image {
             });
             // get png file bytes of image
             _methods.add_method("save_png_bytes", |lua: Context, img: &Self, ()|{
-                let mut writer = std::io::Cursor::new(Vec::<u8>::with_capacity(10000));
-                image::write_buffer_with_format(&mut writer, 
-                    img.inner.as_bytes(), 
-                    img.width, img.height, 
-                    img.inner.color(), 
-                    image::ImageFormat::Png).unwrap();
-                Ok(lua.create_string(writer.get_ref())?)
+                Ok(lua.create_string(img.save_png_bytes().as_slice())?)
             });
             // convert to rgba sequence
             _methods.add_method("to_bytes", |lua: Context, img: &Self, ()|{

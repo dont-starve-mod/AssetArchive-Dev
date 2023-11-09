@@ -1,10 +1,13 @@
 pub mod lua_algorithm {
+    use std::io::Cursor;
+    use std::sync::Mutex;
     use rlua::{Context, Value};
     use rlua::Result as LuaResult;
     use rlua::String as LuaString;
     use rlua::Error as LuaError;
-    use zune_inflate::DeflateDecoder;
-    use zune_inflate::errors::InflateDecodeErrors;
+    use sevenz_rust::decompress_with_extract_fn;
+    use zune_inflate::{DeflateDecoder, errors::InflateDecodeErrors};
+    use libdeflater::Decompressor;
 
     #[inline]
     fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, InflateDecodeErrors> {
@@ -16,6 +19,30 @@ pub mod lua_algorithm {
                 Err(e)
             },
         }
+    }
+
+    // #[inline]
+    // fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, String> {
+    //     let mut buf = Vec::<u8>::new();
+    //     match Decompressor::new().deflate_decompress(compressed_data, &mut buf) {
+    //         Ok(_)=> Ok(buf),
+    //         Err(e)=> { println!("{:?}", e); Err(e.to_string()) }
+    //     }
+    // }
+
+    fn sevenz_decompress(compressed_data: &[u8], ) -> Result<Vec<u8>, String> {
+        let f = Cursor::new(compressed_data);
+        let mut buf = Vec::with_capacity(85*1000*1000);
+        let mt = Mutex::new(buf);
+        decompress_with_extract_fn(f, "", |entry, reader, _|{
+            if entry.name().ends_with("/ffmpeg.exe") {
+                // TODO: make this generic
+                reader.read_to_end(mt.lock().unwrap().as_mut()).ok();
+            }
+            Ok(true)
+        }).ok();
+        let lock = mt.lock().unwrap();
+        Ok(lock.as_slice().to_vec())
     }
 
     #[inline]
@@ -139,6 +166,9 @@ pub mod lua_algorithm {
                 Ok(raw_data) => Ok(Some(Value::String(lua_ctx.create_string(&raw_data[..])?))),
                 Err(_) => Ok(None)
             }
+        })?)?;
+        table.set("Sevenz_Decompress", lua_ctx.create_function(|lua_ctx: Context, compressed_data: LuaString|{
+            Ok(lua_ctx.create_string(sevenz_decompress(compressed_data.as_bytes()).unwrap().as_slice())?)
         })?)?;
         table.set("DXT5_Decompress", lua_ctx.create_function(|lua_ctx: Context, 
             (compressed_data, width, height): (LuaString, usize, usize)|{

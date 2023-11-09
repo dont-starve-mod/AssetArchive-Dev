@@ -47,7 +47,7 @@ pub mod lua_misc {
         globals.set("ProgressBar", lua_ctx.create_function(|_, len: u64|{
             Ok(Bar::new(len))
         })?)?;
-        // timestamp
+        // time
         globals.set("now", lua_ctx.create_function(|_, ()|{
             let time = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -62,6 +62,11 @@ pub mod lua_misc {
                 .as_secs_f64();
             Ok(time)
         })?)?;
+        globals.set("debug_sleep", lua_ctx.create_function(|_, secs: f64|{
+            std::thread::sleep(std::time::Duration::from_secs_f64(secs));
+            Ok(())
+        })?)?;
+
         // clipboard writing
         let clipboard = lua_ctx.create_table()?;
         clipboard.set("WriteImage", lua_ctx.create_function(|_, img: Value|{

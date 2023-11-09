@@ -1,7 +1,9 @@
 pub mod lua_filesystem {
+    use std::ffi::{OsString, OsStr};
     use std::fs::{self, File};
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
+    use std::os::unix::prelude::MetadataExt;
     use std::path::PathBuf;
     use std::process::Command;
     #[cfg(unix)]
@@ -175,14 +177,14 @@ pub mod lua_filesystem {
         data_mode: DataMode,
     }
 
-    unsafe impl Send for ReadStream{} // 这样才能转换为Lua类型
+    unsafe impl Send for ReadStream{ }
 
     impl ReadStream {
         fn open(path: &str) -> Option<Self> {
             let f: File = match fs::OpenOptions::new().read(true).open(path) {
                 Ok(f)=> f,
                 Err(e)=> {
-                    eprintln!("ReadStream: cannot read file: {} {:?}", path, e);
+                    eprintln!("ReadStream: cannot read file: {:?} {:?}", path, e);
                     return None
                 },
             };
@@ -486,6 +488,40 @@ pub mod lua_filesystem {
             fs::read(&self.inner).map_err(|_|())
         }
     }
+
+    pub trait ConvertArgToString {
+        fn to_string(&self) -> LuaResult<String>;
+    }
+
+    impl ConvertArgToString for Value<'_> {
+        fn to_string(&self) -> LuaResult<String> {
+            match self {
+                Value::String(s)=> Ok(String::from_utf8_lossy(s.as_bytes()).to_string()),
+                Value::UserData(v)=> {
+                    match v.borrow::<Path>() {
+                        Ok(path)=> Ok(path.to_string()),
+                        _ => Err(LuaError::FromLuaConversionError { from: "(lua)", to: "path|string", message: None })
+                    }
+                },
+                _ => Err(LuaError::FromLuaConversionError { from: "(lua)", to: "path|string", message: None })
+            }
+        }
+    }
+    pub trait ConvertToOsString {
+        fn to_os_string(&self) -> OsString;
+    }
+
+    impl ConvertToOsString for Path {
+        fn to_os_string(&self) -> OsString {
+            self.inner.as_os_str().to_os_string()
+        }
+    }
+
+    impl ConvertToOsString for LuaString<'_> {
+        fn to_os_string(&self) -> OsString {
+            OsString::from(self.to_str().unwrap_or(""))
+        }
+    }
     
     impl UserData for Path {
         fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
@@ -503,6 +539,23 @@ pub mod lua_filesystem {
             });
             _methods.add_method("write", |_, path: &Self, content: LuaString|{
                 fs::write(&path.inner, content.as_bytes()).map_err(|e| LuaError::RuntimeError("Failed to write file".to_string()))
+            });
+            #[cfg(unix)]
+            _methods.add_method("set_mode", |_, path: &Self, mode: u32|{
+                use std::os::unix::fs::PermissionsExt;
+                match path.inner.metadata() {
+                    Ok(meta) => {
+                        let mut p = meta.permissions();
+                        p.set_mode(mode);
+                        std::fs::set_permissions(path.inner.clone(), p).ok();
+                    },
+                    Err(e)=> println!("Failed to set mode: {}", e.to_string()),
+                };
+                Ok(())
+            });
+            #[cfg(windows)]
+            _methods.add_method("set_mode", |_, path: &Self, mode: u32|{
+                Ok(())
             });
             _methods.add_method("delete", |_, path: &Self, ()|{
                 fs::remove_file(&path.inner).map_err(|e| LuaError::RuntimeError("Failed to delete file".to_string()))
@@ -585,25 +638,10 @@ pub mod lua_filesystem {
 
     pub fn init(lua_ctx: Context) -> LuaResult<()> {
         let table = lua_ctx.create_table()?;
-        table.set("CreateReader", lua_ctx.create_function(|lua: Context, path: Value|{
-            if let Ok(s) = String::from_lua(path.clone(), lua) {
-                Ok(ReadStream::open(&s))
-            }else if let Ok(userdata) = AnyUserData::from_lua(path.clone(), lua){
-                match userdata.borrow::<Path>() {
-                    Ok(p) => Ok(ReadStream::open(&p.to_string())),
-                    Err(_) => Err(LuaError::FromLuaConversionError {
-                        from: "(lua)", 
-                        to: "Path", 
-                        message: Some("userdata type mismatch".to_string())
-                    })
-                }
-            }
-            else {
-                Err(LuaError::FromLuaConversionError{
-                    from: "(lua)",
-                    to: "string|Path",
-                    message: Some("Must pass in a string or a Path".to_string())
-                })
+        table.set("CreateReader", lua_ctx.create_function(|_: Context, path: Value|{
+            match path.to_string() {
+                Ok(s)=> Ok(ReadStream::open(s.as_str())),
+                Err(e)=> Err(e)
             }
         })?)?;
         table.set("CreateBytesReader", lua_ctx.create_function(|_, bytes: LuaString|{
@@ -697,8 +735,8 @@ pub mod lua_filesystem {
             return None;
         }
         // parse
-        // need a exact correct value to run properly (defined in env/github action)
-        // if you don't know the value, do not set env var `DYN_INDEX` and `DYN_MAGIC_NUMBER`
+        // need a exact correct value to run properly (defined in env or github action)
+        // if you don't know the value, leave `DYN_INDEX` and `DYN_MAGIC_NUMBER` empty
         let dyn_index = dyn_index_s.chars()
             .map(|i|i.to_string().parse::<u8>().unwrap() as usize)
             .collect::<Vec<usize>>();
