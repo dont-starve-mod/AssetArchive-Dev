@@ -1,14 +1,9 @@
-use std::hash::Hash;
-#[cfg(unix)]
-use std::os::unix::process::CommandExt;
-use std::{fs, result};
 use std::path::PathBuf;
 use std::process;
-use std::error::Error;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Mutex;
-
+use std::fs::create_dir_all;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil, Value};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 
@@ -25,10 +20,13 @@ mod ffmpeg;
 mod fmod;
 mod unzip;
 mod args;
+mod meilisearch;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use fmod::FmodChild;
+use meilisearch::MeilisearchChild;
 
 use fmod::fmod_handler::*;
+use meilisearch::meilisearch_handler::*;
 use include_lua::ContextExt;
 use include_lua_macro;
 
@@ -73,6 +71,13 @@ pub struct FmodHandler {
 }
 
 #[derive(Default)]
+pub struct Meilisearch {
+    meilisearch: Mutex<Option<MeilisearchChild>>,
+    client: Mutex<Option<meilisearch_sdk::Client>>,
+    init_error: Mutex<String>,
+}
+
+#[derive(Default)]
 struct FE_Communi {
     drag_data: Mutex<HashMap<String, String>>,
 }
@@ -83,9 +88,11 @@ fn main() {
         .manage(LuaEnv::new())
         .manage(FE_Communi::default())
         .manage(FmodHandler::default())
+        .manage(Meilisearch::default())
         .setup(move|app| {
             lua_init(app)?;
-            fmod_init(app)?;
+            init_fmod(app)?;
+            init_meilisearch(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -96,6 +103,7 @@ fn main() {
             fmod_send_message,
             fmod_update,
             fmod_get_data,
+            meilisearch_get_addr,
             select_file_in_folder,
             set_drag_data,
             get_drag_data,
@@ -152,9 +160,9 @@ fn select_file_in_folder(path: String) -> bool {
 }
 
 #[tauri::command]
-fn shutdown(reason: String) {
+fn shutdown<R: tauri::Runtime>(app: tauri::AppHandle<R>, reason: String) {
     println!("App shutdown <{}>", reason);
-    std::process::exit(0);
+    app.exit(0);
 }
 
 enum LuaBytes{
@@ -265,7 +273,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
     let app_dir = |path: Option<PathBuf>, create: bool|{
         if let Some(path) = path {
             if !path.is_dir() && create {
-                if fs::create_dir_all(path.clone()).is_err() {
+                if std::fs::create_dir_all(path.clone()).is_err() {
                     eprintln!("Cannot create app directory: {}", path.to_string_lossy());
                 }
             }
@@ -400,20 +408,57 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
     })
 }
 
-fn fmod_init(app: &mut tauri::App) -> Result<(), String> {
+fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
     let state = app.state::<FmodHandler>();
     let app_data_dir = app.path_resolver().app_data_dir()
         .ok_or("Failed to get app_data_dir".to_string())?;
-    let bin_dir = app_data_dir.join("bin");
+    let bin_dir = app_data_dir.join("bin").join("fmod");
+    create_dir_all(bin_dir.clone())
+        .map_err(|e|format!("Failed to create bin dir: {} {}", bin_dir.display(), e))?;
+    
     match FmodChild::new(bin_dir) {
         Ok(child)=> {
             println!("[FMOD] child process spawned");
-            let _ = state.fmod.lock().unwrap().insert(child);
+            #[allow(unused_must_use)]
+            {
+                state.fmod.lock().unwrap().insert(child);
+            }
         },
         Err(e)=> {
-            eprintln!("[FMOD] Error in fmod_init(): {}", &e);
-            *state.init_error.lock().unwrap() = e;
+            eprintln!("[FMOD] Error in init: {}", &e);
+            state.init_error.lock().unwrap().push_str(e.as_str())
         },
+    }
+    Ok(())
+}
+
+fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
+    let state = app.state::<Meilisearch>();
+    let app_data_dir = app.path_resolver().app_data_dir()
+        .ok_or("Failed to get app_data_dir".to_string())?;
+    let bin_dir = app_data_dir.join("bin").join("meilisearch");
+    create_dir_all(bin_dir.clone())
+        .map_err(|e|format!("Failed to create bin dir: {} {}", bin_dir.display(), e))?;
+    match MeilisearchChild::new(bin_dir) {
+        Ok(child)=> {
+            println!("[Meilisearch] child process spawned");
+            #[allow(unused_must_use)]
+            {
+                state.meilisearch.lock().unwrap().insert(child);
+            }
+        },
+        Err(e)=> {
+            eprintln!("[Meilisearch] Error in init: {}", &e);
+            state.init_error.lock().unwrap().push_str(e.as_str())
+        }
+    }
+    // launch client if child process is on
+    let child = state.meilisearch.lock().unwrap();
+    if child.is_some() {
+        let addr = child.as_ref().unwrap().get_addr();
+        println!("[Meilisearch] link to child process: {}", &addr);
+        let client = meilisearch_sdk::Client::new(addr, None::<String>);
+        *state.client.lock().unwrap() = Some(client);
     }
     Ok(())
 }

@@ -6,6 +6,7 @@ import { Tooltip2 } from '@blueprintjs/popover2'
 import { DragFolderPanel } from '../../components/GameRootSetter'
 import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
+import { openInstaller } from '../FFmpegInstaller'
 
 export default function SettingsPage() {
   const [root, setRoot] = useAppSetting("last_dst_root")
@@ -87,6 +88,12 @@ export default function SettingsPage() {
       onRelease={value=> setVolume(value)}/>
       </div>
     {/* 索引文件管理 */}
+    <hr/>
+    <H4>视频编码器</H4>
+    <p>FFmpeg是一个开源的多媒体编解码程序，饥荒资源档案的部分功能（例如动画导出）需要依赖FFmpeg。</p>
+    <Button icon="download" onClick={()=> openInstaller()}>安装</Button>
+
+    <div style={{height: 100}}></div>
 
     <Dialog title="设置游戏目录" isOpen={isEditingRoot} onClose={()=> setEditingRoot(false)}>
       <DialogBody>

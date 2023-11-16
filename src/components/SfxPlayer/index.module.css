@@ -1,0 +1,34 @@
+.box {
+  height: 60px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  padding: 10px;
+}
+
+.icon {
+  /* margin: 10px; */
+  width: 40px;
+  height: 40px;
+}
+
+.sep {
+  width: 1px;
+  height: 100%;
+  background-color: #ccc;
+  margin: 0 10px;
+}
+
+.param {
+  position: relative;
+  min-width: 100px;
+  height: 40px;
+}
+
+.param .slider {
+  position: absolute;
+  left: -5px;
+  bottom: 0;
+}

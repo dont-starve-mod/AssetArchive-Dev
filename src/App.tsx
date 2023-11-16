@@ -13,8 +13,9 @@ import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
 import type { AllAssetTypes } from './searchengine'
-import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef } from './searchengine'
+import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import MyTest from './components/MyTest'
+import AppFmodHandler from './components/AppFmodHandler'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
@@ -25,12 +26,16 @@ declare global {
 			alltexelement: Tex[],
 			alldynfile: AnimDyn[],
 			allzipfile: AnimZip[],
-			alltexture: TexNoRef
+			alltexture: TexNoRef[],
+			allfmodevent: FmodEvent[],
+			allfmodproject: FmodProject[],
 		}
 		assets_map: {[K: string]: AllAssetTypes},
 		hash: Map<number, string>,
 	}
 }
+
+window.assets_map = {}
 
 export default function App() {
 	const isSubwindow = getCurrent().label !== "main"
@@ -74,6 +79,7 @@ function AppMain() {
 			<AppInit/>
 			<AppToaster/>
 			<AppQuickSettings/>
+			<AppFmodHandler/>
 		</div>
 	)
 }

@@ -1,14 +1,19 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { getVersion } from '@tauri-apps/api/app'
 import { Icon } from '@blueprintjs/core'
+import { useLocation } from 'react-router-dom'
 
 const BRANCH = "alpha"
 
 export default function Footer() {
-  const currentURL = location.toString()
-    .replace("tauri://", "")
-    .replace("tauri.localhost", "")
+  const location = useLocation()
+  const currentURL = useMemo(()=> 
+    window.location.href
+      .replace("tauri://", "")
+      .replace("tauri.localhost", "")
+  , [location.key])
+    
   const copyURL = ()=> {
     writeText(currentURL).then(
       ()=> window.alert("已拷贝至剪贴板"),
@@ -40,7 +45,7 @@ export default function Footer() {
     <div>
       <div>
         <a className='bp4-monospace-text' onClick={copyURL}>
-          当前路径: {location.toString().replace("tauri://", "")}
+          当前路径: {currentURL}
         </a>
       </div>
     </div>

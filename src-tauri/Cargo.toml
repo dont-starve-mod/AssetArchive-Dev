@@ -1,5 +1,5 @@
 [workspace]
-members = ["include_lua", "include_lua_macro", "ffmpeg-sidecar"]
+members = ["include_lua", "include_lua_macro"]
 
 [package]
 name = "asset-archive"
@@ -34,13 +34,14 @@ webbrowser = { version = "0.8.11", features = ["hardened"] }
 once_cell = "1.18.0"
 sevenz-rust = "0.5.3"
 libdeflater = "1.19.0"
+meilisearch-sdk = "0.24.3"
 json = "0.12.4"
+ffmpeg-sidecar = "0.5.1"
 
 # fmod = { path = "./fmod" }
 include_lua = { path = "./include_lua" }
 include_lua_macro = { path = "./include_lua_macro" }
 include-crypt-bytes = "^0.1"
-ffmpeg-sidecar = { path = "./ffmpeg-sidecar" }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

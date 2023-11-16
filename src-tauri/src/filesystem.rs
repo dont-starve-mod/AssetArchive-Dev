@@ -1,9 +1,8 @@
 pub mod lua_filesystem {
-    use std::ffi::{OsString, OsStr};
+    use std::ffi::OsString;
     use std::fs::{self, File};
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
-    use std::os::unix::prelude::MetadataExt;
     use std::path::PathBuf;
     use std::process::Command;
     #[cfg(unix)]
@@ -11,10 +10,8 @@ pub mod lua_filesystem {
     #[cfg(windows)]
     use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
     use image::EncodableLayout;
-    use rlua::{Function, MetaMethod, UserData, UserDataMethods, Table, Context, AnyUserData};
-    use rlua::Value;
+    use rlua::{Value, Function, MetaMethod, UserData, UserDataMethods, Table, Context, FromLua, AnyUserData};
     use rlua::Value::Nil;
-    use rlua::{FromLua};
     use rlua::prelude::{LuaResult, LuaString, LuaError};
 
     #[repr(C)]

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { appWindow, getCurrent } from '@tauri-apps/api/window'
@@ -8,14 +8,64 @@ import GameRootSetter from '../GameRootSetter'
 import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
 import { AppSettings, init as initSettings, update as updateSetting } from '../../redux/reducers/appsettings'
-import { AllAssetTypes } from '../../searchengine'
+import { MeiliSearch } from 'meilisearch'
+import type { AllAssetTypes } from '../../searchengine'
 import type { AssetDesc } from '../../assetdesc'
+import { setAddr, addDocuments, search } from '../../global_meilisearch'
 
 // shutdown app if main window is closed. (so that all sub windows will be closed, too)
 globalListen("tauri://destroyed", (e)=> {
   if (e.windowLabel === "main")
     invoke("shutdown", {reason: "MainWindowDestroyed"})
 })
+
+function generateDocument(data: {[K: string]: AllAssetTypes[]}) {
+  const result = []
+  Object.values(data).forEach(v=> v.forEach(item=> {
+    const {id, type} = item
+    if (type === "animdyn" || type === "animzip"){
+      const {file} = item
+      result.push({id, type, file})
+    }
+    else if (type === "tex"){
+      const {xml, tex} = item
+      result.push({id, type, xml, tex})
+    }
+    else if (type === "tex_no_ref"){
+      const {file} = item
+      result.push({id, type, file})
+    }
+    else if (type === "xml"){
+      const {file, texpath} = item
+      result.push({id, type, file,texpath})
+    }
+    else if (type === "fmodevent"){
+      const {path} = item
+      result.push({id, type, fmodpath: path})
+    }
+    else if (type === "fmodproject"){
+      const {file} = item
+      result.push({id, type, file})
+    }
+    else {
+      throw Error("Invalid asset type: " + type)
+    }
+  }))
+  const ids = new Set()
+  result.forEach(item=> {
+    if (!item.id) {
+      throw Error("Asset must include id: " + JSON.stringify(item))
+    }
+    else if (ids.has(item.id)){
+      throw Error("Asset id not unique: " + JSON.stringify(item))
+    }
+    else {
+      ids.add(item.id)
+    }
+  })
+
+  return result
+}
 
 export default function AppInit() {
   const root = useSelector(({appsettings})=> appsettings.last_dst_root)
@@ -24,11 +74,19 @@ export default function AppInit() {
   const dispatch = useDispatch()
 
   useEffect(()=> {
+    let unlisten = appWindow.listen<any>("update_assets", ({payload})=> {
+      const doc = generateDocument(payload)
+      addDocuments("assets", doc)
+    })
+
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
+
+  useEffect(()=> {
     async function init() {
       const handlers = [
         await globalListen<string>("settings", ({payload})=> {
           const settings: AppSettings = JSON.parse(payload)
-          console.log(settings)
           dispatch(initSettings(settings))
         }),
         await globalListen<string>("update_setting", ({payload})=> {
@@ -38,12 +96,12 @@ export default function AppInit() {
         }),
         await globalListen<string>("assets", ({payload})=> {
           const assets = JSON.parse(payload)
-          window.assets = assets
-          window.assets_map = {}
+          window.assets = {...window.assets, ...assets}
           Object.values(assets).forEach((list: AllAssetTypes[])=> {
-            list.forEach(a=> window.assets_map[a.id] = a)
+            list.forEach(item=> window.assets_map[item.id] = item)
           })
-          searchengine.initPayload = ()=> assets
+          appWindow.emit("update_assets", assets)
+          searchengine.initPayload = ()=> window.assets
         }),
         await globalListen<string>("assetdesc", ({payload})=> {
           const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
@@ -66,6 +124,10 @@ export default function AppInit() {
       try{
         await invoke("app_init")
         window.app_init = true
+
+        // create meilisearch client before registering `assets` event handler
+        const addr = await invoke<string>("meilisearch_get_addr")
+        setAddr(addr)
       }
       catch(error) {
         if (error.message === "window.__TAURI_IPC__ is not a function")
@@ -107,6 +169,10 @@ export function ErrorHandler(){
         await globalListen<string>("lua_call_error", ({payload})=> {
           console.error(payload)
           setLuaError(payload)
+        }),
+        await globalListen<string>("fmod_call_error", ({payload})=> {
+          console.error(payload)
+          setLuaError(payload) // temp use...
         }),
         await globalListen<AlertPayload>("alert", ({payload})=> {
           console.warn(payload)
@@ -174,7 +240,7 @@ export function ErrorHandler(){
       <Alert
         icon={alert.icon}
         isOpen={alert.isOpen}
-        intent={alert.intent || 'warning' }
+        intent={alert.intent || "warning" }
         confirmButtonText="好的"
         onConfirm={()=> setAlertData(undefined)}
         onCancel={()=> setAlertData(undefined)}

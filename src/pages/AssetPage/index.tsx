@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox } from '@blueprintjs/core'
 import { Collapse, ButtonGroup } from '@blueprintjs/core'
@@ -16,6 +16,9 @@ import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
 import AssetFilePath from '../../components/AssetFilepath'
 import BatchDownloadButton from '../../components/BatchDownloadButton'
+import { FmodEvent, FmodProject } from '../../searchengine'
+import SfxPlayer from '../../components/SfxPlayer'
+import { AccessableItem } from '../../components/AccessableItem'
 
 function KeepAlive(props) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -64,6 +67,12 @@ export default function AssetPage() {
         return <KeepAlive key={id}>
           <TexNoRefPage {...asset} key={id}/>
         </KeepAlive>
+    case "fmodevent":
+      return <FmodEventPage {...asset} key={id}/>
+    case "fmodproject":
+      return <KeepAlive key={id}>
+        <FmodProjectPage {...asset} key={id}/>
+      </KeepAlive>
     default:
       return <AssetInvalidPage type="invalid-type" typeName={type}/>
   }
@@ -138,7 +147,7 @@ function TexPage({id, xml, tex}) {
   </div>
 }
 
-function TexNoRefPage({id, file, is_cc}) {
+function TexNoRefPage({id, file, is_cc}: {id: string, file: string, is_cc?: boolean}) {
   const [resolution, setResolution] = useState([0, 0])
   const [loading, setLoading] = useState(true)
   const [url, setURL] = useState("")
@@ -542,6 +551,71 @@ function ZipPage({type, file, id}) {
       }
     </div>
   </div>
+}
+
+function FmodEventPage(props: FmodEvent) {
+  const {path, project, lengthms, category, param_list} = props
+  const typeStr = useMemo(()=> {
+    if (category.startsWith("master/set_sfx/"))
+      return "音效" 
+    else if (category.startsWith("master/set_music/"))
+      return "音乐"
+    else if (category.startsWith("master/set_ambience/"))
+      return "环境声"
+    else
+      return category
+  }, [category])
+  const lengthStr = useMemo(()=> {
+    if (lengthms < 0) {
+      return "无限循环"
+    }
+    else if (lengthms < 1000) {
+      return `${lengthms}毫秒`
+    }
+    else {
+      return `${(lengthms/1000).toFixed(2)}秒`
+    }
+  }, [lengthms])
+  const paramList = useMemo(()=> {
+    if (param_list.length === 0)
+      return "该音效不包含任何参数"
+    else 
+      return param_list.map(({name})=> name).join(" / ")
+  }, [param_list])
+
+  return (
+    <div>
+      <H3>{path} <AssetType type={"fmodevent"}/></H3>
+      <SfxPlayer {...props}/>
+      <div style={{height: 10}}/>
+      <H5>基本信息</H5>
+      <p>类型：{typeStr}</p>
+      <p>时长：{lengthStr}</p>
+      <p>参数：{paramList}</p>
+      <AssetFilePath type="fev_link" path={project}/>
+    </div>
+  )
+}
+
+function FmodProjectPage(props: FmodProject) {
+  const {file, name} = props
+  const eventList = useMemo(()=> 
+    window.assets.allfmodevent.filter(v=> v.project_name === name)
+  , [name])
+
+  return (
+    <div>
+      <H3>{file}<AssetType type="fmodproject"/></H3>
+      <H5>音效列表</H5>
+      <p>共包含{eventList.length}个音效。</p>
+      <hr/>
+      {
+        eventList.map(v=> <AccessableItem key={v.id} {...v}/>)
+      }
+      <H5>基本信息</H5>
+      <AssetFilePath type="fev" path={name}/>
+    </div>
+  )
 }
 
 type AssetInvalidPageProps = {

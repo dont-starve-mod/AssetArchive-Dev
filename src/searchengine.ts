@@ -1,5 +1,6 @@
 import Fuse from 'fuse.js'
 import type { AssetDesc } from './assetdesc'
+import type { FmodEventInfo, FmodProjectInfo } from './components/AppFmodHandler'
 export type FuseResult<T> = Fuse.FuseResult<T>
 
 export type AssetListKey = 
@@ -7,7 +8,8 @@ export type AssetListKey =
   "alldynfile" |
   "allxmlfile" |
   "alltexelement" |
-  "alltexture"
+  "alltexture" |
+  "allfmodevent"
 
 export interface IBasicAsset {
   id: string,
@@ -21,6 +23,7 @@ export interface Tex extends IBasicAsset{
   tex: string,
 }
 
+/** *.xml file */
 export interface Xml extends IBasicAsset {
   type: "xml",
   file: string,
@@ -29,25 +32,43 @@ export interface Xml extends IBasicAsset {
   _numtex: number,
 }
 
+/** *.zip file, usually for animation package */
 export interface AnimZip extends IBasicAsset {
   type: "animzip",
   file: string,
 }
 
+/** *.dyn file */
 export interface AnimDyn extends IBasicAsset {
   type: "animdyn",
   file: string,
 }
 
+/** *.tex file without xml referrence, for example: `images/colour_cubes/xxxxxx_cc.tex */
 export interface TexNoRef extends IBasicAsset {
   type: "tex_no_ref",
   file: string,
   _is_cc?: true,
 }
 
-type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef
+/** sound path, for example: `turnoftides/common/together/moon_glass/mine` */
+export interface FmodEvent extends IBasicAsset, FmodEventInfo {
+  type: "fmodevent",
+  path: string,
+  project_name: string,
+}
+
+/** *.fev file */
+export interface FmodProject extends IBasicAsset, FmodProjectInfo {
+  type: "fmodproject", 
+  name: string,
+  file: string,
+}
+
+type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef | FmodEvent | FmodProject
 export type AllAssetTypes = Asset
 export type Matches = Array<{indices: Array<[number, number]>, key: string}>
+export type Result = AllAssetTypes & FuseResult<AllAssetTypes> & { matches: Matches }
 
 export class SearchEngine {
   data: {
@@ -82,13 +103,14 @@ export class SearchEngine {
       },
       "file",
       "tex",
+      "path", // for fmodevent
       "description_debug", // TODO: 只搜索plain text，忽略rich text
     ]
   }
   searcher: {
     [K in keyof SearchEngine["data"]]: Fuse<Asset>
   }
-  suffixList = ["png", "dyn", "zip", "tex", "xml"]
+  suffixList = ["png", "dyn", "zip", "tex", "xml", "fev"]
 
   constructor(data: SearchEngine["data"]) {
     this.data = data

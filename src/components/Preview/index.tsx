@@ -2,10 +2,12 @@
  * a simple preview widget that rendered only when into view
  * need a static width and height
  */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppSetting, useIntersectionObserver, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Button, Dialog, Icon, Spinner, Tag } from '@blueprintjs/core'
 import { appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api'
+import store, { useSelector } from '../../redux/store'
 
 interface PreviewProps {
   width?: number,
@@ -441,6 +443,49 @@ function Zip(props: {file: string} & PreviewProps) {
   </div>
 }
 
+const SFX_ID = "PREVIEW_SFX"
+function Sfx(props: {path: string, param_list: any[]} & PreviewProps) {
+  const {path} = props
+  const isPlaying = useSelector(({appstates})=> 
+    (appstates.fmod_playing_info[SFX_ID] || {}).playing)
+  const playingPath = useSelector(({appstates})=> 
+    (appstates.fmod_playing_info[SFX_ID] || {}).path)
+  const play = useCallback(()=> {
+    // don't use `useSelector` for performance issue
+    const param_value = store.getState().appstates.fmod_param_value
+    const params = Object.fromEntries(
+      props.param_list.map(({name, range})=> {
+        const percent = param_value[name] || 0
+        return [name, range[0] + (range[1]-range[0])*percent]
+      })
+    )
+    invoke("fmod_send_message", {data: JSON.stringify({
+      api: "PlaySoundWithParams",
+      args: [path, SFX_ID, params],
+    })})
+  }, [path])
+  const stop = useCallback(()=> {
+    invoke("fmod_send_message", {data: JSON.stringify({
+      api: "KillSound",
+      args: [SFX_ID],
+    })})
+  }, [])
+  const onClick = useCallback((e: React.MouseEvent)=> {
+    if (isPlaying){stop()}else{play()}
+    e.stopPropagation()
+  }, [play, stop, isPlaying])
+
+  return (
+    <div style={{position: "relative", width: "100%", height: "100%"}}>
+      <Button icon="music" large 
+        intent={isPlaying && playingPath === path ? 
+          "primary" : "none"}
+        onClick={onClick}
+        style={{position: "absolute", transform: "translate(-50%, -50%)", left: "50%", top: "50%"}}/>
+    </div>
+  )
+}
+
 export default {
   Image,
   Texture,
@@ -449,4 +494,5 @@ export default {
   Atlas,
   Zip,
   SymbolElement,
+  Sfx,
 }

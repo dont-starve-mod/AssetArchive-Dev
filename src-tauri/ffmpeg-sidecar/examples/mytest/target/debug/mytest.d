@@ -1,1 +1,0 @@
-/Users/wzh/sourcecode/rust-learn/gui/Asset\ Archive/src-tauri/ffmpeg-sidecar/examples/mytest/target/debug/mytest: /Users/wzh/sourcecode/rust-learn/gui/Asset\ Archive/src-tauri/ffmpeg-sidecar/examples/mytest/src/main.rs

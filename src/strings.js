@@ -4,6 +4,8 @@ export const ASSET_TYPE = {
   animzip: "动画包",
   animdyn: "动态材质包",
   tex_no_ref: "纹理",
+  fmodevent: "音效",
+  fmodproject: "音效包",
 }
 
 export const ENTRY_TYPE = {
@@ -28,6 +30,12 @@ export const SEARCH_RESULT_TYPE = [
   },
   {
     key: "tex_no_ref"
+  },
+  {
+    key: "fmodevent",
+  },
+  {
+    key: "fmodproject",
   }
 ]
 

@@ -10,10 +10,12 @@ use once_cell::sync::Lazy;
 struct DownloadState {
     id: String,
     url: String,
+    /// download progress (WARN: some web server not support)
     current: f64,
+    /// download progress (WARN: some web server not support)
     total: f64,
+    /// actual downloaded bytes length, updated by Handler.write()
     current_downloaded: usize,
-
     /// status of download session
     /// WORKING | ERROR | CENCEL
     status: String,
@@ -44,19 +46,18 @@ fn run_version<P: AsRef<OsStr>>(path: P) -> Result<bool, String> {
 
 pub mod lua_ffmpeg {
     use super::*;
-    use std::io::{Write, Read, BufReader, BufRead};
-    use std::process::{Child, ChildStdin};
+    use std::io::{Write, BufReader, BufRead};
+    use std::process::ChildStdin;
     use curl::easy::{Easy2, Handler};
     use ffmpeg_sidecar::command::FfmpegCommand;
     use ffmpeg_sidecar::child::FfmpegChild;
-    use ffmpeg_sidecar::event::FfmpegEvent;
-    #[cfg(unix)]
-    use std::os::fd::{AsRawFd, OwnedFd, FromRawFd};
-    #[cfg(windows)]
-    use std::os::windows::io::{AsRawHandle, OwnedHandle, FromRawHandle};
+    // #[cfg(unix)]
+    // use std::os::fd::{AsRawFd, OwnedFd, FromRawFd};
+    // #[cfg(windows)]
+    // use std::os::windows::io::{AsRawHandle, OwnedHandle, FromRawHandle};
     
     use rlua::prelude::{LuaResult, LuaContext, LuaError};
-    use rlua::{Value, Table, Function, UserData};
+    use rlua::{Value, Table, UserData};
     use crate::filesystem::lua_filesystem::ConvertArgToString;
     use crate::image::lua_image::Image;
 
@@ -78,22 +79,6 @@ pub mod lua_ffmpeg {
   
       pub fn get_stdin(&mut self) -> &ChildStdin {
         self.inner.as_inner().stdin.as_ref().unwrap()
-      }
-  
-      pub fn close_(&mut self) {
-        // TODO: 应该不需要这个函数了，因为wait会关闭管道
-        #[cfg(unix)]
-        let fd = self.get_stdin().as_raw_fd();
-        #[cfg(unix)]
-        drop(unsafe { OwnedFd::from_raw_fd(fd) });
-        #[cfg(windows)]
-        let fd = self.get_stdin().as_raw_handle();
-        #[cfg(windows)]
-        drop(unsafe { OwnedHandle::from_raw_handle(fd)});
-      }
-
-      pub fn close(&self) {
-        
       }
     }
   
@@ -118,12 +103,7 @@ pub mod lua_ffmpeg {
             .map(|_| true)
             .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
-        // close stdin pipe fd, so that ffmpeg process can exit
-        _methods.add_method_mut("close",|_, encoder: &mut Self, ()|{
-          encoder.close();
-          Ok(())
-        });
-        // wait ffmpeg process to exit
+        // close stdin pipe and wait ffmpeg process to exit
         _methods.add_method_mut("wait", |_, encoder: &mut Self, ()|{
           encoder.inner.wait()
             .map_err(|e| LuaError::RuntimeError(e.to_string()))
@@ -200,9 +180,23 @@ pub mod lua_ffmpeg {
             },
             s=> return Err(LuaError::RuntimeError(format!("Unsupported format: {}", s)))
         };
+
+        let mut filters = Vec::new();
     
         if scale != 1.0 {
-            command.args(["-vf", format!("scale={:.2}*iw:-1:flags=lanczos", scale).as_str()]);
+            filters.push(format!("scale={scale:.2}*iw:-1:flags=lanczos"));
+        }
+        if format.as_str() == "mp4" {
+            // pad width and height to even number
+            filters.push("pad=ceil(iw/2)*2:ceil(ih/2)*2".into());
+        }
+        else if format.as_str() == "gif" {
+            // global palette
+            filters.push("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse".into());
+        }
+        
+        if filters.len() > 0 {
+            command.args(["-vf", filters.join(",".into()).as_str()]);
         }
 
         command.args(["-y"]).output(path);
@@ -304,6 +298,16 @@ pub mod lua_ffmpeg {
             },
             None => Ok(None)
         }
+    })?)?;
+    // clear download bytes (free the memory)
+    table.set("ClearData", lua_ctx.create_function(|_, id: String|{
+        match DOWNLOAD_STATE.lock().unwrap().get_mut(&id) {
+            Some(state)=> {
+                state.data.clear();
+            },
+            _=> (),
+        };
+        Ok(())
     })?)?;
 
     // cancel download session by id

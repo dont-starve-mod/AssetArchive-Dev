@@ -1,15 +1,15 @@
-import React, { Children, useCallback, useContext, useState } from 'react'
-import { Button, ButtonGroup, ButtonProps, Callout, Card, Collapse, H5, H6, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
+import React, { useCallback, useContext, useState } from 'react'
+import { Button, ButtonGroup, ButtonProps, Collapse, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
 import style from './index.module.css'
 import ApiPicker from '../ApiPicker'
 import ApiOperator from '../ApiOperator'
 import ApiList from '../ApiList'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
-import { save } from '@tauri-apps/api/dialog'
+import { save, open } from '@tauri-apps/api/dialog'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
-import { invoke } from '@tauri-apps/api'
 import { useLuaCall } from '../../hooks'
+import NumericInputGroup from '../NumericInputGroup'
 
 interface ActionProps {
   icon: IconName,
@@ -109,43 +109,44 @@ function Export() {
   }, [render])
 
   const [resolution, setResolution] = useState(1)
-
-  const [filepath, setPath] = useState<string>("")
-  const selectExportFilepath = useCallback((cb?: (path: string)=> void)=> {
-    save({
-      title: "",
-      defaultPath:  "export.gif",
-    }).then(
-      path=> {
-        if (typeof path === "string") {
-          setPath(path)
-          if (typeof cb === "function") cb(path)
-        }
-      }
-    )
-  }, [])
+  const [rate, setRate] = useState(30)
 
   const call = useLuaCall("render_animation_sync", ()=> {}, {}, [])
+  const requestExportTo = useCallback((path: string)=> {
+    call({
+      path,
+      api_list: animstate.getValidApiList(),
+      render_param: {
+        ...render.serialize(),
+        scale: resolution,
+        rate,
+        format: fileExtension,
+        facing: animstate.getActualFacing(),
+        bgc: bgcType === "transparent" ? "transparent" : colorValue,
+      }
+    })
+  }, [fileExtension, resolution, rate, bgcType, colorValue, call])
 
-  const requestExport = useCallback((path?: string)=> {
-    if (path || filepath){
-      path = path || filepath
-      console.log("Export to path: ", path)
-      call({
-        path,
-        api_list: animstate.getApiList(),
-        render_param: {
-          ...render.serialize(),
-          resolution,
-          fps: 30,
-          facing: 8, // TODO: !!!!!!!!!
-        },
-      })
+  const onClickExport = useCallback(()=> {
+    if (fileExtension === "png") {
+      // batch export to folder
+      open({
+        title: "",
+        directory: true,
+      }).then(
+        path=> typeof path === "string" && requestExportTo(path)
+      )
     }
-    else{
-      selectExportFilepath(requestExport)
+    else {
+      // export as a single file
+      save({
+        title: "",
+        defaultPath:  "export." + fileExtension, // TODO: formater
+      }).then(
+        path=> typeof path === "string" && requestExportTo(path)
+      )
     }
-  }, [filepath, resolution])
+  }, [fileExtension, requestExportTo])
 
   return (
     <ControlPanel
@@ -232,7 +233,28 @@ function Export() {
         <Radio label="1/2" value={0.5} style={{display: "inline-block", marginLeft: 20}}/>
       </RadioGroup>
       <br/>
-      <p><strong>文件路径</strong></p>
+      <p>
+        <strong>帧率</strong>
+        <div style={{width: 100, marginTop: 5, paddingRight: 30, position: "relative"}}>
+          <NumericInputGroup min={1} max={100}
+            numericValue={rate}
+            disabled={fileExtension === "png"}
+            small
+            intent={rate === rate ? "none" : "danger"}
+            onChangeNumericValue={setRate}/>
+            {
+              rate !== rate && fileExtension !== "png" &&
+              <div style={{position: "absolute", right: -3, top: -3}}>
+                <Tooltip2 content={"输入1–100之间的数，建议30"}>
+                  <Button icon="warning-sign" minimal intent="danger" onClick={()=> setRate(30)}/>
+                </Tooltip2>
+              </div>
+                
+            }
+        </div>
+      </p>
+
+      {/* <p><strong>文件路径</strong></p>
       <InputGroup
         spellCheck={false}
         autoComplete="none"
@@ -240,11 +262,11 @@ function Export() {
         value={filepath}
         onChange={e=> setPath(e.currentTarget.value)}
         rightElement={<Button onClick={()=> selectExportFilepath()}>选择</Button>}
-      />
+      /> */}
 
       </div>
       <div style={{margin: "5px 0", padding: "5px 0", borderTop: "1px solid #ccc"}}>
-        <Button icon="export" intent="primary" fill onClick={()=> requestExport()}>导出</Button>
+        <Button icon="export" intent="primary" fill onClick={()=> onClickExport()}>导出</Button>
       </div>
       <div style={{height: 40}}></div>
     </ControlPanel>

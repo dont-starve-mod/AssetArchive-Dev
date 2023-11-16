@@ -152,6 +152,7 @@ function ColorSetter(props: ColorSetterProps) {
           onChange={e=> setAlphaFromInput(e.target.value)}
           className={style["arg-input-number"]}
           spellCheck={false}
+          intent={invalid ? "danger" : "none"}
           maxLength={5}
         />
       </div>

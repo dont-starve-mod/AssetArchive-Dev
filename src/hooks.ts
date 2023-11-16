@@ -5,6 +5,7 @@ import { open, save } from "@tauri-apps/api/dialog"
 import type { AppSettings } from "./redux/reducers/appsettings"
 import { update as UpdateSetting, update } from "./redux/reducers/appsettings"
 import { useDispatch, useSelector } from "./redux/store"
+import { FmodPlayingInfo } from "./components/AppFmodHandler"
 
 const DYN_ENCRYPT = "DYN_ENCRYPT"
 
@@ -110,6 +111,9 @@ type rLuaAPI =
   "batch_download" |
   "animproject.init" | "animproject" | 
   "set" |
+  "ffmpeg_install" |
+  "ffmpeg_uninstall" |
+  "ffmpeg_custom_install  " |
   "render_animation_sync" | 
   "render_animation_async"
   

@@ -1,5 +1,4 @@
 use clap::{arg, Arg, ArgAction};
-use std::any::{Any, TypeId};
 use rlua::{UserData, Value, MetaMethod, Context};
 use rlua::prelude::{LuaError, LuaResult};
 

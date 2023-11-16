@@ -231,6 +231,10 @@ export class AnimState {
     this.api_list = list
   }
 
+  getValidApiList() {
+    return this.api_list.filter(v=> !v.disabled)
+  }
+
   // api handlers
   insert(api: Api, index?: number): this {
     if (api.uuid === undefined)
@@ -258,8 +262,8 @@ export class AnimState {
   }
 
   deleteApi(index: number): this {
-    const api = this.api_list.splice(index, 1)
-    this.reviewApi(api[0])
+    const list = this.api_list.splice(index, 1)
+    this.reviewApi(list[0])
     return this
   }
 
@@ -432,7 +436,8 @@ export class AnimState {
 
   shouldRender({imghash, layerhash}: {imghash: hash, layerhash: hash}): boolean {
     let result = true
-    this.api_list.forEach(({name, args})=> {
+    this.api_list.forEach(({name, args, disabled})=> {
+      if (disabled) return
       if (name === "Show" || name === "ShowLayer"){
         if (compareHash(args[0], layerhash)) result = true
       }

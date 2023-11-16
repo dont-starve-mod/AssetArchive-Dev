@@ -112,7 +112,7 @@ impl FmodChild {
             }
         }
         lines.iter().for_each(|s|{
-            eprintln!("> {}", &s[..usize::min(s.len() - 1, 200)]);
+            // eprintln!("> {}", &s[..usize::min(s.len() - 1, 200)]);
             if s.starts_with("[RESULT]") {
                 match json::parse(&s[8..]) {
                     Ok(data)=> {
@@ -143,12 +143,10 @@ impl FmodChild {
         let result = data["result"].take();
         match api.as_str() {
             "LoadGameAssets"=> {
-                println!("Load game assets result {}", result.len());
-                self.data.insert("all_fmodevents".into(), FmodData::new(json::stringify(result)));
+                self.data.insert("allfmodevent".into(), FmodData::new(json::stringify(result)));
             },
             "GetAllInfo"=> {
-                println!("Get all info result {:?}", &result);
-                self.data.insert("all_info".into(), FmodData::new(json::stringify(result)));
+                self.data.insert("allinfo".into(), FmodData::new(json::stringify(result)));
             }
             _=> ()
         };
@@ -156,7 +154,7 @@ impl FmodChild {
     }
 }
 
-pub fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
+fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
     let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
         let path = bin_dir.join(name);
         // dynamic library is static
@@ -169,9 +167,9 @@ pub fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
     };
     #[cfg(target_os = "macos")]
     {
-        unpack_file("fmodcore", include_bytes!("../bin/fmodcore").as_slice())?;
-        unpack_file("libfmodex.dylib", include_bytes!("../bin/libfmodex.dylib").as_slice())?;
-        unpack_file("libfmodevent.dylib", include_bytes!("../bin/libfmodevent.dylib").as_slice())?;
+        unpack_file("fmodcore", include_bytes!("../bin/fmod/fmodcore").as_slice())?;
+        unpack_file("libfmodex.dylib", include_bytes!("../bin/fmod/libfmodex.dylib").as_slice())?;
+        unpack_file("libfmodevent.dylib", include_bytes!("../bin/fmod/libfmodevent.dylib").as_slice())?;
         // chmod 777
         let exec_path = bin_dir.join("fmodcore");
         use std::os::unix::fs::PermissionsExt;
@@ -187,9 +185,9 @@ pub fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
     // TODO: widnows exe?
     #[cfg(target_os = "windows")]
     {
-        unpack_file("fmodcore", include_bytes!("../bin/fmodcore").as_slice())?;
-        unpack_file("fmodex64.dll", include_bytes!("../bin/fmodex64.dll").as_slice())?;
-        unpack_file("fmod_event64.dll", include_bytes!("../bin/fmod_event64.dll").as_slice())?;
+        unpack_file("fmodcore", include_bytes!("../bin/fmod/fmodcore").as_slice())?;
+        unpack_file("fmodex64.dll", include_bytes!("../bin/fmod/fmodex64.dll").as_slice())?;
+        unpack_file("fmod_event64.dll", include_bytes!("../bin/fmod/fmod_event64.dll").as_slice())?;
     }
     Ok(())
 }
@@ -207,6 +205,7 @@ pub mod fmod_handler {
             Some(ref mut fmod)=> {
                 if !fmod.is_valid()? {
                     eprintln!("fmodcore subprocess terminated");
+                    return Err("fmodcore subprocess terminated".into());
                 }
                 else {
                     fmod.send_message(data)?;
@@ -221,10 +220,7 @@ pub mod fmod_handler {
     pub fn fmod_update(state: tauri::State<'_, FmodHandler>) -> Result<bool, String> {
         match state.fmod.lock().unwrap().as_mut() {
             Some(ref mut fmod)=> {
-                if !fmod.is_valid()? {
-
-                }
-                else {
+                if fmod.is_valid()? {
                     fmod.update()?;
                 }
             },
@@ -238,10 +234,8 @@ pub mod fmod_handler {
     pub fn fmod_get_data(state: tauri::State<'_, FmodHandler>, only_dirty: bool) -> Result<String, String> {
         match state.fmod.lock().unwrap().as_mut() {
             Some(ref mut fmod)=> {
-                if !fmod.is_valid()? {
-                    Ok("".into())
-                }
-                else {
+                if fmod.is_valid()? {
+                    fmod.send_message(object! {"api": "GetAllInfo", "args": Vec::<String>::new()})?;
                     fmod.update()?;
                     let mut result = Vec::new();
                     fmod.data.iter_mut().for_each(|(k, v)|{
@@ -251,6 +245,9 @@ pub mod fmod_handler {
                         v.dirty = false;
                     });
                     Ok(json::stringify(Vec::from(result)))
+                }
+                else {
+                    Ok("".into())
                 }
             },
             _=> Ok("".into()),

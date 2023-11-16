@@ -5,6 +5,7 @@ local Render = Class(function(self, api_list)
 	self.api_list = api_list
 
 	self.facing = nil
+	self.facing_index = nil
 	self.bgc = "#00FF00"
 
 	self.symbol_element_cache = {}
@@ -53,7 +54,9 @@ end
 function Render:SetRenderParam(param)
 	self.facing = param.facing
 	self.bgc = param.bgc
-	self.fps = param.fps
+	self.rate = param.rate
+	self.format = param.format
+	self.scale = param.scale
 end
 
 function Render:Refine()
@@ -126,14 +129,15 @@ function Render:Refine()
 		error("runtime error: animation not exists")
 	end
 	local anim = nil
-	for _,v in ipairs(animlist)do
-		if v.facing == self.facing then
+	for i,v in ipairs(animlist)do
+		if v.facing == self.facing or i == self.facing_index then
 			anim = v
 			break
 		end
 	end
 	if anim == nil then
 		print("Warning: animation facing not exists: "..tostring(self.facing))
+		print("To get animation by facing index, using #1, #2, ...")
 		error("runtime error: animation facing not exists")
 	end
 
@@ -244,21 +248,24 @@ local function Mult(a, b)
     }
 end
 
+function Render:TryInterrupt()
+	if IpcInterrupted() then
+		return error(ERROR.IPC_INTERRUPTED)
+	end
+end
+
 function Render:Run()
 	IpcEmitEvent("render_event", json.encode_compliant{
 		state = "start",
 	})
-	local path = self.path or "test.gif"
+	local path = assert(self.path, "export path not provided")
 	if type(path) == "string" then
 		path = FileSystem.Path(path)
-	end
-	if not path:is_file() then
-		path:write("\0\0\0") -- test if target path is writable
 	end
 
 	local format = self.format:lower()
 	if format == "auto" then
-		for suffix in ipairs{ "gif", "mp4", "mov" }do
+		for _, suffix in ipairs{ "gif", "mp4", "mov" }do
 			if path:check_extention(suffix) then
 				format = suffix
 				break
@@ -268,6 +275,14 @@ function Render:Run()
 	assert(format ~= "auto", "Failed to infer export format from file path: "..path:as_string())
 	assert(table.contains({"gif", "mp4", "mov", "png"}, format), "Invalid export format: "..format)
 	
+	if format == "png" then
+		assert(path:is_dir(), "Error: png sequence must export to a directory")
+	else
+		if not path:is_file() then
+			path:write("\0\0\0") -- test if target path is writable
+		end
+	end
+
 	local basic = self:Refine()
 	local anim = basic.anim
 	local color = basic.color
@@ -278,6 +293,7 @@ function Render:Run()
 	-- loop 1: calculate symbol source and render rect
 	local allelements = {}
 	for _,frame in ipairs(anim.frame)do
+		self:TryInterrupt()
 		for _,element in ipairs(frame)do
 			table.insert(allelements, element)
 			local imghash = element.imghash
@@ -340,6 +356,7 @@ function Render:Run()
 	}))
 	local framebuffer = {}
 	for index, frame in ipairs(anim.frame)do
+		self:TryInterrupt()
 		local buffer = {} -- each buffer contains several element render rects
 		table.insert(framebuffer, buffer) 
 		for _,element in ipairs(frame)do
@@ -351,18 +368,21 @@ function Render:Run()
 				local px, py = matrix[5], matrix[6]
 				local render_width = math.ceil(rect[3]) - math.floor(rect[1])
 				local render_height = math.ceil(rect[4]) - math.floor(rect[2])
+				local pos_global = {
+					px + rect[1],
+					py + rect[2],
+				}
 				local pos_int = { 
-					math.modf(rect[1] + px),
-					math.modf(rect[2] + py),
-					nil,
+					math.floor(pos_global[1]),
+					math.floor(pos_global[2]),
 				}
 				local pos_decimal = {
-					select(2, math.modf(rect[1])),
-					select(2, math.modf(rect[2])),
+					pos_global[1] - math.floor(pos_global[1]),
+					pos_global[2] - math.floor(pos_global[2]),
 				}
 				local m1 = {1, 0, 0, 1, img.x-img.w/2, img.y-img.h/2} -- anchor
 				local m2 = {matrix[1], matrix[3], matrix[2], matrix[4], 0, 0} -- linear transformation part
-				local m3 = {1, 0, 0, 1, -rect[1]+pos_decimal[1]*0, -rect[2]+pos_decimal[2]*0} -- place to small render rect
+				local m3 = {1, 0, 0, 1, -rect[1]+pos_decimal[1], -rect[2]+pos_decimal[2]} -- place to small render rect
 				local m = Mult(m3, (Mult(m2, m1)))
 				m[2], m[3] = m[3], m[2] -- TODO: fix mult function
 
@@ -411,6 +431,9 @@ function Render:Run()
 			message = "canvas size is 0x0"
 		}
 	end
+	-- h264 encoder need even size
+	if width % 2 == 1 then width = width + 1 end
+	if height % 2 == 1 then height = height + 1 end
 	print("[Render] region:", left, top, right, bottom)
 
 	-- loop 4: render the full canvas
@@ -425,14 +448,45 @@ function Render:Run()
 		state = "render_canvas",
 		progress = 0,
 	}))
-	local enc = nil 
+	self:TryInterrupt()
+
+	local enc = nil
+	local png_dir = path
+	local png_path = nil
 	if format == "mov" or format == "mp4" or format == "gif" then
+		if format == "mov" then
+			self.scale = 1.0 -- mov format always use full scale
+		end
 		enc = FFcore.Encoder {
-			bin = "path/to/ffmpeg",
+			bin = FFmpegManager:TryGetBinPath(),
 			path = path:as_string(),
 			format = format,
 			scale = self.scale or 1.0,
 			rate = self.rate or anim.framerate or error("Failed to get export framerate"),
+		}
+	elseif format == "png" then
+		self.scale = 1.0 -- png format always use full scale
+		for i = 1, 1000 do
+			png_dir = path/("export_frames_"..i)
+			if not png_dir:exists() then
+				assert(png_dir:create_dir(), "Failed to create export dir: "..png_dir:as_string())
+				break
+			end
+		end
+
+		enc = {
+			index = 0,
+			encode_frame = function(self, img)
+				local name = string.format("%05d.png", self.index)
+				local out = (png_dir/name):as_string()
+				img:save(out)
+
+				if png_path == nil then
+					png_path = out -- use the first frame to display
+				end
+
+				self.index = self.index + 1
+			end,
 		}
 	end
 
@@ -441,6 +495,7 @@ function Render:Run()
 		width* height)
 	local bar = ProgressBar(#framebuffer)
 	for index, buffer in ipairs(framebuffer)do
+		self:TryInterrupt()
 		table.sort(buffer, function(a,b) return a.z_index > b.z_index end)
 		local canvas = Image.From_RGBA(background, width, height)
 		for _, data in ipairs(buffer)do
@@ -458,12 +513,16 @@ function Render:Run()
 		enc:encode_frame(canvas)
 	end
 
-	enc:close() -- close encoder stdin pipe
-	enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
-	
+	if format ~= "png" then
+		enc:close() -- close encoder stdin pipe
+		enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
+	end
+
+	bar:done()
+
 	IpcEmitEvent("render_event", json.encode_compliant({
 		state = "finish",
-		path = self.path,
+		path = png_path or self.path,
 	}))
 end
 
@@ -495,12 +554,12 @@ local function test()
 	local r = Render({
 		{name="SetBank", args = {"wilson"}},
 		{name="SetBuild", args = {"wendy"}},
-		{name="PlayAnimation", args={"run_loop"}},
-		{name="OverrideSymbol", args={"face", "wolfgang", "face"}},
-		{name="OverrideSymbol", args={"swap_object", "swap_ham_bat", "swap_ham_bat"}},
+		{name="PlayAnimation", args={"idle_loop"}},
+		{name="OverrideSymbol", args={"headbase", "wendy", "headbase"}},
+		-- {name="OverrideSymbol", args={"swap_object", "swap_ham_bat", "swap_ham_bat"}},
 		{name="Hide", args={"arm_normal"}},
 		{name="HideSymbol", args={"face-"}},
-		{name="SetSymbolMultColour", args={"headbase",1,0.25,0.25,1}},
+		-- {name="SetSymbolMultColour", args={"headbase",1,0.25,0.25,1}},
 		{name="Hide", args={"head_hat"}},
 		-- {name="SetMultColour", args={1,1,1,0.2}},
 		-- {name="SetAddColour", args={1,0,0,1}},
@@ -508,9 +567,14 @@ local function test()
 	})
 	local DST_DataRoot = require "assetprovider".DST_DataRoot
 	r:SetRoot(DST_DataRoot())
+	r.path = "/Users/wzh/Downloads/测试"
+	r.format = "png"
+	-- r.path = "/Users/wzh/Downloads/测试/2.gif"
+	-- r.format = "gif"
 	-- r.bgc = "transparent"
 	r.facing = 8
 	r:Run()
+	exit()
 end
 
 -- test()

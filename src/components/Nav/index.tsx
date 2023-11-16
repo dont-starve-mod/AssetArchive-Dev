@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react'
-import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox } from '@blueprintjs/core'
+import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox, Icon, IconName } from '@blueprintjs/core'
 import { useNavigate } from 'react-router-dom'
 import { appWindow } from '@tauri-apps/api/window'
 import MatchText from '../MatchText'
 import { useAppSetting, useOS } from '../../hooks'
 import style from './style.module.css'
-import { searchengine } from '../../asyncsearcher'
-import { AllAssetTypes, Matches } from '../../searchengine'
+import { AllAssetTypes } from '../../searchengine'
 import { Popover2 } from '@blueprintjs/popover2'
+import { search } from '../../global_meilisearch'
+import TinySlider from '../TinySlider'
 
 export default function Nav() {
   let { isWindows, isMacOS, isLinux } = useOS()
   const [query, setQueryString] = useState("")
   const [result, setSearchResult] = useState([])
+  const [estimatedTotalHits, setNumHits] = useState(0)
   const [focus, setFocus] = useState(false)
   const inputRef = useRef<HTMLInputElement>()
   const resultRef = useRef<HTMLDivElement>()
@@ -20,29 +22,27 @@ export default function Nav() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const showResult = focus && (query.length >= 2 || !(/^[\x00-\x7F]+$/.test(query)) && query.length >= 1)
-  
+  // const showResult = focus && (query.length >= 2 || !(/^[\x00-\x7F]+$/.test(query)) && query.length >= 1)
+  const showResult = focus && query.length >= 1
+
   useEffect(()=> {
-    let changed = false
-    requestAnimationFrame(()=> {
-      if (showResult && !isCompisiting) {
-        setLoading(true)
-        searchengine.search(query, "", "search").then(
-          (result)=> {
-            if (!changed){
-              setSearchResult(result.map(item=> 
-                ({
-                  matches: item.matches, 
-                  ...window.assets_map[item.id]
-                })
-              ))
-              setLoading(false)
+    if (showResult && !isCompisiting) {
+      setLoading(true)
+      search("assets", query, {limit: 1000, showMatchesPosition: true}).then(
+        result=> {
+          console.log(result.hits[0])
+          if (result.query !== query) return
+          setSearchResult(result.hits.map(({id, _matchesPosition})=> {
+            return {
+              matches: _matchesPosition,
+              ...window.assets_map[id]
             }
-          }
-        )
-      }
-    })
-    return ()=> { changed = true }
+          }))
+          setNumHits(result.estimatedTotalHits)
+          setLoading(false)
+        }
+      )
+    }
   }, [showResult, query, isCompisiting])
 
   const handleDrag = ({target})=> {
@@ -60,13 +60,13 @@ export default function Nav() {
     navigate(`/search?q=${encodeURIComponent(query)}`)
   }
 
-  const handleKey = useCallback(event=> {
-    if (event.keyCode === 65 && // ctrl+A
+  const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>)=> {
+    if (event.key === "a" && // ctrl+A
       (isWindows && event.ctrlKey || isMacOS && event.metaKey || isLinux && event.ctrlKey ))
       {
-        event.target.select()
+        event.currentTarget.select()
       }
-    else if (event.keyCode === 13 && query.length > 0) {
+    else if (event.key === "Enter" && query.length > 0) {
       gotoResultPage()
       setFocus(false)
     }
@@ -105,13 +105,14 @@ export default function Nav() {
           spellCheck="false" 
           className="allow-input"
           inputRef={inputRef}
-          onChange={handleSearch} onKeyDown={handleKey}
+          onChange={handleSearch} onKeyDown={onKeyDown}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           onFocus={(event)=> { setFocus(true); setQueryString(event.target.value.trim())} } 
           onBlur={()=> setFocus(false)}/>
           {
-            showResult && <QuickSearchResult 
+            showResult && <QuickSearchResult
+              estimatedTotalHits={estimatedTotalHits} 
               result={result} 
               resultRef={resultRef} 
               loading={isLoading}
@@ -119,8 +120,9 @@ export default function Nav() {
               onClickItem={()=> setQueryString("")}/>
           }
       </div>
-      <Navbar.Divider />
-      <ColorThemeIcon />
+      <Navbar.Divider/>
+      <VolumeIcon/>
+      <ColorThemeIcon/>
       {
         isWindows && <>
           <Navbar.Divider />
@@ -136,6 +138,35 @@ export default function Nav() {
   </Navbar>
 }
 
+function VolumeIcon() {
+  const [volume] = useAppSetting("volume")
+  const [open, setOpen] = useState(false)
+  const icon: IconName = volume > 50 ? "volume-up" : volume > 0 ? "volume-down" : "volume-off"
+  return (
+    <Popover2
+      minimal
+      // isOpen={open}
+      placement="bottom"
+      content={<VolumeSlider/>}>
+      <Button
+        minimal
+        onClick={()=> setOpen(v=> !v)}
+        icon={icon}
+      />
+    </Popover2>
+  )
+}
+
+function VolumeSlider() {
+  const [volume, setVolume] = useAppSetting("volume")
+  return (
+    <div style={{width: 100, height: 30, paddingTop: 5}} 
+      onMouseDown={e=> e.stopPropagation()}>
+      <TinySlider value={volume} min={0} max={100} onChange={setVolume}/>
+    </div>
+  )
+}
+
 function ColorThemeIcon() {
   const [theme] = useAppSetting("theme")
   const [systemTheme] = useAppSetting("systemTheme")
@@ -147,7 +178,7 @@ function ColorThemeIcon() {
   return (
     <Popover2 
       minimal 
-      isOpen={open} 
+      // isOpen={open} 
       content={<ColorThemePicker closeMenu={()=> setOpen(false)}/>}>
       <Button
         minimal
@@ -169,7 +200,7 @@ function ColorThemePicker(props: any) {
   )
 }
 
-function QuickSearchResult({result, resultRef, onClickItem, onClickMore, loading}) {
+function QuickSearchResult({result, estimatedTotalHits, resultRef, onClickItem, onClickMore, loading}) {
   return (
     <div className={style["quick-search-result"]} ref={resultRef} onMouseDown={e=> e.preventDefault()}>
       <div className={style['result-list']}>
@@ -183,8 +214,9 @@ function QuickSearchResult({result, resultRef, onClickItem, onClickMore, loading
       </div>
       <div>
         {
-          result.length === 0 ? <p>未找到结果。</p> :
-          <p>找到了{result.length}个结果。<a onClick={onClickMore}>更多...</a></p>
+          estimatedTotalHits === 0 ? <p>未找到结果。</p> :
+          estimatedTotalHits > 1000 ? <p>找到了超过1000个结果。<a onClick={onClickMore}>更多...</a></p> :
+          <p>找到了约{estimatedTotalHits}个结果。<a onClick={onClickMore}>更多...</a></p>
         }
       </div>
       <div style={{position: "absolute", right: 10, bottom: 5, display: loading ? "block" : "none"}}>
@@ -195,12 +227,15 @@ function QuickSearchResult({result, resultRef, onClickItem, onClickMore, loading
   )
 }
 
+/** _matchesPosition field of meilisearch search result */
+type Matches = {
+  [K: string]: {start: number, length: number}[]
+}
+
 function QuickSearchItem(props: AllAssetTypes & { onClickItem: Function, matches: Matches }) {
   const {type, id, matches} = props
   const navigate = useNavigate()
-  const matchesMap = Object.fromEntries(
-    matches.map(({key, indices})=> [key, indices])
-  )
+
   return (
     <div 
       style={{textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden"}} 
@@ -211,13 +246,17 @@ function QuickSearchItem(props: AllAssetTypes & { onClickItem: Function, matches
       }}>
       {
         (type === "animzip" || type === "animdyn") ? 
-          <MatchText text={props.file} match={matchesMap["file"]}/> :
+          <MatchText text={props.file} match={matches["file"]}/> :
         (type === "xml") ? 
-          <MatchText text={props.file} match={matchesMap["file"]}/> :
+          <MatchText text={props.file} match={matches["file"]}/> :
         (type === "tex") ?
-          <MatchText text={props.tex} match={matchesMap["tex"]}/> :
-        (type == "tex_no_ref") ? 
-          <MatchText text={props.file} match={matchesMap["file"]}/> :
+          <MatchText text={props.tex} match={matches["tex"]}/> :
+        (type === "tex_no_ref") ? 
+          <MatchText text={props.file} match={matches["file"]}/> :
+        (type === "fmodevent") ? 
+          <MatchText text={props.path} match={matches["path"]}/> :
+        (type === "fmodproject") ?
+          <MatchText text={props.file} match={matches["file"]}/> :
         <></>
       }
     </div>

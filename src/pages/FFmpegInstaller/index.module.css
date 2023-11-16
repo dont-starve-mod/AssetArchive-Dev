@@ -1,0 +1,35 @@
+.main {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.box {
+  width: 260px;
+  margin: 10px auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.box .group {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.box .group :global(.bp4-running-text) {
+  color: #999!important;
+}
+
+.hint {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ccc;
+  color: #999!important;
+}
+
+.path {
+  text-indent: 0.5em;
+  font-family: monospace;
+}

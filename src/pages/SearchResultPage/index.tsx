@@ -2,16 +2,13 @@ import { H3, Icon, Spinner, TabId, Tag } from '@blueprintjs/core'
 import React, { useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
-import MatchText from '../../components/MatchText'
 import { searchengine } from '../../asyncsearcher'
-import { AllAssetTypes, FuseResult, Matches } from "../../searchengine"
+import { AllAssetTypes, FuseResult, Matches, Result } from "../../searchengine"
 import AssetDescFormatter from '../../components/AssetDescFormatter'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
-import Preview from '../../components/Preview'
 import cacheContext from '../../components/KeepAlive/cacheContext'
 import style from "./index.module.css"
-
-type AssetItemProps = AllAssetTypes & FuseResult<AllAssetTypes> & { matches: Matches }
+import { AccessableItem } from '../../components/AccessableItem'
 
 export default function SearchResultPage() {
   const location = useLocation()
@@ -21,13 +18,13 @@ export default function SearchResultPage() {
   const [flag, forceUpdate] = useReducer(v=> v + 1, 0)
   const [loading, setLoading] = useState(false)
   const [tab, selectTab] = useState<TabId>("all")
-  const [result, setSearchResult] = useState<AssetItemProps[]>([])
+  const [result, setSearchResult] = useState<Result[]>([])
 
   const {drop: dropCache} = useContext(cacheContext)
 
   // classified results
   const resultGroups = useMemo(()=> {
-    let groups: {[K: string]: AssetItemProps[]} = Object.fromEntries(
+    let groups: {[K: string]: Result[]} = Object.fromEntries(
       SEARCH_RESULT_TYPE.map(({key})=> [key, []])
     )
     result.forEach(item=> groups[item.type].push(item))
@@ -83,13 +80,13 @@ export default function SearchResultPage() {
             
           {
             tab === "all" && result.map((item, index)=> 
-              index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
+              index < maxResultNum ? <AccessableItem key={item.id} {...item}/> :
               index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={result.length}/> :
               <></>)
           }
           {
             tab !== "all" && resultGroups[tab].map((item, index)=> 
-              index < maxResultNum ? <DetailedSearchItem key={item.id} {...item}/> :
+              index < maxResultNum ? <AccessableItem key={item.id} {...item}/> :
               index === maxResultNum ? <ResultNumOverflow max={maxResultNum} num={resultGroups[tab].length}/> :
               <></>)
           }
@@ -125,65 +122,4 @@ function GroupTag({children, selected, onClick}) {
     onClick={()=> onClick()}>
     {children}
   </Tag>
-}
-
-const PREIVEW_SIZE = { width: 50, height: 50 }
-const MARK_STYLE: React.CSSProperties = { color: "#6020d0", fontWeight: 800 }
-
-function DetailedSearchItem(props: AssetItemProps & { matches: Matches }){
-  const {type, id, description, matches} = props
-  const matchesMap = Object.fromEntries(
-    matches.map(({key, indices})=> [key, indices as [number, number][]])
-  )
-  const navigate = useNavigate()
-  return <div 
-    className={style["search-item-box"]}
-    onClick={()=> {
-      // props.onClickItem()
-      // TODO: 词条和asset的区别
-      navigate("/asset?id=" + encodeURIComponent(id))
-    }}>
-    <div className={style["left"]}>
-      <H3>
-        {
-          (type === "animzip" || type === "animdyn") ? 
-            <MatchText text={props.file} match={matchesMap["file"]} markStyle={MARK_STYLE}/> :
-          type === "xml" ? 
-            <MatchText text={props.file} match={matchesMap["file"]} markStyle={MARK_STYLE}/> :
-          type === "tex" ?
-            <MatchText text={props.tex} match={matchesMap["tex"]} markStyle={MARK_STYLE}/> :
-          // type === "tex_no_ref" && props._is_cc ?
-            
-          type === "tex_no_ref" ?
-            <MatchText text={props.file} match={matchesMap["file"]} markStyle={MARK_STYLE}/> :
-          <></>
-        }
-      </H3>
-      <p>
-        {
-          
-          description &&
-          <AssetDescFormatter.PlainText description={description}/>
-        }
-      </p>
-    </div>
-    <div className={style["preview-box"] + " bp4-elevation-1"} style={{...PREIVEW_SIZE}}>
-      {
-        type === "tex" ? 
-          <Preview.Image {...props} {...PREIVEW_SIZE}/> :
-        type === "xml" ? 
-          <Preview.XmlMap {...props} {...PREIVEW_SIZE}/> :
-        type === "animzip" || type === "animdyn" ? 
-          <Preview.Zip {...props} {...PREIVEW_SIZE}/> :
-        type === "tex_no_ref" && props._is_cc === true ?
-          <Preview.CC {...props} {...PREIVEW_SIZE} cc={props.file} 
-          sourceType={"image"}
-          xml={"images/bg_loading_loading_farming.xml"} 
-          tex={"loading_farming.tex"}/> :
-        type === "tex_no_ref" ? 
-          <Preview.Texture {...props} {...PREIVEW_SIZE}/> :
-         <></>
-      }
-    </div>
-  </div>
 }

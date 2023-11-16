@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { Button, Dialog, DialogBody, Icon, Menu, MenuItem } from '@blueprintjs/core'
@@ -7,12 +7,12 @@ import { useCopySuccess, useLuaCall } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
 
 interface IProps {
-  type: "xml" | "tex" | "xml_link",
+  type: "xml" | "tex" | "xml_link" | "fev_link" | "fev",
   path: string,
 }
 
 export default function AssetFilePath(props: IProps) {
-  const {type, path} = props
+  let {type, path} = props
   const success = useCopySuccess("path")
   const navigate = useNavigate()
   const [bundleInfo, setBundleInfo] = useState<{zippath: string}>()
@@ -23,6 +23,23 @@ export default function AssetFilePath(props: IProps) {
       navigate("/asset?id=" + asset.id)
     }
   }, [path])
+
+  const fevData = useMemo(()=> {
+    if (type === "fev" || type === "fev_link") {
+      let project = window.assets.allfmodproject.find(v=> v.name === path)
+      return project
+    }
+  }, [type, path])
+
+  if (type.startsWith("fev")) {
+    path = fevData ? fevData.file : "/"
+  }
+
+  const toFevLink = useCallback(()=> {
+    if (fevData && fevData.id) {
+      navigate("/asset?id=" + fevData.id)
+    }
+  }, [fevData])
 
   const call = useLuaCall<string>("load", (result)=> {
     const data: any = JSON.parse(result)
@@ -41,6 +58,8 @@ export default function AssetFilePath(props: IProps) {
         {
           (type === "xml" || type === "xml_link") ? "xml文件路径：" :
           type === "tex" ? "tex文件路径：" :
+          type === "fev_link" ? "fev文件路径：" :
+          type === "fev" ? "文件路径：" :
           ""
         }
         <Popover2 minimal placement="top" content={<Menu>
@@ -48,6 +67,9 @@ export default function AssetFilePath(props: IProps) {
           <MenuItem text="打开文件位置" icon="folder-open" onClick={()=> requestOpeningFolder(false)}/>
           {
             type === "xml_link" && <MenuItem text="跳转到图集" icon="link" onClick={toXmlLink}/>
+          }
+          {
+            type === "fev_link" && Boolean(fevData) && <MenuItem text="跳转到音效包" icon="link" onClick={toFevLink}/>
           }
         </Menu>}>
           <a 
