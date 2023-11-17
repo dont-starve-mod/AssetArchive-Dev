@@ -7,7 +7,7 @@ pub mod lua_algorithm {
     use rlua::Error as LuaError;
     use sevenz_rust::decompress_with_extract_fn;
     use zune_inflate::{DeflateDecoder, errors::InflateDecodeErrors};
-    use libdeflater::Decompressor;
+    // use libdeflater::Decompressor;
 
     #[inline]
     fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, InflateDecodeErrors> {
@@ -32,7 +32,7 @@ pub mod lua_algorithm {
 
     fn sevenz_decompress(compressed_data: &[u8], ) -> Result<Vec<u8>, String> {
         let f = Cursor::new(compressed_data);
-        let mut buf = Vec::with_capacity(85*1000*1000);
+        let buf = Vec::with_capacity(85*1000*1000);
         let mt = Mutex::new(buf);
         decompress_with_extract_fn(f, "", |entry, reader, _|{
             if entry.name().ends_with("/ffmpeg.exe") {

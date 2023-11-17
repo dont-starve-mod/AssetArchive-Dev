@@ -532,10 +532,10 @@ pub mod lua_filesystem {
                 Ok(path.is_dir())
             });
             _methods.add_method("read_to_string", |_, path: &Self, ()|{
-                fs::read_to_string(&path.inner).map_err(|e| LuaError::RuntimeError("Failed to read file".to_string()))
+                fs::read_to_string(&path.inner).map_err(|e| LuaError::RuntimeError(format!("Failed to read file: {}", e.to_string())))
             });
             _methods.add_method("write", |_, path: &Self, content: LuaString|{
-                fs::write(&path.inner, content.as_bytes()).map_err(|e| LuaError::RuntimeError("Failed to write file".to_string()))
+                fs::write(&path.inner, content.as_bytes()).map_err(|e| LuaError::RuntimeError(format!("Failed to write file: {}", e.to_string())))
             });
             #[cfg(unix)]
             _methods.add_method("set_mode", |_, path: &Self, mode: u32|{
@@ -555,7 +555,7 @@ pub mod lua_filesystem {
                 Ok(())
             });
             _methods.add_method("delete", |_, path: &Self, ()|{
-                fs::remove_file(&path.inner).map_err(|e| LuaError::RuntimeError("Failed to delete file".to_string()))
+                fs::remove_file(&path.inner).map_err(|e| LuaError::RuntimeError(format!("Failed to delete file: {}", e.to_string())))
             });
             _methods.add_method("create_dir", |_, path: &Self, ()|{
                 Ok(path.create_dir())

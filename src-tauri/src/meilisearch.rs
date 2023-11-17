@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use meilisearch_sdk::client::*;
+// use meilisearch_sdk::client::*;
 
 #[allow(unreachable_code)]
 fn get_bin_name() -> &'static str {
@@ -14,9 +14,9 @@ fn get_bin_name() -> &'static str {
   #[cfg(target_os="windows")]
   {
     #[cfg(target_arch="x86")]
-    return "meilisearch_win_x86";
+    return "meilisearch_win_x86.exe";
     #[cfg(target_arch="x86_64")]
-    return "meilisearch_win_x64";
+    return "meilisearch_win_x64.exe";
   }
   unreachable!();
 }
@@ -33,9 +33,9 @@ fn get_meilisearch_bytes() -> &'static [u8] {
   #[cfg(target_os="windows")]
   {
     #[cfg(target_arch="x86")]
-    return include_bytes!("../bin/meilisearch/meilisearch_win_x86");
+    return include_bytes!("../bin/meilisearch/meilisearch_win_x86.exe");
     #[cfg(target_arch="x86_64")]
-    return include_bytes!("../bin/meilisearch/meilisearch_win_x64");
+    return include_bytes!("../bin/meilisearch/meilisearch_win_x64.exe");
   }
   unreachable!();
 }

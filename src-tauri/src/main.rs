@@ -31,7 +31,7 @@ use include_lua::ContextExt;
 use include_lua_macro;
 
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-fn menu() -> Menu {
+fn _menu() -> Menu {
     // 这里 `"quit".to_string()` 定义菜单项 ID，第二个参数是菜单项标签。
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let close = CustomMenuItem::new("close".to_string(), "Close");
@@ -78,7 +78,7 @@ pub struct Meilisearch {
 }
 
 #[derive(Default)]
-struct FE_Communi {
+struct FeCommuni {
     drag_data: Mutex<HashMap<String, String>>,
 }
 
@@ -86,7 +86,7 @@ fn main() {
     
     tauri::Builder::default()
         .manage(LuaEnv::new())
-        .manage(FE_Communi::default())
+        .manage(FeCommuni::default())
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
         .setup(move|app| {
@@ -124,7 +124,7 @@ fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
     }
     else {
         lua_call(app, window, state, "appinit".into(), "".into())
-            .map(|b|"TODO:".to_string())
+            .map(|_|"TODO:".to_string())
     }
 }
 
@@ -193,7 +193,7 @@ impl serde::Serialize for LuaBytes {
 }
 
 #[tauri::command(async)]
-fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
+fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
     api: String, param: String) -> Result<LuaBytes, String> {
     state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<LuaBytes> {
         let globals = lua_ctx.globals();
@@ -239,23 +239,23 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
 }
 
 #[tauri::command(async)]
-fn get_drag_data(state: tauri::State<'_, FE_Communi>, key: String) -> Option<String> {
+fn get_drag_data(state: tauri::State<'_, FeCommuni>, key: String) -> Option<String> {
     state.drag_data.lock().unwrap().get(&key).map(|s| s.to_string())
 }
 
 #[tauri::command(async)]
-fn get_drag_data_all(state: tauri::State<'_, FE_Communi>) -> HashMap<String, String> {
+fn get_drag_data_all(state: tauri::State<'_, FeCommuni>) -> HashMap<String, String> {
     state.drag_data.lock().unwrap().clone()
 }
 
 #[tauri::command(async)]
-fn set_drag_data(state: tauri::State<'_, FE_Communi>, key: String, value: String) {
+fn set_drag_data(state: tauri::State<'_, FeCommuni>, key: String, value: String) {
     state.drag_data.lock().unwrap().insert(key, value);
     ()
 }
 
 #[tauri::command(async)]
-fn clear_drag_data(state: tauri::State<'_, FE_Communi>) {
+fn clear_drag_data(state: tauri::State<'_, FeCommuni>) {
     state.drag_data.lock().unwrap().clear();
     ()
 }

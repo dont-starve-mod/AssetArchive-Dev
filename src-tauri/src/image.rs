@@ -3,7 +3,7 @@ use image::codecs::gif::GifEncoder;
 use image::Frame;
 use rlua::{Value, FromLua, Context};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
-use std::ops::{Index};
+use std::ops::Index;
 use std::fs::File;
 #[cfg(unix)]
 use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
@@ -140,15 +140,13 @@ pub struct Point {
 }
 
 pub mod lua_image {
-    use std::io::Write;
     use std::time::Duration;
 
-    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage, buffer};
+    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage};
     use image::ColorType;
     use rlua::{Context, AnyUserData};
-    use rlua::Value::Nil;
     use rlua::Value;
-    use rlua::{Function, Lua, MetaMethod, UserData, UserDataMethods, Variadic, Table};
+    use rlua::{Function, MetaMethod, UserData, UserDataMethods, Variadic, Table};
 
     use super::*;
     pub struct Image {
@@ -246,7 +244,7 @@ pub mod lua_image {
                     let (a1, a2) = (c1[3] as f64, c2[3] as f64);
                     let mut result = c1.map2(&c2, |v1, v2| Self::normalize(
                         (v1 as f64 * a1 * percent + v2 as f64 * a2 * (1.0 - percent)) / (a1*0.5 + a2*0.5)));
-                    result[3] = Self::normalize((a1 * percent + a2 * (1.0 - percent)));
+                    result[3] = Self::normalize(a1 * percent + a2 * (1.0 - percent));
                     Some(result)
                 },
                 (Some(c1), None)=> {

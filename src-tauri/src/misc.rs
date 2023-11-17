@@ -1,6 +1,6 @@
 pub mod lua_misc {
     use rlua::prelude::{LuaResult, LuaString, LuaError};
-    use rlua::{Nil, UserData, Context, Value, AnyUserData};
+    use rlua::{Nil, UserData, Context, Value};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
     use webbrowser;
