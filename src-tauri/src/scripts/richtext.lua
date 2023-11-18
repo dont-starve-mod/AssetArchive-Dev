@@ -2,6 +2,7 @@ local STYLE = {
 	h1 = true,
 	h2 = true,
 	h3 = true,
+	h4 = true,
 	p = true,
 	hr = true,
 	br = true,
@@ -52,7 +53,7 @@ end)
 RichText.is_rich_text = true
 
 function RichText:__call(text)
-	-- a call on RichText fill it's content
+	-- a call on RichText override its content
 	if self.text ~= "" then
 		print("Warning: try to change content of a non-empty RichText")
 	end
@@ -239,7 +240,7 @@ end
 
 local function Examples()
 	local r = RichText
-	local a = r "老王天天写bug" .. r.h1 "Title" .. r.p "This is richtext!"
+	local a = r "hello" .. r.h1 "Title" .. r.p "This is richtext!"
 	local b = r{"bold"} "Don't Starve Together" .. r{"italic"} "by" .. "Klei Entertainment"
 	local c = r.color{"red"} "It's red." .. r.color{"green"} "And it's green."
 	local d = r.any {component = "Preview", props = {name = "wilson"}} .. r.br() .. r.hr() .. "Some text below..."

@@ -57,10 +57,10 @@ local function compile()
 	prov:ListAsset()
 	env.prov = prov
 
-	print_info("[INFO] 资源目录加载完成, 开始读取")
+	print()
 	-- TODO: --force-reindex
 	
-	-- require("compiler.amain").main(env)
+	require("compiler.amain").main(env)
 	require("compiler.cmain").main(env)
 end
 

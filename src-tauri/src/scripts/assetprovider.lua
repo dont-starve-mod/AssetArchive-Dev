@@ -1038,22 +1038,30 @@ function Provider:BatchDownload(args)
 			local symbol_name = HashLib:Hash2String(hash) or "HASH-"..hash
 			for _, img in ipairs(v.imglist)do
 				local index = img.index
-				local sampler = img.sampler
-				local atlas = assert(atlaslist[sampler], "Failed to get build sampler ["..sampler.."]")
-				if atlas.is_dyn and not (hash == SWAP_ICON and index == 0) then
-					-- skip export
-				else
-					local w, h = atlas:GetSize()
-					local x_scale = w / img.cw
-					local y_scale = h / img.ch
-					local bbx, bby, subw, subh = 
-						unsigned(img.bbx * x_scale),
-						unsigned(img.bby * y_scale),
-						unsigned(img.w * x_scale),
-						unsigned(img.h * y_scale)
-					local f = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+				if img.blank then
+					local f = Image.From_RGBA("\0\0\0\0", 1, 1)
 					f:save((output_dir_path/(symbol_name.."-"..index..".png")):as_string())
-					-- TODO: xls info
+				else
+					local sampler = assert(img.sampler, "Failed to get img sampler for `"..file.."`")
+					local atlas = atlaslist[sampler]
+					if atlas == nil then
+						error("Failed to get build sampler for `"..file.."` ["..sampler.."]")
+					end
+					if atlas.is_dyn and not (hash == SWAP_ICON and index == 0) then
+						-- skip export skin assets
+					else
+						local w, h = atlas:GetSize()
+						local x_scale = w / img.cw
+						local y_scale = h / img.ch
+						local bbx, bby, subw, subh = 
+							unsigned(img.bbx * x_scale),
+							unsigned(img.bby * y_scale),
+							unsigned(img.w * x_scale),
+							unsigned(img.h * y_scale)
+						local f = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+						f:save((output_dir_path/(symbol_name.."-"..index..".png")):as_string())
+						-- TODO: xls info
+					end
 				end
 			end
 		end

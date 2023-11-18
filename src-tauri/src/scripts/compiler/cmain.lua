@@ -249,7 +249,7 @@ end
 
 local function main(GLOBAL)
 	print_info("[Compiler] generator.main()")
-
+	
 	local success, prefabdata = pcall(json.decode, FileSystem.GetString("prefab.dat"))
 	assert(success, "Failed to load prefab.dat")
 

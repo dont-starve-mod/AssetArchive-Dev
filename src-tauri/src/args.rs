@@ -181,7 +181,10 @@ pub mod lua_args {
                         else {
                             // main arg matches
                             if let Ok(v) = args.inner.try_get_one::<String>(s) {
-                                return convert_to_luastring(lua, v.map(|s|s.as_str()));
+                                if let Some(v) = v {
+                                    return convert_to_luastring(lua, Some(v.as_str()));
+                                }
+                                // continue trying to get subcommand if this value is None
                             }
                             // subcommand arg matches
                             let matches = args.inner.subcommand_matches(

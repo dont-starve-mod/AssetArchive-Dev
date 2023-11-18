@@ -55,12 +55,12 @@ local AnalyzerMethods = {
 		os = { time = function() return 0 end, clock = function() return 0 end }
 
 		-- c constants
-		APP_VERSION = "_"
-		BRANCH = "_"
-		METRICS_ENABLED = false
+		APP_VERSION = "580000"
+		BRANCH = "release"
+		METRICS_ENABLED = true
 		CAN_USE_DBUI = false
-		PLATFORM = -1
-		POT_GENERATION = -1
+		PLATFORM = "OSX_STEAM"
+		POT_GENERATION = false
 		ENCODE_SAVES = true
 
 		-- main.lua
@@ -231,6 +231,7 @@ local AnalyzerMethods = {
 
 		local prefabs = {}
 		local prefabnames = {}
+		local prefabskins = {}
 		local placers = {}
 		local strict = self.strict
 
@@ -248,8 +249,8 @@ local AnalyzerMethods = {
 			if source then
 				self.source = string.sub(source, string.find(source, "[^/]*.lua$"))
 			else
-				-- It's impossible, but we should give a message.
-				print_info("Failed to get file source: ", self.name)
+				-- It's theoretically impossible, but we should emit a message.
+				print_error("Failed to get file source: ", self.name)
 				if strict then
 					error("runtime error")
 				end
@@ -260,6 +261,21 @@ local AnalyzerMethods = {
 		_G.MakePlacer = function(name, bank, build, anim)
 			table.insert(placers, {name = name, bank = bank, build = build, anim = anim})
 			return {}
+		end
+
+		local old_prefabskin = CreatePrefabSkin
+		_G.CreatePrefabSkin = function(name, info)
+			local prefab = old_prefabskin(name, info)
+			table.insert(prefabskins, prefab)
+			if prefab.fn ~= nil then
+				print_info("prefabskin with source: "..json.encode(prefab))
+				if strict then
+					error("runtime error")
+				end
+			else
+				prefab.source = "PREFAB_SKIN"
+			end
+			return prefab
 		end
 
 		-- iter PREFABFILES
@@ -276,12 +292,14 @@ local AnalyzerMethods = {
 
 		self.prefabs = prefabs
 		self.prefabnames = prefabnames
+		self.prefabskins = prefabskins
 		self.placers = placers
 	end,
 
 	WriteFile = function(self)
 		local prefabs = self.prefabs
 		local prefabnames = self.prefabnames
+		local prefabskins = self.prefabskins
 		local placers = self.placers
 		
 		print_info("[Compiler] Link *_cooked")
@@ -307,7 +325,7 @@ local AnalyzerMethods = {
 
 		print_info("[Compiler] Link prefab placer")
 		
-		local data = { prefabs = {}, placers = {} }
+		local data = { prefabs = {}, placers = {}, prefabskins = prefabskins }
 		for k,v in pairs(prefabs)do
 			if v.name ~= "global" then
 				local assets, deps = {}, {}
@@ -338,7 +356,12 @@ local AnalyzerMethods = {
 
 		print_info("[Compiler] write file")
 
-		FileSystem.SaveString("prefab.dat", json.encode(data))
+		local output = FileSystem.Path(SCRIPT_ROOT)/"compiler/output/"
+		local path = output/"prefab.dat"
+		local str = json.encode(data)
+		-- it's only for debug, will always failed in release
+		pcall(function() path:write(str) end)
+		FileSystem.SaveString("prefab.dat", str)
 
 		main_result = data
 	end,
