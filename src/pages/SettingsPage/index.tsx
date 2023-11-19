@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { Dialog, DialogBody, DialogFooter, H4, Icon } from '@blueprintjs/core'
 import { RadioGroup, Radio, Button, Slider } from '@blueprintjs/core'
-import { useAppSetting, useLuaCall } from '../../hooks'
+import { useAppSetting, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { DragFolderPanel } from '../../components/GameRootSetter'
 import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
 import { openInstaller } from '../FFmpegInstaller'
 
+type FFmpeg = {
+  installed: boolean,
+  custom_installed: boolean,
+  custom_path: string,
+}
 export default function SettingsPage() {
   const [root, setRoot] = useAppSetting("last_dst_root")
   const [isEditingRoot, setEditingRoot] = useState(false)
@@ -16,8 +21,18 @@ export default function SettingsPage() {
   const [resolution, setResolution] = useAppSetting("resolution")
   const [numResults, setNumResults] = useAppSetting("num_search_results")
   const [showDesc, setShowDesc] = useAppSetting("quick_search_desc")
+  const [ffmpegState, setFState] = useState<FFmpeg>({
+    installed: false,
+    custom_installed: false,
+    custom_path: ""
+  })
+  const installed = ffmpegState.installed || ffmpegState.custom_installed
 
   const showRoot = useLuaCall("showroot", ()=> {})
+
+  useLuaCallOnce<string>("ffmpeg_getstate", response=> {
+    setFState(JSON.parse(response))
+  }, {}, [])
   
   return <div className='no-select'>
     <H4>游戏目录</H4>
@@ -91,8 +106,16 @@ export default function SettingsPage() {
     <hr/>
     <H4>视频编码器</H4>
     <p>FFmpeg是一个开源的多媒体编解码程序，饥荒资源档案的部分功能（例如动画导出）需要依赖FFmpeg。</p>
-    <Button icon="download" onClick={()=> openInstaller()}>安装</Button>
-
+    <p>
+      {
+        installed ? "已安装。" : ""
+      }
+    </p>
+    <Button icon="download" onClick={()=> openInstaller()}>
+      {
+        installed ? "配置" : "安装"
+      }
+    </Button>
     <div style={{height: 100}}></div>
 
     <Dialog title="设置游戏目录" isOpen={isEditingRoot} onClose={()=> setEditingRoot(false)}>

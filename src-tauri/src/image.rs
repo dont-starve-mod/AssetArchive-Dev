@@ -41,9 +41,10 @@ struct AffineTransform {
     ty: f64,
 }
 
+#[allow(dead_code)]
 impl AffineTransform {
     /// build an identity affine transform
-    fn new() -> Self {
+    fn identity() -> Self {
         AffineTransform {
             a: 1.0, b: 0.0,
             c: 0.0, d: 1.0,

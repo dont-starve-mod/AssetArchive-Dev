@@ -32,10 +32,30 @@ local function GetAlias2(key, po)
 		local index = #"alterguardian_phase"+1
 		return { string.format("%s（%s阶段）", po:GetName(key), CHINESE_NUMBER[tonumber(key:sub(index, index))]) }
 	end
-	if key == "alterguardian_phase3dead"then
+	if key == "alterguardian_phase3dead" then
 		return { po:GetName(key).. "（被击败）" }
 	end
-	if key == "carrat_planted"then
+	if key == "deciduous_root" then
+		return { string.format("%s%s", po:GetName("deciduoustree"), "的树根") }
+	end
+	if key == "lunarrift_portal" or key == "shadowrift_portal" then
+		local name = po:GetName(key)
+		return { name, string.format("%s%s", 
+			key:find("luna") and "月亮" or
+			key:find("shadow") and "暗影" or
+			error(key), name
+		)}
+	end
+	if key:startswith("shadowthrall") then
+		return {
+			po:GetName(key),
+			po:GetName(key.."_ALLEGIANCE"), -- ThePlayer:HasTag("player_shadow_aligned")
+		}
+	end
+	if key == "moonspider_spike" then
+		return { string.format("%s%s", po:GetName("spider_moon"), "的尖刺") }
+	end
+	if key == "carrat_planted" then
 		return { po:GetName("carrat") }
 	end
 	if key == "walkingplank" or key == "walkingplank_grass" then
@@ -44,11 +64,14 @@ local function GetAlias2(key, po)
 end
 
 local PREDEF_ALIAS_GROUP = {
-	{"berrybush", "berrybush2"},
+	{"bernie" --[[for search]], "bernie_inactive", "bernie_active"}, -- `inactive` is inventory item, `active` is walking creature
+	{"mandrake" --[[for search]], "mandrake_active", "mandrake_planted"},
+	{"woby"--[[for search]], "wobybig", "wobysmall"},
+	{"berrybush", "berrybush2", "dug_berrybush", "dug_berrybush2"},
 	{"cane_candycane", "winter_food3"},
 	{"gestalt", "gestalt_alterguardian_projectile"},
 	{"gestalt_guard", "largeguard_alterguardian_projectile"},
-	{"houndfire", "fire"},
+	{"fire", "houndfire"},
 	{"lava_pond_rock", "cavein_boulder"},
 	{
 		"pigelitefighter1", "pigelite1",
@@ -56,8 +79,10 @@ local PREDEF_ALIAS_GROUP = {
 		"pigelitefighter3", "pigelite3",
 		"pigelitefighter4", "pigelite4",
 	},
+	{"shadowthrall_hands", "shadowthrall_horns", "shadowthrall_wings"},
 	{"stageusher", "stagehand"},
 	{"statue_marble", "sculpture_rookbody", "sculpture_knightbody", "sculpture_bishopbody"},
+	{"lunarrift_portal", "shadowrift_portal"},
 }
 
 return {

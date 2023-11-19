@@ -4,6 +4,7 @@ use std::collections::hash_map::Entry;
 use std::ffi::OsStr;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -16,6 +17,8 @@ struct DownloadState {
     total: f64,
     /// actual downloaded bytes length, updated by Handler.write()
     current_downloaded: usize,
+    /// start time of session
+    start: f64,
     /// status of download session
     /// WORKING | ERROR | CENCEL
     status: String,
@@ -42,6 +45,13 @@ fn run_version<P: AsRef<OsStr>>(path: P) -> Result<bool, String> {
         ).find("ffmpeg").is_some()
     })
     .map_err(|e| e.to_string())
+}
+
+fn current_time() -> f64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64()
 }
 
 pub mod lua_ffmpeg {
@@ -115,6 +125,7 @@ pub mod lua_ffmpeg {
     struct DownloadHandler {
         id: String,
         data: Vec<u8>,
+        start: f64,
     }
 
     impl Handler for DownloadHandler {
@@ -136,7 +147,7 @@ pub mod lua_ffmpeg {
                     let state = entry.get_mut();
                     state.current = dlnow;
                     state.total = dltotal;
-                    state.status == "WORKING" // stop transferring if global state status was changed
+                    state.start == self.start && state.status == "WORKING" // stop transferring if global state status was changed
                 },
                 Entry::Vacant(_)=> false // stop transferring if global state not exists
             }
@@ -213,7 +224,7 @@ pub mod lua_ffmpeg {
         match path.to_string() {
             Ok(path)=> match run_version(path){
                 Ok(v)=> {
-                    Ok(if v { (true, "") } else { (false, "Interval error in running `ffmpeg -version`")})
+                    Ok(if v { (true, "") } else { (false, "Interval error in running `$ffmpeg -version`")})
                         .map(|v| (v.0, v.1.to_string()))
                 },
                 Err(e)=> {
@@ -232,45 +243,51 @@ pub mod lua_ffmpeg {
     table.set("Start", lua_ctx.create_function(|_, (id, url): (String, String)|{
         let mut state = DOWNLOAD_STATE.lock().unwrap();
         match state.get(&id) {
-            Some(_)=> {
-                println!("Downloader session already exists: {}", &id);
-                Ok(false)
+            Some(state)=> {
+                if state.status == "WORKING" {
+                    println!("Downloader session already exists: {}", &id);
+                    return Ok(false);
+                }
             },
-            None=> {
-                state.insert(id.clone(), DownloadState {
-                    id: id.clone(), 
-                    url: url.clone(), 
-                    current: 0.0, 
-                    total: 0.0, 
-                    current_downloaded: 0,
-                    status: "WORKING".into() ,
-                    data: Vec::new(),
-                });
-                // curl session
-                let mut session = Easy2::new(DownloadHandler{
-                    id: id.clone(),
-                    data: Vec::with_capacity(28*1000*1000), 
-                });
-                session.url(url.as_str()).unwrap();
-                session.progress(true).unwrap();
-                session.follow_location(true).unwrap();
-                
-                std::thread::spawn(move ||{
-                    session.perform().unwrap_or_else(|e| {
-                        DOWNLOAD_STATE.lock().unwrap().entry(id.clone())
-                            .and_modify(|state| state.status = format!("ERROR {:?}", e));});
-                    
-                    DOWNLOAD_STATE.lock().unwrap().entry(id.clone())
-                        .and_modify(|state| {
-                            if state.status.as_str() == "WORKING" {
-                                state.data = session.get_ref().data.clone();
-                                state.status = "FINISH".into()
-                            }
-                    });
-                });
-                Ok(true)
-            }
-        }
+            _=> ()
+        };
+
+        let start = current_time();
+        state.insert(id.clone(), DownloadState {
+            id: id.clone(), 
+            url: url.clone(), 
+            start,
+            current: 0.0, 
+            total: 0.0, 
+            current_downloaded: 0,
+            status: "WORKING".into() ,
+            data: Vec::new(),
+        });
+        // curl session
+        let mut session = Easy2::new(DownloadHandler{
+            id: id.clone(),
+            start,
+            data: Vec::with_capacity(28*1000*1000), 
+        });
+        session.url(url.as_str()).unwrap();
+        session.progress(true).unwrap();
+        session.follow_location(true).unwrap();
+        session.ssl_verify_peer(false).unwrap();
+        
+        std::thread::spawn(move ||{
+            session.perform().unwrap_or_else(|e| {
+                DOWNLOAD_STATE.lock().unwrap().entry(id.clone())
+                    .and_modify(|state| state.status = format!("ERROR {:?}", e));});
+            
+            DOWNLOAD_STATE.lock().unwrap().entry(id.clone())
+                .and_modify(|state| {
+                    if state.status.as_str() == "WORKING" {
+                        state.data = session.get_ref().data.clone();
+                        state.status = "FINISH".into()
+                    }
+            });
+        });
+        Ok(true)
     })?)?;
 
     // get session state by id 

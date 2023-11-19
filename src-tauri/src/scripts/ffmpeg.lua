@@ -34,7 +34,8 @@ function FFmpeg:StartDownloading()
     end
     local s = Downloader.GetState(DOWNLOADER_ID)
     if s == nil or s.status ~= "WORKING" then
-        Downloader.Start(DOWNLOADER_ID, url)
+        Downloader.Cancel(DOWNLOADER_ID)
+        Downloader.Start(DOWNLOADER_ID, url, true)
     end
 end
 
@@ -42,6 +43,20 @@ function FFmpeg:Uninstall()
     if self.binpath:exists() then
         self.binpath:delete()
     end
+end
+
+function FFmpeg:GetState()
+    local installed = self.binpath:is_file()
+        and self:ValidateBinPath(self.binpath)
+    local custom_path = Config:Get("ffmpeg_path")
+    local custom_installed = custom_path ~= nil and custom_path ~= ""
+        and self:ValidateBinPath(custom_path)
+
+    return {
+        installed = installed,
+        custom_installed = custom_installed,
+        custom_path = custom_path,
+    }
 end
 
 function FFmpeg:Install(bytes)
@@ -65,7 +80,7 @@ function FFmpeg:Install(bytes)
                     binpath:write(bytes)
                     binpath:set_mode(511) -- 0o777
                     print_info("[INFO] 安装完成")
-                    return true
+                    return binpath
                 end
             end
         end
@@ -77,7 +92,7 @@ function FFmpeg:Install(bytes)
             binpath:write(bytes)
             binpath:set_mode(511) -- 0o777
             print_info("[INFO] 安装完成")
-            return true
+            return binpath
         else
             print_error(type(bytes), bytes ~= nil and #bytes or -1)
             print_error("Internal error: decompressed bytes too short")
@@ -112,7 +127,10 @@ IpcHandlers.Register("ffmpeg_install", function(param)
     elseif param.type == "update" then
         local s = Downloader.GetState(DOWNLOADER_ID)
         if s.status == "FINISH" then
-            FFmpegManager:Install(Downloader.GetData(DOWNLOADER_ID))
+            local path = FFmpegManager:Install(Downloader.GetData(DOWNLOADER_ID))
+            if path then
+                FFmpegManager:ValidateBinPath(path)
+            end
             Downloader.ClearData(DOWNLOADER_ID)
             return {
                 success = true,
@@ -126,18 +144,31 @@ IpcHandlers.Register("ffmpeg_install", function(param)
     end
 end)
 
+IpcHandlers.Register("ffmpeg_getstate", function()
+    return FFmpegManager:GetState()
+end)
+
 IpcHandlers.Register("ffmpeg_uninstall", function(param)
-    FFmpegManager.Uninstall()
+    FFmpegManager:Uninstall()
 end)
 
 IpcHandlers.Register("ffmpeg_custom_install", function(param)
     assert(type(param) == "table")
     assert(type(param.path) == "string")
-    local success, message = FFcore.ValidateBinPath(param.path)
-    if success then
-        Config:SetAndSave("ffmpeg_path", param.path)
-        return true
+    if param.path == "" then
+        Config:SetAndSave("ffmpeg_path", "")
     else
-        return false, message
+        local success, message = FFcore.ValidateBinPath(param.path)
+        if success then
+            Config:SetAndSave("ffmpeg_path", param.path)
+            return {
+                success = true,
+            }
+        else
+            return {
+                success = false,
+                message = message,
+            }
+        end
     end
 end)

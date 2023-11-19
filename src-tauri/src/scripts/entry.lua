@@ -1,15 +1,20 @@
 Entry = Class(function(self, data)
-	self.key = data.key or nil
+	self.key = data.key or nil -- unique key of entry, use ascii string (like prefab name)
 
-	self.alias = data.alias or {}
-	self.abstract = data.abstract or {}
-	self.source = data.source or {}
-	self.deps = data.deps or {}
-	self.assets = data.assets or {}
+	self.alias = data.alias or {} -- list of names (string)
+	self.desc = data.desc or {} -- list of descrptions (richtext or string)
+	self.assets = data.assets or {} -- list of relative assets
+	self.deps = data.deps or {} -- list of relative prefabs/entries
+	self.source = data.source or {} -- list of source file
 end)
 
-function Entry:SetKey(k)
-	assert(k)
+local function VerifyKey(key)
+	return key:match("[a-zA-Z0-9%_%-]")
+end
+
+function Entry:SetKey(key)
+	assert(type(key) == "string")
+	assert(VerifyKey(key), "Invalid key content, must use a-z, A-Z, 0-9, - & _")
 	assert(self.key == nil)
-	self.key = k
+	self.key = key
 end

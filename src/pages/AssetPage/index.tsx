@@ -10,7 +10,7 @@ import style from './index.module.css'
 import Preview from '../../components/Preview'
 import ClickableTag from '../../components/ClickableTag'
 import Hash from '../../components/HumanHash'
-import FacingIcon from '../../components/FacingIcon'
+import FacingString from '../../components/FacingString'
 import CCMiniPlayground from '../../components/CCMiniPlayground'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
@@ -538,7 +538,7 @@ function ZipPage({type, file, id}) {
                   {name}
                 </td>
                 <td>
-                  <FacingIcon facing={facing}/>
+                  <FacingString facing={facing}/>
                 </td>
                 <td>{numframes}</td>
               </tr>

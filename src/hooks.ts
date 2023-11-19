@@ -113,7 +113,8 @@ type rLuaAPI =
   "set" |
   "ffmpeg_install" |
   "ffmpeg_uninstall" |
-  "ffmpeg_custom_install  " |
+  "ffmpeg_custom_install" |
+  "ffmpeg_getstate" |
   "render_animation_sync" | 
   "render_animation_async"
   
@@ -144,7 +145,7 @@ export function useLuaCallOnce<T>(
   api: rLuaAPI, 
   callback: LuaCallCb<T>, 
   defaultParams = {}, 
-  // dependency list that change the function definition (like useCallback)
+  // dependency list that update the function definition (like useCallback)
   deps: React.DependencyList,
   // dependency list that indicating whether the function will be called after changed
   // an empty list or a non-empty list containing true value is YES

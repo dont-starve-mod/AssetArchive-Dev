@@ -15,9 +15,9 @@ class MyHandler(LoggingEventHandler):
 			return 
 		print(event)
 		super(LoggingEventHandler, self).on_modified(event)
-		p = subprocess.run(["./target/release/asset-archive", "c"], text = True, capture_output = True)
-		print(p.stdout)
-		print(p.stderr)
+		p = subprocess.run(["./target/release/asset-archive", "c"])#, text = True, capture_output = True)
+		# print(p.stdout)
+		# print(p.stderr)
 
 logging.basicConfig(level = logging.INFO, format = "%(asctime)s %(message)s")
 observer = Observer()

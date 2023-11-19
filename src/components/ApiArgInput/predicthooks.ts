@@ -46,7 +46,9 @@ export function useHashPredicter(
   items: (string | number)[]) {
 
   const [result, setResult] = useState(undefined)
+  const predict_ready = useSelector(({appstates})=> appstates.predict_init_flag)
   useEffect(()=> {
+    if (!predict_ready) return
     let unmountFlag = false
     let session = fuseworker.search(query, {items, options: {isCaseSensitive: false}})
     session.then(
@@ -59,7 +61,7 @@ export function useHashPredicter(
       unmountFlag = true
       fuseworker.terminate(session.id)
     }
-  }, [query, items])
+  }, [query, items, predict_ready])
 
   const hasPredicted = result !== undefined
   const bestMatch = result && result.length && result[0].matches[0].value

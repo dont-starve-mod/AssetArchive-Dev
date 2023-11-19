@@ -7,6 +7,7 @@ import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { useBasicPredicter, useGlobalAnimState, useHashPredicter, usePredicterFormatter } from "./predicthooks"
 import { FuseResult } from '../../searchengine'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
+import { useSelector } from '../../redux/store'
 
 type Color = [number, number, number, number]
 
@@ -210,6 +211,7 @@ function LayerSetter(props: { value: string, onChange: (layer: string)=> void })
 function OverrideSymbolSetter(props: { args: string[], onChange: (value: string, index: number)=> void }){
   const {args, onChange} = props
   const [symbolNames, setSymbolNames] = useState<string[]>([])
+  const predict_ready = useSelector(({appstates})=> appstates.predict_init_flag)
 
   useLuaCallOnce<string>("load", (result)=> {
     if (result.startsWith("[")){
@@ -221,7 +223,7 @@ function OverrideSymbolSetter(props: { args: string[], onChange: (value: string,
     else {
       setSymbolNames([])
     }
-  }, {type: "build", get_symbol_list: true, build: args[1]}, [args[1]])
+  }, {type: "build", get_symbol_list: true, build: args[1]}, [args[1], predict_ready], [predict_ready])
 
   const predict = useHashPredicter(args[2], symbolNames)
 
