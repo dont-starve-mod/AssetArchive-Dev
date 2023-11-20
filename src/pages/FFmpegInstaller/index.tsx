@@ -3,7 +3,6 @@ import style from './index.module.css'
 import { WebviewWindow } from '@tauri-apps/api/window'
 import { Button, Card, H5, H6, Icon, InputGroup, Spinner, Tag } from '@blueprintjs/core'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
-import { update } from '../../redux/reducers/appsettings'
 
 export default function FFmpegInstaller() {
   const [step, setStep] = useState<"intro"|"normal-install"|"custom-install">("intro")

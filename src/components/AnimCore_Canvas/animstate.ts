@@ -364,6 +364,10 @@ export class AnimState {
     }
   }
 
+  get hasFrameList(): boolean {
+    return Array.isArray(this.frameList) && this.frameList.length > 0
+  }
+
   getActualBuild(): string | undefined {
     for (let i = this.api_list.length - 1; i >= 0; --i){
       const {name, args, disabled} = this.api_list[i]

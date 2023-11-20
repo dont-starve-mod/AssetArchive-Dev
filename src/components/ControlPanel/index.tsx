@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useState } from 'react'
-import { Button, ButtonGroup, ButtonProps, Collapse, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
+import { Button, ButtonGroup, ButtonProps, Collapse, Dialog, DialogBody, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
 import style from './index.module.css'
 import ApiPicker from '../ApiPicker'
 import ApiOperator from '../ApiOperator'
@@ -113,6 +113,8 @@ function Export() {
 
   const call = useLuaCall("render_animation_sync", ()=> {}, {}, [])
   const requestExportTo = useCallback((path: string)=> {
+    animstate.pause()
+    if (!animstate.hasFrameList) return
     call({
       path,
       api_list: animstate.getValidApiList(),
@@ -266,7 +268,10 @@ function Export() {
 
       </div>
       <div style={{margin: "5px 0", padding: "5px 0", borderTop: "1px solid #ccc"}}>
-        <Button icon="export" intent="primary" fill onClick={()=> onClickExport()}>导出</Button>
+        <Button icon="export" intent="primary" fill disabled={!animstate.hasFrameList}
+          onClick={()=> onClickExport()}>
+          导出
+        </Button>
       </div>
       <div style={{height: 40}}></div>
     </ControlPanel>

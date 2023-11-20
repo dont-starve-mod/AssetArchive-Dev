@@ -278,6 +278,13 @@ function Render:Run()
 	if format == "png" then
 		assert(path:is_dir(), "Error: png sequence must export to a directory")
 	else
+		if not FFmpegManager:IsAvailable() then
+			IpcEmitEvent("render_event", json.encode_compliant{
+				state = "error",
+				message = "FFmpeg not installed"
+			})
+			return
+		end
 		if not path:is_file() then
 			path:write("\0\0\0") -- test if target path is writable
 		end
@@ -514,7 +521,6 @@ function Render:Run()
 	end
 
 	if format ~= "png" then
-		enc:close() -- close encoder stdin pipe
 		enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
 	end
 

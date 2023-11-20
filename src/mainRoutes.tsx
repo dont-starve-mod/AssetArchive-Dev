@@ -14,6 +14,8 @@ export default function MainRoutes() {
     <Route path="/settings" element={<SettingsPage/>} />
     <Route path="/about" element={<AboutPage/>} />
     <Route path="/asset" element={<AssetPage/>}/>
+    <Route path="/asset-group" element={<HomePage/>}/> 
+    {/* // TODO: add group data */}
     <Route path="/report-bug" element={<ReportBugPage/>} />
     <Route path="/anim-list" element={<AnimListPage/>} />
     <Route path="/search" element={<SearchResultPage/>} />

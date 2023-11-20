@@ -471,9 +471,17 @@ function Sfx(props: {path: string, param_list: any[]} & PreviewProps) {
     })})
   }, [])
   const onClick = useCallback((e: React.MouseEvent)=> {
-    if (isPlaying){stop()}else{play()}
+    if (isPlaying) {
+      stop()
+      if (playingPath !== path) {
+        play()
+      }
+    }
+    else {
+      play()
+    }
     e.stopPropagation()
-  }, [play, stop, isPlaying])
+  }, [play, stop, isPlaying, playingPath, path])
 
   return (
     <div style={{position: "relative", width: "100%", height: "100%"}}>

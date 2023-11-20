@@ -59,6 +59,10 @@ function FFmpeg:GetState()
     }
 end
 
+function FFmpeg:IsAvailable()
+    return self.binpath:is_file() or (Config:Get("ffmpeg_path") or "") ~= ""
+end
+
 function FFmpeg:Install(bytes)
     local binpath = self.binpath
     if binpath:exists() then

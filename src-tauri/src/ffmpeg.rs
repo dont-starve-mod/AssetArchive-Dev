@@ -173,9 +173,9 @@ pub mod lua_ffmpeg {
 
         let mut command = FfmpegCommand::new_with_path(bin);
         command.hide_banner()
+            .args(["-r", rate.to_string().as_str()])
             .args(["-f", "image2pipe"])
-            .args(["-i", "pipe:0"])
-            .args(["-r", rate.to_string().as_str()]);
+            .args(["-i", "pipe:0"]);
 
         match &format[..] {
             "gif"=> (),

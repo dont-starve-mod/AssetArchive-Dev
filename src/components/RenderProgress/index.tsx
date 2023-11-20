@@ -1,9 +1,14 @@
 import { Dialog, DialogBody, H5, ProgressBar } from '@blueprintjs/core'
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api'
+import { openInstaller } from '../../pages/FFmpegInstaller'
 // @ts-ignore
-import aris from './aris.gif'
+import aris_working from './aris-working.gif'
+// @ts-ignore
+import aris_failed from './aris-failed.png'
+// @ts-ignore
+import aris_finish from './aris-finish.gif'
 
 type RenderEvent = {
   state: "start",
@@ -16,6 +21,9 @@ type RenderEvent = {
 } | {
   state: "finish",
   path: string,
+} | {
+  state: "error",
+  message: string,
 }
 
 const STEP_1_WIDTH = 0.4
@@ -23,12 +31,18 @@ const STEP_2_WIDTH = 0.6
 
 export default function RenderProgress() {
   const [open, setOpen] = useState(false)
+  const [percent, setPercent] = useState(0)
+  const [error, setError] = useState("")
+  const [path, setPath] = useState("")
+
+  const inProgress = percent >= 0 && percent < 1
   const handleClose = useCallback(()=> {
     setOpen(false)
-    invoke("interupt", { type: "render_animation_sync" } )
-  }, [])
-  const [percent, setPercent] = useState(0)
-  const [path, setPath] = useState("")
+    if (inProgress){
+      invoke("lua_interrupt", {})
+    }
+  }, [inProgress])
+
   useEffect(()=> {
     const handlers = [
       listen<string>("render_event", ({payload})=> {
@@ -36,6 +50,7 @@ export default function RenderProgress() {
         if (data.state === "start"){
           setOpen(true)
           setPath("")
+          setError("")
           setPercent(0)
         }
         else if (data.state === "render_element")
@@ -46,6 +61,10 @@ export default function RenderProgress() {
           setPercent(1)
           setPath(data.path)
         }
+        else if (data.state === "error") {
+          setPercent(0.3)
+          setError(data.message)
+        }
       })
     ]
 
@@ -53,15 +72,28 @@ export default function RenderProgress() {
   }, [])
 
   return (
-    <Dialog title="" isOpen={open} onClose={handleClose}>
+    <Dialog title="" isOpen={open} onClose={handleClose}
+      canEscapeKeyClose={false} canOutsideClickClose={false}>
       <DialogBody>
         <div style={{display: "flex", justifyContent: "center"}}>
-          <Aris/>
+          <Aris state={error ? "failed" : path ? "finish" : "working"}/>
           <div style={{marginLeft: 20, width: 300}}>
             {
               !path && <>
-                <H5>正在导出 {Math.round(percent* 100) + "%"}</H5>
-                <ProgressBar value={percent}/>
+                <H5>
+                  {
+                    !Boolean(error) ? 
+                    `正在导出 ${Math.round(percent* 100)}%` :
+                    `导出失败`
+                  }
+                </H5>
+                <ProgressBar value={percent} intent={error ? "danger" : "none"}/>
+                <div style={{marginTop: 10}}>
+                  {
+                    error.toLowerCase().indexOf("ffmpeg") !== -1 &&
+                    <p>还没有安装<a onClick={()=> openInstaller()}>FFmpeg</a>，无法导出gif/mp4/mov格式。</p>
+                  }
+                </div>
               </>
             }
             {
@@ -77,12 +109,23 @@ export default function RenderProgress() {
   )
 }
 
-function Aris(){
+function Aris({state}: {state: "working" | "failed" | "finish"}){
   return (
-    <div style={{width: 100, height: 100, position: "relative", backgroundColor: "transparent"}}>
+    <div style={{width: 100, height: 100, position: "relative", backgroundColor: "transparent"}} draggable="false">
       <div style={{transform: "scale(0.5) translate(-50%, -50%)", position: "absolute", left: 0, top: 0}} draggable="false">
         <div style={{width: 200, height: 200, borderRadius: 100, backgroundColor: "rgb(146,218,252)", overflow: "hidden", position: "relative"}}>
-          <img src={aris} height={200} style={{position: "absolute", transform: "scale(1.1) translate(-25px, -18px)"}}/>
+          {
+            state === "working" &&
+            <img src={aris_working} height={200} style={{position: "absolute", transform: "scale(1.2) translate(-22px, -15px)"}}/>
+          }
+          {
+            state === "failed" && 
+            <img src={aris_failed} height={180} style={{position: "absolute", transform: "translate(0px, -5px)"}}/>
+          }
+          {
+            state === "finish" &&
+            <img src={aris_finish} height={210} style={{position: "absolute", transform: "translate(-15px, -10px)"}}/>
+          }
         </div>
       </div>
     </div>
