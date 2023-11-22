@@ -663,6 +663,12 @@ function Provider:GetAtlas(args)
 							return img:save(args.path) and args.path
 						end
 					end
+				elseif args.format == "permission" then
+					if atlas.is_dyn then
+						return DYN_ENCRYPT
+					else
+						return true
+					end
 				end
 			end
 		end
@@ -776,6 +782,12 @@ function Provider:GetSymbolElement(args)
 						if img ~= nil then
 							return img:save(args.path) and args.path
 						end
+					end
+				elseif args.format == "permission" then
+					if atlas.is_dyn and not allow_copy then
+						return DYN_ENCRYPT
+					else
+						return true
 					end
 				end
 			end

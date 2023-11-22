@@ -24,6 +24,18 @@ function KeepAlive(props) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
 }
 
+function getTypeKeyById(id: string): string {
+  switch(id.substring(0, 1)){
+    case "d": return "alldynfile"
+    case "z": return "allzipfile"
+    case "t": return "alltexelement"
+    case "x": return "allxmlfile"
+    case "n": return "alltexture"
+    case "f": return id.startsWith("fev") ? "allfmodproject" : "allfmodevent"
+  }
+  throw Error("Failed to get type key: " + id)
+}
+
 export default function AssetPage() {
   const [param] = useSearchParams()
   const id = param.get("id")
@@ -32,7 +44,7 @@ export default function AssetPage() {
   if (id === null) return <AssetInvalidPage type="null"/>
   const asset = window.assets_map[id]
   if (!asset) {
-    if (Object.keys(window.assets).length === 0){
+    if (!window.assets[getTypeKeyById(id)]){
       return <AssetInvalidPage type="waiting" forceUpdate={forceUpdate}/>
     }
     else {
@@ -40,7 +52,7 @@ export default function AssetPage() {
       return <AssetInvalidPage type="invalid-id" id={id}/>
     }
   }
-
+  
   const {type} = asset
   switch(type) {
     case "tex": 
@@ -395,10 +407,10 @@ function ZipPage({type, file, id}) {
   const copyAtlas = useCopyBuildAtlas(file)
   const copyElement = useCopySymbolElement(file)
   const downloadAtlas = useSaveFileCall({
-    type: "atlas", build: file  
+    type: "atlas", build: file, check_permission: true, 
   }, "image", "atlas.png", [file])
   const downloadElement = useSaveFileCall({
-    type: "symbol_element", build: file,
+    type: "symbol_element", build: file, check_permission: true,
   }, "image", "image.png", [file])
 
   const onSuccess = useCopySuccess()

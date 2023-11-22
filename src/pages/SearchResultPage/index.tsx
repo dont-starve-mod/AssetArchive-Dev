@@ -8,7 +8,9 @@ import AssetDescFormatter from '../../components/AssetDescFormatter'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import cacheContext from '../../components/KeepAlive/cacheContext'
 import style from "./index.module.css"
+import { search } from '../../global_meilisearch'
 import { AccessableItem } from '../../components/AccessableItem'
+import { useSelector } from '../../redux/store'
 
 export default function SearchResultPage() {
   const location = useLocation()
@@ -33,27 +35,28 @@ export default function SearchResultPage() {
 
   useEffect(()=> {
     if (!query) return
-    let changed = false
     setLoading(true)
-    if (!searchengine.ready) {
-      setTimeout(()=> forceUpdate(), 330)
-      return
-    }
-    searchengine.search(query, null, "search").then(
-      (result: Array<FuseResult<AllAssetTypes>&{id: string, matches: Matches}>)=> {
-        if (changed) return
-        setSearchResult(result.map(item=> 
-          ({...window.assets_map[item.id], ...item})))
-        setLoading(false)
-        dropCache({cacheId: "searchPage/" + location.search})
-      }
+    console.log(">>>>>")
+    search("assets", query, {
+      limit: 10000,
+      showMatchesPosition: true,
+
+    }).then(
+      console.log,
+      console.log,
+      // (result: Array<FuseResult<AllAssetTypes>&{id: string, matches: Matches}>)=> {
+      //   if (changed) return
+      //   setSearchResult(result.map(item=> 
+      //     ({...window.assets_map[item.id], ...item})))
+      //   setLoading(false)
+      //   dropCache({cacheId: "searchPage/" + location.search})
+      // }
     )
-    return ()=> { changed = true }
-  }, [query, flag, forceUpdate])
+  }, [query, forceUpdate])
 
   const maxResultNum = 500
 
-  console.log("Render", loading, tab)
+  console.log("Render", loading, tab, query)
 
   return <div>
     <H3>搜索 <span style={{color: "#6020d0"}}>{query}</span></H3>

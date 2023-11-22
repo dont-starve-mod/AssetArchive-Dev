@@ -30,7 +30,6 @@ export default function Nav() {
       setLoading(true)
       search("assets", query, {limit: 1000, showMatchesPosition: true}).then(
         result=> {
-          console.log(result.hits[0])
           if (result.query !== query) return
           setSearchResult(result.hits.map(({id, _matchesPosition})=> {
             return {

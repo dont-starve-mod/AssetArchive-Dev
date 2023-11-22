@@ -118,6 +118,7 @@ type rLuaAPI =
   "render_animation_sync" | 
   "render_animation_async"
   
+type LuaCallParams = {[K: string]: string | number | boolean}
 type LuaCallCb<T> = (response: T, param?: any)=> void
 
 /** a strict lua ipc hook
@@ -126,7 +127,7 @@ type LuaCallCb<T> = (response: T, param?: any)=> void
 export function useLuaCall<T>(
   api: rLuaAPI, 
   callback: LuaCallCb<T>, 
-  defaultParams = {}, 
+  defaultParams: LuaCallParams = {}, 
   deps: React.DependencyList = [])
 {
   return useCallback((param={})=> {
@@ -144,7 +145,7 @@ export function useLuaCall<T>(
 export function useLuaCallOnce<T>(
   api: rLuaAPI, 
   callback: LuaCallCb<T>, 
-  defaultParams = {}, 
+  defaultParams: LuaCallParams = {}, 
   // dependency list that update the function definition (like useCallback)
   deps: React.DependencyList,
   // dependency list that indicating whether the function will be called after changed
@@ -235,8 +236,8 @@ const SAVE_FILTERS = {
 
 /** common file save dialog */
 export function useSaveFileDialog(saveFn, filters, defaultPath: string) {
-  const fn = useCallback(async (param?: {[K: string]: any})=> {
-    defaultPath = param?.defaultPath || defaultPath
+  const fn = useCallback(async (param?: LuaCallParams)=> {
+    defaultPath = param?.defaultPath as string || defaultPath
     if (filters === "image" && defaultPath.endsWith(".tex"))
       defaultPath = defaultPath.substring(0, defaultPath.length - 4) + ".png"
     
@@ -265,7 +266,7 @@ export function useBatchDownloadDialog(type: "xml" | "build", data?: {[K in "fil
   return fn
 }
 
-export function useSaveSuccess(type) {
+export function useSaveSuccess(type?: "image") {
   let message = (type === "image" ? "图片" : "") 
     + "保存成功"
   return (savepath: string)=> appWindow.emit("toast", { message, icon: "saved", intent: "success", savepath})
@@ -283,11 +284,23 @@ export function useGenericSaveFileCb(filters) {
 } 
 
 /** wrap `useSaveFile` and `useLuaCall` */
-export function useSaveFileCall(defaultParams, filters, defaultPath: string, deps: React.DependencyList) {
+export function useSaveFileCall(defaultParams: LuaCallParams, filters, defaultPath: string, deps: React.DependencyList) {
+  const check_permission = defaultParams.check_permission === true
   const cb = useGenericSaveFileCb(filters) // callback fn when backend return message
   const saveFn = useLuaCall("load", cb, {...defaultParams, format: "save", result_type: "string"}, deps) // backend query
   const dialog = useSaveFileDialog(saveFn, filters, defaultPath) // get filepath from frontend 
-  return dialog
+  return useCallback(async (param?: LuaCallParams)=> {
+    if (check_permission) {
+      try {
+        const result = await invoke<string>("lua_call", {api: "load", param: JSON.stringify({...defaultParams, ...param, format: "permission"})})
+        if (checkEncryptResult(result)) return
+      }
+      catch(error) {
+        appWindow.emit("lua_call_error", error)
+      }
+    }
+    await dialog(param)
+  }, [check_permission, dialog])
 }
 
 /** appsettings getter & setter */
