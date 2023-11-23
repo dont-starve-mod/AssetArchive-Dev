@@ -1,7 +1,9 @@
 import { Icon } from '@blueprintjs/core'
 import React from 'react'
+import { useOS } from '../../hooks'
 
 export default function HomePage() {
+  const {isMacOS} = useOS()
   return (
     <div>
       <div style={{
@@ -20,7 +22,12 @@ export default function HomePage() {
               <td>
                 <span className='bp4-key-combo'>
                   <kbd className='bp4-key'>
-                    <Icon icon="key-command"/>
+                    {
+                      isMacOS && <Icon icon="key-command"/>
+                    }
+                    {
+                      !isMacOS && <Icon icon="key-control"/>
+                    }
                     <span style={{fontSize: "150%"}}>P</span>
                   </kbd>
                 </span>

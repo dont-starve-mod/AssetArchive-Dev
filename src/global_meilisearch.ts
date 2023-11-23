@@ -1,6 +1,10 @@
 import { appWindow } from "@tauri-apps/api/window"
-import MeiliSearch, { DocumentOptions, SearchParams } from "meilisearch"
+import MeiliSearch, { DocumentOptions, Hit, SearchParams, SearchResponse } from "meilisearch"
 import { SYNONYMS_MAP } from "./meilisearch_synonyms"
+import { LRUCache } from "lru-cache"
+
+export type Result = Hit<any>
+export const maxTotalHits = 5000
 
 type State = {
   addr?: string,
@@ -21,7 +25,7 @@ export function setAddr(addr: string) {
     separatorTokens: ["/"],
     synonyms: SYNONYMS_MAP,
     pagination: {
-      maxTotalHits: 5000,
+      maxTotalHits,
     }
   })
 }
@@ -75,8 +79,15 @@ export function addDocuments(index: IndexName, doc: any[], options?: DocumentOpt
   }
 }
 
+export type Response = SearchResponse<Record<string, any>, SearchParams>
+// const cache = new LRUCache<string, SearchResponse<Record<string, any>, SearchParams>>({max: 4})
+
 export async function search(index: IndexName, query: string, options?: SearchParams) {
   checkValid()
+  // let cacheKey = `${index}@${query}<${JSON.stringify(options)}>`
+  // if (cache.has(cacheKey)){
+  //   return cache.get(cacheKey)
+  // }
   let result = await state.client.index(index)
     .search(query, options)
   return result

@@ -1,3 +1,7 @@
+.result-list {
+  overflow: visible auto;
+  max-height: calc(100vh - 160px);
+}
 
 .no-result {
   margin-left: 10px;

@@ -12,15 +12,16 @@ import ClickableTag from '../../components/ClickableTag'
 import Hash from '../../components/HumanHash'
 import FacingString from '../../components/FacingString'
 import CCMiniPlayground from '../../components/CCMiniPlayground'
-import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
+import KeepAlivePage, { KeepAlivePageProps } from '../../components/KeepAlive/KeepAlivePage'
 import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
 import AssetFilePath from '../../components/AssetFilepath'
 import BatchDownloadButton from '../../components/BatchDownloadButton'
 import { FmodEvent, FmodProject } from '../../searchengine'
 import SfxPlayer from '../../components/SfxPlayer'
 import { AccessableItem } from '../../components/AccessableItem'
+import { invoke } from '@tauri-apps/api'
 
-function KeepAlive(props) {
+function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
 }
 
@@ -52,7 +53,7 @@ export default function AssetPage() {
       return <AssetInvalidPage type="invalid-id" id={id}/>
     }
   }
-  
+
   const {type} = asset
   switch(type) {
     case "tex": 
@@ -614,6 +615,19 @@ function FmodProjectPage(props: FmodProject) {
   const eventList = useMemo(()=> 
     window.assets.allfmodevent.filter(v=> v.project_name === name)
   , [name])
+
+  useEffect(()=> {
+    // listen for page cache
+    let unlisten = appWindow.listen<any>("unmount_cache", ({payload: {cacheId}})=> {
+      if (cacheId.startsWith("assetPage")) {
+        invoke("fmod_send_message", {data: JSON.stringify({
+          api: "KillSound",
+          args: ["PREVIEW_SFX"],
+        })})
+      }
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
 
   return (
     <div>

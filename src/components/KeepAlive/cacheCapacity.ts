@@ -87,5 +87,5 @@ export function useCacheCapacity(nameSpace: pageCacheNameSpace, profile: capacit
   return CAPACITY[profile][nameSpace]
 }
 
-export { capacityChoice, pageCacheNameSpace }
+export type { capacityChoice, pageCacheNameSpace }
 // export default cache

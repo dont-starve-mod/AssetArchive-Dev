@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-// use meilisearch_sdk::client::*;
 
 #[allow(unreachable_code)]
 fn get_bin_name() -> &'static str {
@@ -133,16 +132,4 @@ pub mod meilisearch_handler {
       .to_string();
     Ok(addr)
   }
-
-  // #[tauri::command(async)]
-  // pub fn search(state: tauri::State<'_, Meilisearch>, index: String, q: String) -> Result<String, String> {
-  //   check_process(state)?;
-  //   let client = state.client.lock().unwrap().as_ref().unwrap();
-  //   client.index(index)
-  //     .search()
-  //     .with_query(q.as_str())
-  //     .execute::<String>()
-  //     .await
-  //     // .map_err(|e|format!("Error occurred in searching: {}", e.to_string()))
-  // }
 }

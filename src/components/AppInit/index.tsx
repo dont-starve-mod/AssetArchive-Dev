@@ -174,6 +174,10 @@ export function ErrorHandler(){
           console.error(payload)
           setLuaError(payload) // temp use...
         }),
+        await globalListen<string>("runtime_error", ({payload})=> {
+          console.error(payload)
+          setLuaError(payload)
+        }),
         await globalListen<AlertPayload>("alert", ({payload})=> {
           console.warn(payload)
           payload.isOpen = true

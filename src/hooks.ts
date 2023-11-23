@@ -132,7 +132,7 @@ export function useLuaCall<T>(
 {
   return useCallback((param={})=> {
     // if ((defaultParams as any).debug){
-      console.log("useLuaCall", {...defaultParams, ...param})
+    //   console.log("useLuaCall", {...defaultParams, ...param})
     // }
     invoke<T>("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
       (response: T)=> callback(response, param),

@@ -21,12 +21,14 @@ mod fmod;
 mod unzip;
 mod args;
 mod meilisearch;
+mod select;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use fmod::FmodChild;
 use meilisearch::MeilisearchChild;
 
 use fmod::fmod_handler::*;
 use meilisearch::meilisearch_handler::*;
+use select::select_handler::*;
 use include_lua::ContextExt;
 use include_lua_macro;
 
@@ -82,6 +84,12 @@ struct FeCommuni {
     drag_data: Mutex<HashMap<String, String>>,
 }
 
+#[derive(Default)]
+struct WindowsSelect {
+    #[cfg(target_os="windows")]
+    binpath: Mutex<PathBuf>,
+}
+
 fn main() {
     
     tauri::Builder::default()
@@ -89,10 +97,13 @@ fn main() {
         .manage(FeCommuni::default())
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
+        .manage(WindowsSelect::default())
         .setup(move|app| {
             lua_init(app)?;
             init_fmod(app)?;
             init_meilisearch(app)?;
+            #[cfg(target_os="windows")]
+            init_windows_select(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -153,10 +164,10 @@ fn select_file_in_folder(path: String) -> bool {
         .is_ok()
 }
 
-#[cfg(windows)]
+#[cfg(target_os="windows")]
 #[tauri::command]
-fn select_file_in_folder(path: String) -> bool {
-    unimplemented!();
+fn select_file_in_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String) -> bool {
+    windows_select_file_in_folder(app, path)
 }
 
 #[tauri::command]
