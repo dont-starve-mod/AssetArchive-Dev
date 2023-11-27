@@ -228,6 +228,7 @@ function Render:GetSymbolElement(build, symbol, index)
 		index = index,
 		format = "img",
 		fill_gap = false,
+		resize = true,
 	})
 	assert(img, "Failed to load symbol element: "..build.." -> " .. symbol .. "-" ..index)
 

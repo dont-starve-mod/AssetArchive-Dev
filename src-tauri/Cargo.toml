@@ -34,7 +34,7 @@ webbrowser = { version = "0.8.11", features = ["hardened"] }
 once_cell = "1.18.0"
 sevenz-rust = "0.5.3"
 libdeflater = "1.19.0"
-meilisearch-sdk = "0.24.3"
+# meilisearch-sdk = "0.24.3"
 json = "0.12.4"
 ffmpeg-sidecar = "0.5.1"
 

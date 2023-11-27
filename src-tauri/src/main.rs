@@ -22,15 +22,18 @@ mod unzip;
 mod args;
 mod meilisearch;
 mod select;
+mod es;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use fmod::FmodChild;
 use meilisearch::MeilisearchChild;
 
 use fmod::fmod_handler::*;
 use meilisearch::meilisearch_handler::*;
+#[cfg(target_os="windows")]
 use select::select_handler::*;
+#[cfg(target_os="windows")]
+use es::es_handler::*;
 use include_lua::ContextExt;
-use include_lua_macro;
 
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 fn _menu() -> Menu {
@@ -75,19 +78,12 @@ pub struct FmodHandler {
 #[derive(Default)]
 pub struct Meilisearch {
     meilisearch: Mutex<Option<MeilisearchChild>>,
-    client: Mutex<Option<meilisearch_sdk::Client>>,
     init_error: Mutex<String>,
 }
 
 #[derive(Default)]
 struct FeCommuni {
     drag_data: Mutex<HashMap<String, String>>,
-}
-
-#[derive(Default)]
-struct WindowsSelect {
-    #[cfg(target_os="windows")]
-    binpath: Mutex<PathBuf>,
 }
 
 fn main() {
@@ -97,13 +93,16 @@ fn main() {
         .manage(FeCommuni::default())
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
-        .manage(WindowsSelect::default())
         .setup(move|app| {
             lua_init(app)?;
             init_fmod(app)?;
             init_meilisearch(app)?;
             #[cfg(target_os="windows")]
-            init_windows_select(app)?;
+            {
+                init_windows_select(app)?;
+                // init_es(app)?; 
+            }
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -130,7 +129,7 @@ fn main() {
 #[tauri::command(async)]
 fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>) -> Result<String, String> {
     let init_error = String::from_str(&state.init_error.lock().unwrap()).unwrap();
-    if init_error.len() > 0 {
+    if init_error.is_empty() {
         Err(init_error)
     }
     else {
@@ -142,7 +141,7 @@ fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
 /// debug function which runs Lua script in console
 #[tauri::command]
 fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
-    if script.len() == 0 {
+    if script.is_empty() {
         return ();
     }
     match state.lua.lock().unwrap().context(|lua_ctx|{
@@ -166,8 +165,8 @@ fn select_file_in_folder(path: String) -> bool {
 
 #[cfg(target_os="windows")]
 #[tauri::command]
-fn select_file_in_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String) -> bool {
-    windows_select_file_in_folder(app, path)
+fn select_file_in_folder(path: String) -> bool {
+    windows_select_file_in_folder(path)
 }
 
 #[tauri::command]
@@ -292,7 +291,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
                 return Some(LuaPath::new(path));
             }
         }
-        return None;
+        None
     };
 
     lua.context(|lua_ctx| -> LuaResult<()>{
@@ -340,10 +339,10 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         globals.set("loadfile", Nil)?;
         // let old_loadstring = globals.get::<_, Function>("loadstring")?;
         globals.set("loadstring", lua_ctx.create_function(|lua, (s, chunkname): (LuaString, Option<String>)|{
-            if s.as_bytes().len() == 0 {
+            if s.as_bytes().is_empty() {
                 Err(LuaError::RuntimeError("loadstring: try to load an empty string".to_string()))
             }
-            else if s.as_bytes().get(0) == Some(&27) {
+            else if s.as_bytes().first() == Some(&27) {
                 Err(LuaError::RuntimeError("loadstring: loading binary chunks is not allowed".to_string()))
             }
             else {
@@ -357,7 +356,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
             }
         })?)?;
 
-        let workdir = std::env::current_dir().unwrap_or(PathBuf::new());
+        let workdir = std::env::current_dir().unwrap_or_default();
         let script_root = if workdir.join("Cargo.toml").exists() { // 判定开发者环境, 有点不好, 以后要删了
             println!("[DEBUG] Enable dynamic script loading");
             PathBuf::from_iter(vec!["src", "scripts"])
@@ -410,9 +409,8 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         }
 
         // exit in cli mode
-        match globals.raw_get::<_, Value>("Args")? {
-            Value::UserData(_)=> std::process::exit(0),
-            _ => ()
+        if let Value::UserData(_) = globals.raw_get::<_, Value>("Args")? {
+            std::process::exit(0);
         }
         
         Ok(())
@@ -462,14 +460,6 @@ fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
             eprintln!("[Meilisearch] Error in init: {}", &e);
             state.init_error.lock().unwrap().push_str(e.as_str())
         }
-    }
-    // launch client if child process is on
-    let child = state.meilisearch.lock().unwrap();
-    if child.is_some() {
-        let addr = child.as_ref().unwrap().get_addr();
-        println!("[Meilisearch] link to child process: {}", &addr);
-        let client = meilisearch_sdk::Client::new(addr, None::<String>);
-        *state.client.lock().unwrap() = Some(client);
     }
     Ok(())
 }

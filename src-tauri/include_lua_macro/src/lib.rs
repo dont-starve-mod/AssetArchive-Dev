@@ -35,30 +35,35 @@ use walkdir::WalkDir;
 
 #[proc_macro]
 pub fn include_lua(input: TokenStream) -> TokenStream {
-    parse_macro_input!(input as IncludeLua).expand().into()
+    parse_macro_input!(input as IncludeLua).expand()
 }
 
 struct IncludeLua(LitStr, LitStr);
 
 impl IncludeLua {
     fn expand(self) -> TokenStream {
-        let manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").expect("Could not locate active Cargo.toml!").into();
+        let manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").expect("Could not locate active Cargo.toml.").into();
         let lua_dir = manifest_dir.join("src").join(self.0.value());
         let modules = WalkDir::new(&lua_dir).into_iter().filter_map(|entry| {
             match entry {
                 Ok(ref entry) if entry.file_type().is_file() => {
-                    let path = entry.path().strip_prefix(&lua_dir).expect("Reached file outside of lua directory???");
+                    let path = entry.path().strip_prefix(&lua_dir).expect("Reached file outside of lua directory.");
                     if path.extension() == Some("lua".as_ref()) {
                         let module = if path.parent().is_some() && path.file_stem().expect("Missing file name!") == &"init".as_ref() {
-                            path.parent().unwrap().to_str().map(|s| s.replace(path::MAIN_SEPARATOR, "."))
+                            path.parent()
+                                .unwrap()
+                                .to_str()
+                                .expect("Cannot convert file name to str")
+                                .replace(path::MAIN_SEPARATOR, ".")
                         } 
                         else {
                             // Do paths with a different separator show up? If so, fix this.
-                            let mut s = path.to_str().map(|s| s.replace(path::MAIN_SEPARATOR, "."));
-                            s.as_mut().map(|s| s.truncate(s.len() - 4));
-                            s
+                            path.to_str()
+                                .expect("Cannot convert file name to str")
+                                .replace(path::MAIN_SEPARATOR, "")
+                                .replace(".lua", "")
                         };
-                        return module.map(|module| (module, path.to_owned()))
+                        return Some((module, path.to_owned()))
                     }
                     None
                 }

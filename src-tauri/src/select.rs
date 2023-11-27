@@ -3,7 +3,14 @@ pub mod select_handler {
   use tauri;
   use tauri::Manager;
   use std::fs::create_dir_all;
-  use crate::WindowsSelect;
+  use std::path::PathBuf;
+  use std::sync::Mutex;
+  use once_cell::sync::Lazy;
+
+  #[allow(dead_code)]
+  static SELECT_BIN_PATH: Lazy<Mutex<PathBuf>> = Lazy::new(||
+    Mutex::new(PathBuf::new())
+  );
 
   #[cfg(target_os="windows")]
   pub fn init_windows_select(app: &mut tauri::App) -> Result<(), String> {
@@ -23,18 +30,18 @@ pub mod select_handler {
     #[cfg(target_arch="x86")]
     unpack_file("OpenFolderAndSelect.exe", include_bytes!("../bin/OpenFolderAndSelectItem/32-bit/OpenFolderAndSelect.exe"))?;
 
-    let state = app.state::<WindowsSelect>();
-    state.binpath.lock().unwrap().clone_from(&bin_dir);
+    SELECT_BIN_PATH.lock().unwrap().clone_from(&bin_dir.join("OpenFolderAndSelect.exe"));
     Ok(())
   }
 
   #[cfg(target_os="windows")]
-  pub fn windows_select_file_in_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String) -> bool {
+  pub fn windows_select_file_in_folder(path: String) -> bool {
     use std::process::Command;
-    let state = app.state::<WindowsSelect>();
-    let binpath = state.binpath.lock().unwrap();
+
+    let binpath = SELECT_BIN_PATH.lock().unwrap();
+    let path = path.replace("/", "\\");
     Command::new(binpath.as_path())
-      .arg(path)
+      .arg(&path)
       .status()
       .is_ok()
   }

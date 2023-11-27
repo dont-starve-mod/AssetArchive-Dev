@@ -28,10 +28,10 @@ type FmodChildResult<T> = Result<T, String>;
 impl FmodChild {
     pub fn new(bin_dir: PathBuf) -> FmodChildResult<Self> {
         unpack_fmod_binary(&bin_dir)?;
-        // TODO: windows exe????
         std::env::set_current_dir(&bin_dir)
             .map_err(|e| e.to_string())?;
-        let mut child = Command::new(bin_dir.join("fmodcore"))
+        let name = if cfg!(target_os="windows") { "fmodcore.exe" } else { "fmodcore" };
+        let mut child = Command::new(bin_dir.join(name))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -113,15 +113,15 @@ impl FmodChild {
         }
         lines.iter().for_each(|s|{
             // eprintln!("> {}", &s[..usize::min(s.len() - 1, 200)]);
-            if s.starts_with("[RESULT]") {
-                match json::parse(&s[8..]) {
+            if let Some(s) = s.strip_prefix("[RESULT]") {
+                match json::parse(s) {
                     Ok(data)=> {
                         if let Err(e) = self.update_data(data) {
                             eprintln!("Failed to parse result object from child process: {}", e)
                         }
                     },
                     Err(e)=> {
-                        eprintln!("Failed to parse message from child process: {}\n{}", e.to_string(), &s[8..]);
+                        eprintln!("Failed to parse message from child process: {}\n{}", e, s);
                     }
                 }
             }
@@ -158,10 +158,11 @@ fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
     let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
         let path = bin_dir.join(name);
         // dynamic library is static
-        if path.ends_with(".dylib") || path.ends_with(".dll") {
-            if path.is_file() {
-                return Ok(());
-            }
+        if path.is_file() && (path.ends_with(".dylib") || path.ends_with(".dll")) {
+            return Ok(());
+        }
+        if bytes.len() == 0 {
+            return Err(format!("binary byte stream is empty: {}", name));
         }
         std::fs::write(path, bytes).map_err(|e|format!("Error in installing fmodcore [{}]: {}", name, e.to_string()))
     };
@@ -182,10 +183,9 @@ fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
             Err(e)=> println!("Failed to set mode: {}", e.to_string()),
         }
     }
-    // TODO: widnows exe?
     #[cfg(target_os = "windows")]
     {
-        unpack_file("fmodcore", include_bytes!("../bin/fmod/fmodcore").as_slice())?;
+        unpack_file("fmodcore.exe", include_bytes!("../bin/fmod/fmodcore.exe").as_slice())?;
         unpack_file("fmodex64.dll", include_bytes!("../bin/fmod/fmodex64.dll").as_slice())?;
         unpack_file("fmod_event64.dll", include_bytes!("../bin/fmod/fmod_event64.dll").as_slice())?;
     }

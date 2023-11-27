@@ -4,7 +4,7 @@ pub mod lua_misc {
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
     use webbrowser;
-
+    
     struct Bar {
         inner: ProgressBar,
     }
@@ -128,10 +128,17 @@ pub mod lua_misc {
                 .is_ok())
         })?)?;
 
-        #[cfg(windows)]
+        #[cfg(target_os="windows")]
         globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: String|{
-            unimplemented!();
-            Ok(())
+            use crate::select::select_handler::windows_select_file_in_folder;
+            let success = windows_select_file_in_folder(path);
+            Ok(success)
+        })?)?;
+
+        #[cfg(target_os="windows")]
+        globals.set("EverythingSearch", lua_ctx.create_function(|_, path: String|{
+            use crate::es::es_handler::search;
+            Ok(search(path.as_str()))
         })?)?;
 
         // process

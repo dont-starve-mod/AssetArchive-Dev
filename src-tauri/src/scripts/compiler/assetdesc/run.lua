@@ -282,10 +282,10 @@ local function run(env)
 				print("Warning: dummy desc in: "..tostring(k))
 			end
 			if type(desc) == "string" then
-				desc = {
-					type = "plain",
-					value = desc,
-				}
+				-- desc = {
+				-- 	type = "plain",
+				-- 	value = desc,
+				-- }
 			else
 				desc = {
 					type = "rich",

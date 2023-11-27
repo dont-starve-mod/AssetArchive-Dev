@@ -46,7 +46,7 @@ fn get_license_bytes() -> &'static [u8] {
 fn unpack_meilisearch_binary(bin_dir: &PathBuf) -> Result<(), String> {
   let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
       let path = bin_dir.join(name);
-      std::fs::write(path, bytes).map_err(|e|format!("Error in installing meilisearch [{}]: {}", name, e.to_string()))
+      std::fs::write(path, bytes).map_err(|e|format!("Error in installing meilisearch [{}]: {}", name, e))
   };
 
   unpack_file(get_bin_name(), get_meilisearch_bytes())?;
@@ -61,7 +61,7 @@ fn unpack_meilisearch_binary(bin_dir: &PathBuf) -> Result<(), String> {
             p.set_mode(0o777);
             std::fs::set_permissions(exec_path, p).ok();
         },
-        Err(e)=> println!("Failed to set mode: {}", e.to_string()),
+        Err(e)=> println!("Failed to set mode: {}", e),
     }
   }
   Ok(())

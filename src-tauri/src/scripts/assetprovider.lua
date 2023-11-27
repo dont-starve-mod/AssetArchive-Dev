@@ -767,7 +767,12 @@ function Provider:GetSymbolElement(args)
 				if args.format == "png" then
 					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh):save_png_bytes()
 				elseif args.format == "img" then
-					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+					local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+					if args.resize == true then
+						-- resize image by source canvas resolution, see renderer.lua
+						img = img:resize(math.floor(0.5 + subw/x_scale), math.floor(0.5 + subh/y_scale))
+					end
+					return img
 				elseif args.format == "copy" then
 					if atlas.is_dyn and not allow_copy then
 						return DYN_ENCRYPT

@@ -115,13 +115,21 @@ function Api:SetRedirectFrom(msg)
 	self.redirect_from = msg
 end
 
+function Api:Disable()
+	self.disabled = true
+end
+
 function Api:Dumps()
 	local arglist = {}
 	for _,v in ipairs(self.args)do
 		table.insert(arglist, DumpsValue(v))
 	end
 	arglist = table.concat(arglist, ", ")
-	return string.format("%s(%s)", self.name, arglist)
+	local s = string.format("%s(%s)", self.name, arglist)
+	if self.disabled then
+		s = s.. ":Disable()"
+	end
+	return s
 end
 
 -- a project file to define how to render your DS/DST animation
@@ -140,13 +148,16 @@ function AnimProject:CreateEnv()
 	}
 	for _, def in ipairs(API_DEF)do
 		env[def.name] = function(...)
-			table.insert(self.cmds, {name = def.name, args = {...}})
+			local api = {name = def.name, args = {...}}
+			table.insert(self.cmds, api)
+			return { Disable = function() api.disabled = true end }
 		end
 	end
 	for name in ipairs(API_IGNORED)do
 		env[name] = function(...)
 			local line = debug.getinfo(2).currentline
 			table.insert(self.ignored_cmds, {name = name, line = line})
+			return { Disable = function() end }
 		end
 	end
 	local index = function(_, k)
@@ -154,8 +165,15 @@ function AnimProject:CreateEnv()
 			local line = debug.getinfo(2).currentline
 			print("Warning: API `"..k.."` is invalid (line "..line..")")
 			table.insert(self.invalid_cmds, {name = k, line = line})
+			return { Disable = function() end }
 		end
 	end
+	-- anim:xxxxx() sugar
+	env.anim = setmetatable({}, {__index = function(_, k)
+		return function()
+			print(k)
+		end
+	end})
 	setmetatable(env, {__index = index})
 	return env
 end
@@ -171,7 +189,7 @@ function AnimProject:LoadSource(content)
 	-- TODO: unstrict mode?
 	local success, result = pcall(fn)
 	if not success then
-		self.error = "Failed to exec: " .. tostring(result) 
+		self.error = "Failed to exec: " .. tostring(result)
 		return false
 	end
 
@@ -221,6 +239,9 @@ function AnimProject.Static_ToFile(data)
 	-- api
 	for _,v in ipairs(data.cmds)do
 		local api = Api(v.name, v.args)
+		if v.disabled then
+			api:Disable()
+		end
 		table.insert(content, api:Dumps())
 	end
 	-- optional misc
@@ -290,7 +311,7 @@ function AnimProjectManager:LoadProject()
 			if project:LoadSource(content) then
 				table.insert(self.project_list, project:Serialize({id = name, mtime = mtime}))
 			else
-				--
+				print(project.error)
 			end
 		end
 	end
@@ -352,6 +373,20 @@ function AnimProjectManager:OnIpc(param)
 		local project = self:ReloadProjectById(id)
 		project.is_editing = true
 		return project
+	elseif param.type == "save" then
+		local data = param.data
+		local id = data.id
+		local facing = data.render_param.facing
+		local api_list = data.api_list
+		local path = self.basedir/id
+		local old = self:ReloadProjectById(id) or {}
+
+		path:write(AnimProject.Static_ToFile({
+			title = old.title,
+			description = old.description,
+			cmds = api_list,
+		}))
+		return true
 	end
 	-- create | duplicate | use_template | change | delete
 	local id = param.id

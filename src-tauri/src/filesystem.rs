@@ -4,7 +4,6 @@ pub mod lua_filesystem {
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
     use std::path::PathBuf;
-    use std::process::Command;
     #[cfg(unix)]
     use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
     #[cfg(windows)]
@@ -40,15 +39,17 @@ pub mod lua_filesystem {
         /// skip bytes of exact length
         fn seek_forward(&mut self, len: i64) -> io::Result<u64>;
 
-        /// set cursor position
-        fn seek_to(&mut self, _: u64) -> () { }
-
         /// reset cursor
         fn rewind(&mut self) -> io::Result<()>;
+        
+        /// set cursor position
+        fn seek_to(&mut self, _: u64) {
 
-        /// 查找下一个标志符, 注意该方法可能有性能问题
-        fn seek_to_string(&mut self, flag: &str) -> bool {
-            let bytes = flag.as_bytes();
+        }
+
+        /// find next string in file (TODO: check performance)
+        fn seek_to_string(&mut self, neddle: &str) -> bool {
+            let bytes = neddle.as_bytes();
             let mut index = 0;
             let max_index = bytes.len();
             let mut buf: [u8; 1] = [0];
@@ -71,7 +72,7 @@ pub mod lua_filesystem {
             }
         }
 
-        /// get file description (for drop)
+        /// get file description for drop
         #[cfg(unix)]
         fn get_fd(&self) -> Option<RawFd> {
             None
@@ -131,7 +132,7 @@ pub mod lua_filesystem {
             Some(self.as_raw_handle())
         }
 
-        fn seek_to(&mut self, pos: u64) -> () {
+        fn seek_to(&mut self, pos: u64){
             self.seek(SeekFrom::Start(pos)).unwrap_or(0);
         }
     }
@@ -145,7 +146,7 @@ pub mod lua_filesystem {
             Ok(self.index as u64)
         }
 
-        fn seek_to(&mut self, pos: u64) -> () {
+        fn seek_to(&mut self, pos: u64) {
             self.index = usize::min(pos as usize, self.bytes.len());
         }
 
@@ -550,8 +551,9 @@ pub mod lua_filesystem {
                 };
                 Ok(())
             });
+            #[allow(unused_variables)]
             #[cfg(windows)]
-            _methods.add_method("set_mode", |_, path: &Self, mode: u32|{
+            _methods.add_method("set_mode", |_, path: &Self, ()|{
                 Ok(())
             });
             _methods.add_method("delete", |_, path: &Self, ()|{
@@ -695,20 +697,7 @@ pub mod lua_filesystem {
                 Ok(Nil)
             })
         })?)?;
-        table.set("EverythingSearch", lua_ctx.create_function(|_, path: String|{
-            if cfg!(windows) {
-                match Command::new("es.exe")
-                    .args(["-r", &path, "-case", "/a-d", "-match-path"])
-                    .output() {
-                    Ok(out) => println!("{} 8 {}", 
-                    String::from_utf8(out.stdout).unwrap(), 
-                    String::from_utf8(out.stderr).unwrap()),
-                    Err(_) => (),
-                }
-            }
-            Ok(())
-        })?)?;
-    
+
         table.set("ReadStream__index", lua_ctx.create_table()?)?;
 
         table.set("DATAMODE_BE", DataMode::BigEndian as u8)?;
