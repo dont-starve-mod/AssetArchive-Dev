@@ -1,11 +1,14 @@
 use image::io::Reader as ImageReader;
+// use image::codecs::gif::GifEncoder;
+// use image::Frame;
 use rlua::{Value, FromLua, Context};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 use std::ops::Index;
-// #[cfg(unix)]
-// use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
-// #[cfg(windows)]
-// use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
+use std::fs::File;
+#[cfg(unix)]
+use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
+#[cfg(windows)]
+use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
 
 
 #[repr(C)]
@@ -138,7 +141,9 @@ pub struct Point {
 }
 
 pub mod lua_image {
-    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, GenericImage};
+    use std::time::Duration;
+
+    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, Delay, GenericImage};
     use image::ColorType;
     use rlua::{Context, AnyUserData};
     use rlua::Value;
@@ -153,7 +158,7 @@ pub mod lua_image {
 
     impl Image {
         pub fn open(path: &str) -> Result<Self, &'static str> {
-            let reader = match ImageReader::open(path) {
+            let reader = match ImageReader::open(&path) {
                 Ok(r)=> r,
                 Err(_)=> return Err("Failed to open image file"),
             };
@@ -174,8 +179,10 @@ pub mod lua_image {
                 None
             }
             else{
-                ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, bytes)
-                    .map(|buf| Self::from_img(DynamicImage::from(buf)))
+                match ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, bytes) {
+                    Some(buf)=> Some(Self::from_img(DynamicImage::from(buf))),
+                    None=> None,
+                }
             }
         }
 
@@ -184,8 +191,10 @@ pub mod lua_image {
                 None
             }
             else {
-                ImageBuffer::<Rgb<u8>, _>::from_raw(width, height, bytes)
-                    .map(|buf| Self::from_img(DynamicImage::from(buf)))
+                match ImageBuffer::<Rgb<u8>, _>::from_raw(width, height, bytes) {
+                    Some(buf)=> Some(Self::from_img(DynamicImage::from(buf))),
+                    None=> None,
+                }
             }
         }
 
@@ -240,12 +249,12 @@ pub mod lua_image {
                     Some(result)
                 },
                 (Some(c1), None)=> {
-                    let mut c1 = c1;
+                    let mut c1 = c1.clone();
                     c1[3]= Self::normalize(c1[3] as f64 * percent);
                     Some(c1)
                 },
                 (None, Some(c2))=> {
-                    let mut c2 = c2;
+                    let mut c2 = c2.clone();
                     c2[3]= Self::normalize(c2[3] as f64 * (1.0 - percent));
                     Some(c2)
                 },
@@ -367,7 +376,7 @@ pub mod lua_image {
                 (floor, ceil, percent)
             };
             let get_offset = |r: usize, g: usize, b: usize|{
-                r + b*32 + g*1024
+                r*1 + b*32 + g*1024
             };
             let apply_cc_impl = |channels: &mut[u8]|{
                 // let mut pixel = channels;
@@ -395,12 +404,29 @@ pub mod lua_image {
             match &mut self.inner {
                 DynamicImage::ImageRgba8(buffer) => {
                     buffer.pixels_mut().for_each(|pixel|{
-                        apply_cc_impl(pixel.channels_mut());
+                        let mut channels = pixel.channels_mut();
+                        apply_cc_impl(&mut channels);
+                        // let rs = sampler(pixel[0]);
+                        // let gs = sampler(pixel[1]);
+                        // let bs = sampler(pixel[2]);
+                        // let offset = (
+                        //     get_offset(rs.0, gs.0, bs.0),
+                        //     get_offset(rs.1, gs.1, bs.1)
+                        // );
+                        // let c1 = &cc[offset.0*3..offset.0*3+2];
+                        // let c2 = &cc[offset.1*3..offset.1*3+2];
+                        // c1.iter().zip(c2)
+                        //     .enumerate()
+                        //     .for_each(|(index, (v1, v2))|{
+                        //         // blue is used as blend percent
+                        //         pixel[index] = f64::clamp(*v1 as f64 * (1.0 - bs.2) + *v2 as f64 * bs.2, 0.0, 255.0) as u8
+                        //     });
                     });
                 },
                 DynamicImage::ImageRgb8(buffer) => {
                     buffer.pixels_mut().for_each(|pixel|{
-                        apply_cc_impl(pixel.channels_mut());
+                        let mut channels = pixel.channels_mut();
+                        apply_cc_impl(&mut channels);
                     });
                 },
                 _ => panic!("apply_cc only support rgb/rgba image")
@@ -408,6 +434,118 @@ pub mod lua_image {
             Ok(())
         }
     }
+
+    // pub struct GifWriter {
+    //     // width: Option<u32>,
+    //     // height: Option<u32>,
+    //     inner: GifEncoder<File>,
+    //     #[cfg(unix)]
+    //     fd: Option<RawFd>,
+    //     #[cfg(windows)]
+    //     fd: Option<RawHandle>,
+    //     duration: u64,
+    // }
+
+    // unsafe impl Send for GifWriter{}
+
+    // impl GifWriter {
+    //     fn new(path: &str) -> Result<Self, String> {
+    //         let f = std::fs::OpenOptions::new()
+    //             .write(true)
+    //             .create(true)
+    //             .open(path)
+    //             .map_err(|e| e.to_string())?;
+    //         #[cfg(unix)]
+    //         let fd = f.as_raw_fd();
+    //         #[cfg(windows)]
+    //         let fd = f.as_raw_handle();
+    //         let mut encoder = GifEncoder::new(f);
+    //         // encoder.set_repeat(image::codecs::gif::Repeat::Infinite).unwrap();
+    //         Ok(GifWriter {
+    //             inner: encoder,
+    //             fd: Some(fd),
+    //             duration: 3 // ~30fps
+    //         })
+    //     }
+
+    //     #[inline]
+    //     fn is_closed(&self) -> bool {
+    //         self.fd.is_none()
+    //     }
+    // }
+
+    // impl UserData for GifWriter {
+    //     fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
+    //         // encode one frame into gif
+    //         _methods.add_method_mut("encode", |_, gif: &mut Self, img: AnyUserData|{
+    //             if gif.is_closed() {
+    //                 return Err(LuaError::RuntimeError("file is closed".to_string()));
+    //             }
+    //             match img.borrow::<Image>() {
+    //                 Ok(img)=> {
+    //                     let frame = Frame::from_parts(
+    //                         match image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
+    //                             img.width, img.height, img.as_bytes().to_vec()
+    //                         ){
+    //                             Some(buffer)=> buffer,
+    //                             None=> return Err(LuaError::RuntimeError("failed to create image frame buffer".to_string()))
+    //                         },
+    //                         0,0,
+    //                         Delay::from_saturating_duration(Duration::from_millis(gif.duration* 10))
+    //                     );
+    //                     gif.inner.encode_frame(frame)
+    //                         .map_err(|e|LuaError::RuntimeError(e.to_string()))
+    //                 },
+    //                 Err(e)=> return Err(e),
+    //             }
+    //         });
+    //         // encode one bytes frame
+    //         _methods.add_method_mut("encode_bytes", |_, gif: &mut Self, (bytes, width, height): (LuaString, u32, u32)|{
+    //             if gif.is_closed() {
+    //                 return Err(LuaError::RuntimeError("file is closed".to_string()));
+    //             }
+    //             let frame = Frame::from_parts(
+    //                 match image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
+    //                     width, height, bytes.as_bytes().to_vec()
+    //                 ){
+    //                     Some(buffer)=> buffer,
+    //                     None=> return Err(LuaError::RuntimeError("failed to create image frame buffer".to_string()))
+    //                 }, 
+    //                 0,0,
+    //                 Delay::from_saturating_duration(Duration::from_millis(gif.duration* 10))
+    //             );
+    //             gif.inner.encode_frame(frame)
+    //                 .map_err(|e|LuaError::RuntimeError(e.to_string()))
+    //         });
+    //         // close fd
+    //         _methods.add_method_mut("drop", |_, gif: &mut Self, ()|{
+    //             match gif.fd {
+    //                 Some(fd)=> {
+    //                     #[cfg(unix)]
+    //                     drop(unsafe { OwnedFd::from_raw_fd(fd) });
+    //                     #[cfg(windows)]
+    //                     drop(unsafe { OwnedHandle::from_raw_handle(fd)});
+    //                     // prevent second call for drop()
+    //                     gif.fd = None;
+    //                 },
+    //                 None => ()
+    //             }
+    //             Ok(())
+    //         });
+    //         // set frame per second
+    //         _methods.add_method_mut("set_duration", |_, gif: &mut Self, duration: f64|{
+    //             gif.duration = f64::round(duration / 10.0) as u64;
+    //             Ok(())
+    //         });
+    //         _methods.add_meta_method(MetaMethod::ToString, |_, gif: &Self, ()|{
+    //             Ok(format!("GifWriter<fd={}>", match gif.fd {
+    //                 Some(n)=> format!("{:?}", n),
+    //                 None=> "[CLOSED]".to_string(),
+    //             }))
+    //         });
+    //     }
+        
+    // }
 
     pub struct Filter {
         r: Vec<u8>,
@@ -493,7 +631,7 @@ pub mod lua_image {
                 else{
                     let pixel = unsafe { img.inner.unsafe_get_pixel(x as u32, y as u32) };
                     let rgba = pixel.channels();
-                    Ok(Variadic::from_iter(rgba.iter().copied()))
+                    Ok(Variadic::from_iter(rgba.iter().map(|i|*i)))
                 } 
             });
             // save image to path
@@ -508,11 +646,11 @@ pub mod lua_image {
             });
             // get png file bytes of image
             _methods.add_method("save_png_bytes", |lua: Context, img: &Self, ()|{
-                lua.create_string(img.save_png_bytes().as_slice())
+                Ok(lua.create_string(img.save_png_bytes().as_slice())?)
             });
             // convert to rgba sequence
             _methods.add_method("to_bytes", |lua: Context, img: &Self, ()|{
-                lua.create_string(img.inner.as_bytes())
+                Ok(lua.create_string(img.inner.as_bytes())?)
             });
             // paste another image on this
             _methods.add_method_mut("paste", |_, img: &mut Self, (other, px, py): (AnyUserData, i64, i64)|{
@@ -625,8 +763,8 @@ pub mod lua_image {
         table.set("Affine", lua_ctx.create_function(|_, vec: Vec<f64>|{
             Ok(AffineTransform::from_vec(vec))
         })?)?;
-        table.set("GifWriter", lua_ctx.create_function(|_, _path: String| -> LuaResult<()>{
-            unreachable!("Rust GifWriter is removed");
+        table.set("GifWriter", lua_ctx.create_function(|_, path: String| -> LuaResult<()>{
+            unreachable!("Rust gifwriter is removed");
             // GifWriter::new(&path).map_err(|e|LuaError::RuntimeError(e.to_string()))
         })?)?;
         table.set("NEAREST", Resampler::Nearest as u8)?;

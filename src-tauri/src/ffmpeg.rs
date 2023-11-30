@@ -1,4 +1,3 @@
-use ffmpeg_sidecar;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::OsStr;
@@ -206,8 +205,8 @@ pub mod lua_ffmpeg {
             filters.push("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse".into());
         }
         
-        if filters.len() > 0 {
-            command.args(["-vf", filters.join(",".into()).as_str()]);
+        if !filters.is_empty() {
+            command.args(["-vf", filters.join(",").as_str()]);
         }
 
         command.args(["-y"]).output(path);
@@ -242,14 +241,11 @@ pub mod lua_ffmpeg {
     // start a new async download session
     table.set("Start", lua_ctx.create_function(|_, (id, url): (String, String)|{
         let mut state = DOWNLOAD_STATE.lock().unwrap();
-        match state.get(&id) {
-            Some(state)=> {
-                if state.status == "WORKING" {
-                    println!("Downloader session already exists: {}", &id);
-                    return Ok(false);
-                }
-            },
-            _=> ()
+        if let Some(state) = state.get(&id) {
+            if state.status == "WORKING" {
+                println!("Downloader session already exists: {}", &id);
+                return Ok(false);
+            }
         };
 
         let start = current_time();
@@ -318,11 +314,8 @@ pub mod lua_ffmpeg {
     })?)?;
     // clear download bytes (free the memory)
     table.set("ClearData", lua_ctx.create_function(|_, id: String|{
-        match DOWNLOAD_STATE.lock().unwrap().get_mut(&id) {
-            Some(state)=> {
-                state.data.clear();
-            },
-            _=> (),
+        if let Some(state) = DOWNLOAD_STATE.lock().unwrap().get_mut(&id) {
+            state.data.clear();
         };
         Ok(())
     })?)?;

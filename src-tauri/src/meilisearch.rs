@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::process::{Child, Command, Stdio};
 
 #[allow(unreachable_code)]
@@ -43,7 +43,7 @@ fn get_license_bytes() -> &'static [u8] {
   include_bytes!("../bin/meilisearch/LICENSE")
 }
 
-fn unpack_meilisearch_binary(bin_dir: &PathBuf) -> Result<(), String> {
+fn unpack_meilisearch_binary(bin_dir: &Path) -> Result<(), String> {
   let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
       let path = bin_dir.join(name);
       std::fs::write(path, bytes).map_err(|e|format!("Error in installing meilisearch [{}]: {}", name, e))
@@ -83,7 +83,7 @@ pub struct MeilisearchChild {
 
 impl MeilisearchChild {
   pub fn new(bin_dir: PathBuf) -> Result<Self, String> {
-    unpack_meilisearch_binary(&bin_dir)?;
+    unpack_meilisearch_binary(bin_dir.as_path())?;
     std::env::set_current_dir(&bin_dir)
       .map_err(|e|e.to_string())?;
     let addr = get_addr();
@@ -93,7 +93,7 @@ impl MeilisearchChild {
       .args(["--http-addr", addr.as_str()])
       .stdin(Stdio::piped())
       .spawn()
-      .map_err(|e|format!("Failed to spawn meilisearch process: {}", e.to_string()))?;
+      .map_err(|e|format!("Failed to spawn meilisearch process: {}", e))?;
     
     Ok(MeilisearchChild { inner: child, addr })
   }

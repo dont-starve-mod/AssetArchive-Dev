@@ -209,8 +209,7 @@ pub mod lua_filesystem {
         }
 
         fn read_exact(&mut self, len: usize) -> Result<Vec<u8>, std::io::Error> {
-            let mut buf = Vec::<u8>::new();
-            buf.resize(len, 0);
+            let mut buf = vec![0; len];
             match self.inner.read_exact(&mut buf) {
                 Ok(_)=> Ok(buf),
                 Err(e)=> Err(e),
@@ -219,8 +218,7 @@ pub mod lua_filesystem {
         }
 
         fn read(&mut self, len: usize) -> Result<Vec<u8>, std::io::Error> {
-            let mut buf = Vec::<u8>::new();
-            buf.resize(len, 0);
+            let mut buf = vec![0; len];
             match self.inner.read(&mut buf) {
                 Ok(n)=> {
                     buf.resize(n, 0);
@@ -299,7 +297,7 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("read", |lua_ctx, fs: &mut Self, len: usize|{
                 if let Ok(buf) = fs.read(len) {
-                    if buf.len() == 0 {
+                    if buf.is_empty() {
                         Ok(None)
                     }
                     else{
@@ -335,8 +333,12 @@ pub mod lua_filesystem {
                             }
                         },
                         Err(_)=> return {
-                            if result.len() == 0 { Ok(None) } 
-                            else { Ok(Some(lua_ctx.create_string(result.as_bytes())?)) }
+                            if result.is_empty() {
+                                Ok(None)
+                            }
+                            else { 
+                                Ok(Some(lua_ctx.create_string(result.as_bytes())?)) 
+                            }
                         }
                     }
                 };
@@ -346,17 +348,14 @@ pub mod lua_filesystem {
                 fs.inner.rewind().map_err(|_|LuaError::RuntimeError("Failed to rewind file cursor".to_string()))
             });
             _methods.add_method_mut("drop", |_, fs: &mut Self, ()|{
-                match fs.inner.get_fd() {
-                    Some(fd)=> {
-                        #[cfg(unix)]
-                        drop(unsafe { OwnedFd::from_raw_fd(fd) });
-                        #[cfg(windows)]
-                        drop(unsafe { OwnedHandle::from_raw_handle(fd)});
-                        // prevent second call for drop()
-                        fs.inner = Box::new(BytesReader{index: 0, bytes: Vec::<u8>::new()});
-                    },
-                    None => ()
-                }
+                if let Some(fd) = fs.inner.get_fd() {
+                    #[cfg(unix)]
+                    drop(unsafe { OwnedFd::from_raw_fd(fd) });
+                    #[cfg(windows)]
+                    drop(unsafe { OwnedHandle::from_raw_handle(fd)});
+                    // prevent second call for drop()
+                    fs.inner = Box::new(BytesReader{index: 0, bytes: Vec::<u8>::new()});
+                };
                 Ok(())
             });
             _methods.add_meta_method(MetaMethod::Index, |lua_ctx: Context, _, k: String|{
@@ -395,9 +394,7 @@ pub mod lua_filesystem {
 
         fn extension(&self) -> Option<String> {
             match self.inner.extension() {
-                Some(ext)=> if let Some(s) = ext.to_str(){
-                    Some(s.to_string())
-                } else { None },
+                Some(ext)=> ext.to_str().map(|s| s.to_string()),
                 None => None,
             }
         }
@@ -440,10 +437,7 @@ pub mod lua_filesystem {
                 true
             }
             else {
-                match fs::create_dir_all(&self.inner) {
-                    Ok(())=> true,
-                    _ => false,
-                }
+                fs::create_dir_all(&self.inner).is_ok()
             }
         }
 
@@ -457,15 +451,12 @@ pub mod lua_filesystem {
 
         fn iter_dir(&self) -> Vec<Self> {
             let mut result = Vec::new();
-            match self.inner.read_dir() {
-                Ok(r)=> {
-                    r.for_each(|entry|{
-                        if let Ok(entry) = entry {
-                            result.push(Path{ inner: entry.path() });
-                        }
-                    });
-                },
-                Err(_)=> ()
+            if let Ok(dir) = self.inner.read_dir() {
+                dir.for_each(|entry|{
+                    if let Ok(entry) = entry {
+                        result.push(Path{ inner: entry.path() });
+                    }
+                });
             };
             result
         }
@@ -533,10 +524,10 @@ pub mod lua_filesystem {
                 Ok(path.is_dir())
             });
             _methods.add_method("read_to_string", |_, path: &Self, ()|{
-                fs::read_to_string(&path.inner).map_err(|e| LuaError::RuntimeError(format!("Failed to read file: {}", e.to_string())))
+                fs::read_to_string(&path.inner).map_err(|e| LuaError::RuntimeError(format!("Failed to read file: {}", e)))
             });
             _methods.add_method("write", |_, path: &Self, content: LuaString|{
-                fs::write(&path.inner, content.as_bytes()).map_err(|e| LuaError::RuntimeError(format!("Failed to write file: {}", e.to_string())))
+                fs::write(&path.inner, content.as_bytes()).map_err(|e| LuaError::RuntimeError(format!("Failed to write file: {}", e)))
             });
             #[cfg(unix)]
             _methods.add_method("set_mode", |_, path: &Self, mode: u32|{
@@ -547,7 +538,7 @@ pub mod lua_filesystem {
                         p.set_mode(mode);
                         std::fs::set_permissions(path.inner.clone(), p).ok();
                     },
-                    Err(e)=> println!("Failed to set mode: {}", e.to_string()),
+                    Err(e)=> println!("Failed to set mode: {}", e),
                 };
                 Ok(())
             });
@@ -557,7 +548,7 @@ pub mod lua_filesystem {
                 Ok(())
             });
             _methods.add_method("delete", |_, path: &Self, ()|{
-                fs::remove_file(&path.inner).map_err(|e| LuaError::RuntimeError(format!("Failed to delete file: {}", e.to_string())))
+                fs::remove_file(&path.inner).map_err(|e| LuaError::RuntimeError(format!("Failed to delete file: {}", e)))
             });
             _methods.add_method("create_dir", |_, path: &Self, ()|{
                 Ok(path.create_dir())
@@ -589,7 +580,7 @@ pub mod lua_filesystem {
                 Ok(path.iter_dir()
                     .iter()
                     .filter(|p|p.is_file())
-                    .map(|p|p.clone())
+                    .cloned()
                     .collect::<Vec<_>>())
             });
             _methods.add_method("iter_file_with_extension", |_, path: &Self, mut ext: String|{
@@ -598,7 +589,7 @@ pub mod lua_filesystem {
                 Ok(path.iter_dir()
                     .iter()
                     .filter(|p|p.is_file() && p.check_extention(ext_str))
-                    .map(|p|p.clone())
+                    .cloned()
                     .collect::<Vec<_>>())
             });
             _methods.add_method("extention", |_, path: &Self, ()|{
@@ -717,7 +708,7 @@ pub mod lua_filesystem {
         // compiler can work though
         let dyn_index_s = DYN_INDEX.unwrap_or("");
         let dyn_magic_number_s = DYN_MAGIC_NUMBER.unwrap_or("");
-        if dyn_index_s.len() == 0 || dyn_magic_number_s.len() == 0 {
+        if dyn_index_s.is_empty() || dyn_magic_number_s.is_empty() {
             return None;
         }
         // parse

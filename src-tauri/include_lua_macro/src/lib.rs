@@ -60,7 +60,7 @@ impl IncludeLua {
                             // Do paths with a different separator show up? If so, fix this.
                             path.to_str()
                                 .expect("Cannot convert file name to str")
-                                .replace(path::MAIN_SEPARATOR, "")
+                                .replace(path::MAIN_SEPARATOR, ".")
                                 .replace(".lua", "")
                         };
                         return Some((module, path.to_owned()))

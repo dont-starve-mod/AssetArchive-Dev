@@ -5,8 +5,8 @@ members = ["include_lua", "include_lua_macro"]
 name = "asset-archive"
 version = "0.0.0"
 description = "A Tauri App"
-authors = ["LaoWang"]
-license = ""
+authors = ["lw"]
+license = "MIT"
 repository = ""
 edition = "2021"
 
@@ -18,7 +18,6 @@ tauri-build = { version = "1.2", features = [] }
 [dependencies]
 tauri = { version = "1.2", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-start-dragging", "window-unmaximize"] }
 clap = "4.4.8"
-bstr = "1.4.0"
 clippers = "0.1.2"
 walkdir = "2.3.3"
 indicatif = "0.17.3"
@@ -28,7 +27,7 @@ bcndecode = "0.2.0"
 num-traits = "0.2.15"
 serde = { version = "1.0", features = ["derive"] }
 rlua = { version = "^0.19.4", default-features = false, features = ["lua-no-oslib", "builtin-lua51"] }
-image = "0.24.6"
+image = { version = "0.24.6", default-features = false, features = ["png", "gif"] }
 curl = { version = "0.4.44", features = ["rustls"] }
 webbrowser = { version = "0.8.11", features = ["hardened"] }
 once_cell = "1.18.0"

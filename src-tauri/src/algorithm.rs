@@ -85,6 +85,7 @@ pub mod lua_algorithm {
             as u32
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     fn crop_bytes(bytes: &[u8], width: usize, height: usize,
         x: usize, y: usize, cw: usize, ch: usize, pixel_size: usize) -> Result<Vec<u8>, String> {
@@ -168,34 +169,35 @@ pub mod lua_algorithm {
             }
         })?)?;
         table.set("Sevenz_Decompress", lua_ctx.create_function(|lua_ctx: Context, compressed_data: LuaString|{
-            Ok(lua_ctx.create_string(sevenz_decompress(compressed_data.as_bytes()).unwrap().as_slice())?)
+            lua_ctx.create_string(sevenz_decompress(compressed_data.as_bytes()).unwrap().as_slice())
         })?)?;
         table.set("DXT5_Decompress", lua_ctx.create_function(|lua_ctx: Context, 
             (compressed_data, width, height): (LuaString, usize, usize)|{
-            Ok(lua_ctx.create_string(&dxt5_decompress(compressed_data.as_bytes(), width, height)))
+            lua_ctx.create_string(&dxt5_decompress(compressed_data.as_bytes(), width, height))
         })?)?;
         table.set("DXT1_Decompress", lua_ctx.create_function(|lua_ctx: Context,
             (compressed_data, width, height): (LuaString, usize, usize)|{
-            Ok(lua_ctx.create_string(&dxt1_decompress(compressed_data.as_bytes(), width, height)))
+            lua_ctx.create_string(&dxt1_decompress(compressed_data.as_bytes(), width, height))
         })?)?;
         table.set("SmallHash_Impl", lua_ctx.create_function(|_, s: LuaString|{
             Ok(kleihash(s.as_bytes()))
         })?)?;
         table.set("CropBytes", lua_ctx.create_function(|lua: Context,
             (bytes, width, height, x, y, cw, ch, pixel_size): (LuaString, usize, usize, usize, usize, usize, usize, Option<usize>)|{
-            crop_bytes(bytes.as_bytes(), width, height, x, y, cw, ch, pixel_size.unwrap_or(4))
-                .map(|r|lua.create_string(&r))
+            const DEFAULT_PIX_SIZE: usize = 4;
+            crop_bytes(bytes.as_bytes(), width, height, x, y, cw, ch, pixel_size.unwrap_or(DEFAULT_PIX_SIZE))
+                .map(|r|lua.create_string(r.as_slice()))
                 .map_err(|e|LuaError::RuntimeError(e))
         })?)?;
         table.set("FlipBytes", lua_ctx.create_function(|lua: Context,
             (bytes, linewidth): (LuaString, usize)|{
-            Ok(lua.create_string(&flip_bytes(bytes.as_bytes(), linewidth))?)
+            lua.create_string(&flip_bytes(bytes.as_bytes(), linewidth))
         })?)?;
         table.set("MultAlpha", lua_ctx.create_function(|lua: Context, bytes: LuaString|{
-            Ok(lua.create_string(&mult_alpha(bytes.as_bytes()))?)
+            lua.create_string(&mult_alpha(bytes.as_bytes()))
         })?)?;
         table.set("DivAlpha", lua_ctx.create_function(|lua: Context, bytes: LuaString|{
-            Ok(lua.create_string(&div_alpha(bytes.as_bytes()))?)
+            lua.create_string(&div_alpha(bytes.as_bytes()))
         })?)?;
         table.set("Min", lua_ctx.create_function(|_, table: rlua::Table<'_>|{
             let len = table.len()?;

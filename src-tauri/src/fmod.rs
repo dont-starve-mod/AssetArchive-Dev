@@ -1,5 +1,5 @@
 use std::process::{Command, Stdio, Child};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::io::{Write, BufRead, BufReader};
 use std::collections::HashMap;
 use std::sync::mpsc::{sync_channel, Receiver, TryRecvError};
@@ -27,7 +27,7 @@ type FmodChildResult<T> = Result<T, String>;
 
 impl FmodChild {
     pub fn new(bin_dir: PathBuf) -> FmodChildResult<Self> {
-        unpack_fmod_binary(&bin_dir)?;
+        unpack_fmod_binary(bin_dir.as_path())?;
         std::env::set_current_dir(&bin_dir)
             .map_err(|e| e.to_string())?;
         let name = if cfg!(target_os="windows") { "fmodcore.exe" } else { "fmodcore" };
@@ -79,11 +79,11 @@ impl FmodChild {
         match self.inner.stdin.as_ref() {
             Some(mut v)=> {
                 v.write_all(json::stringify(data).as_bytes())
-                    .map_err(|e| format!("Failed to write to stdin: {}", e.to_string()))?;
+                    .map_err(|e| format!("Failed to write to stdin: {}", e))?;
                 v.write_all("\n".as_bytes())
-                    .map_err(|e| format!("Failed to write to stdin: {}", e.to_string()))?;
+                    .map_err(|e| format!("Failed to write to stdin: {}", e))?;
                 v.flush()
-                    .map_err(|e| format!("Failed to flush stdin: {}", e.to_string()))?;
+                    .map_err(|e| format!("Failed to flush stdin: {}", e))?;
                 Ok(())
             },
             None=> Err("Failed to write to stdin as None".into())
@@ -154,17 +154,17 @@ impl FmodChild {
     }
 }
 
-fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
+fn unpack_fmod_binary(bin_dir: &Path) -> Result<(), String> {
     let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
         let path = bin_dir.join(name);
         // dynamic library is static
         if path.is_file() && (path.ends_with(".dylib") || path.ends_with(".dll")) {
             return Ok(());
         }
-        if bytes.len() == 0 {
+        if bytes.is_empty() {
             return Err(format!("binary byte stream is empty: {}", name));
         }
-        std::fs::write(path, bytes).map_err(|e|format!("Error in installing fmodcore [{}]: {}", name, e.to_string()))
+        std::fs::write(path, bytes).map_err(|e|format!("Error in installing fmodcore [{}]: {}", name, e))
     };
     #[cfg(target_os = "macos")]
     {
@@ -180,7 +180,7 @@ fn unpack_fmod_binary(bin_dir: &PathBuf) -> Result<(), String> {
                 p.set_mode(0o777);
                 std::fs::set_permissions(exec_path, p).ok();
             },
-            Err(e)=> println!("Failed to set mode: {}", e.to_string()),
+            Err(e)=> println!("Failed to set mode: {}", e),
         }
     }
     #[cfg(target_os = "windows")]
@@ -199,32 +199,26 @@ pub mod fmod_handler {
     pub fn fmod_send_message(state: tauri::State<'_, FmodHandler>, data: String) -> Result<String, String> {
         let data = match json::parse(data.as_str()) {
             Ok(obj)=> obj,
-            Err(e)=> return Err(format!("Failed to parse json: {}\n{}", e.to_string(), &data))
+            Err(e)=> return Err(format!("Failed to parse json: {}\n{}", e, &data))
         };
-        match state.fmod.lock().unwrap().as_mut() {
-            Some(ref mut fmod)=> {
-                if !fmod.is_valid()? {
-                    eprintln!("fmodcore subprocess terminated");
-                    return Err("fmodcore subprocess terminated".into());
-                }
-                else {
-                    fmod.send_message(data)?;
-                }
-            },
-            _=> (), // do nothing as the process failed to spawn :(
+        if let Some(ref mut fmod) = state.fmod.lock().unwrap().as_mut() {
+            if !fmod.is_valid()? {
+                eprintln!("fmodcore subprocess terminated");
+                return Err("fmodcore subprocess terminated".into());
+            }
+            else {
+                fmod.send_message(data)?;
+            }
         };
         Ok("".into())
     }
 
     #[tauri::command]
     pub fn fmod_update(state: tauri::State<'_, FmodHandler>) -> Result<bool, String> {
-        match state.fmod.lock().unwrap().as_mut() {
-            Some(ref mut fmod)=> {
-                if fmod.is_valid()? {
-                    fmod.update()?;
-                }
-            },
-            _=> (),
+        if let Some(ref mut fmod) = state.fmod.lock().unwrap().as_mut() {
+            if fmod.is_valid()? {
+                fmod.update()?;
+            }
         };
         Ok(true)
     }
@@ -239,12 +233,12 @@ pub mod fmod_handler {
                     fmod.update()?;
                     let mut result = Vec::new();
                     fmod.data.iter_mut().for_each(|(k, v)|{
-                        if only_dirty == false || v.dirty == true {
+                        if v.dirty || !only_dirty {
                             result.push(vec![k.clone(), v.content.clone()]);
                         }
                         v.dirty = false;
                     });
-                    Ok(json::stringify(Vec::from(result)))
+                    Ok(json::stringify(result))
                 }
                 else {
                     Ok("".into())

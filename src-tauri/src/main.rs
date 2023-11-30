@@ -129,7 +129,7 @@ fn main() {
 #[tauri::command(async)]
 fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>) -> Result<String, String> {
     let init_error = String::from_str(&state.init_error.lock().unwrap()).unwrap();
-    if init_error.is_empty() {
+    if !init_error.is_empty() {
         Err(init_error)
     }
     else {
@@ -141,14 +141,13 @@ fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R
 /// debug function which runs Lua script in console
 #[tauri::command]
 fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
-    if script.is_empty() {
-        return ();
-    }
-    match state.lua.lock().unwrap().context(|lua_ctx|{
-        lua_ctx.load(&script).exec()
-    }) {
-        Ok(_) => (),
-        Err(e) => eprintln!("Lua exec error: {:?}", e),
+    if !script.is_empty() {
+        match state.lua.lock().unwrap().context(|lua_ctx|{
+            lua_ctx.load(&script).exec()
+        }) {
+            Ok(_) => (),
+            Err(e) => eprintln!("Lua exec error: {:?}", e),
+        }
     }
 }
 
@@ -261,13 +260,11 @@ fn get_drag_data_all(state: tauri::State<'_, FeCommuni>) -> HashMap<String, Stri
 #[tauri::command(async)]
 fn set_drag_data(state: tauri::State<'_, FeCommuni>, key: String, value: String) {
     state.drag_data.lock().unwrap().insert(key, value);
-    ()
 }
 
 #[tauri::command(async)]
 fn clear_drag_data(state: tauri::State<'_, FeCommuni>) {
     state.drag_data.lock().unwrap().clear();
-    ()
 }
 
 #[tauri::command]
