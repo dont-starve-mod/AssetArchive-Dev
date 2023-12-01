@@ -172,6 +172,7 @@ pub mod lua_filesystem {
     struct ReadStream
     {
         inner: Box<dyn ReadStreamTrait>,
+        len: Option<usize>,
         data_mode: DataMode,
     }
 
@@ -188,14 +189,17 @@ pub mod lua_filesystem {
             };
             Some(ReadStream {
                 inner: Box::new(f),
+                len: None,
                 data_mode: DataMode::LittleEndian,
             })
         }
 
         fn wrap_bytes(bytes: Vec<u8>) -> Self {
+            let len = bytes.len();
             ReadStream {
                 // f: Box::new(BytesReader{index: 0, bytes}),
-                inner: Box::new(Cursor::<Vec<u8>>::new(bytes)),
+                inner: Box::new(Cursor::new(bytes)),
+                len: Some(len),
                 data_mode: DataMode::LittleEndian ,
             }
         }
@@ -255,6 +259,17 @@ pub mod lua_filesystem {
             }
         }
 
+        fn read_f32_matrix(&mut self) -> Option<Vec<f32>> {
+            match self.read_exact(24) {
+                Ok(bytes)=> {
+                    Some(bytes.chunks_exact(4)
+                        .map(|v| f32::from_le_bytes(v.try_into().unwrap())) // only for anim.bin loader
+                        .collect())
+                },
+                Err(_)=> None
+            }
+        }
+
         fn read_u16(&mut self)-> Option<u16> {
             match self.read_exact(2) {
                 Ok(bytes)=> {
@@ -283,6 +298,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("read_f32", |_, fs: &mut Self, ()|{
                 Ok(fs.read_f32())
+            });
+            _methods.add_method_mut("read_f32_matrix", |_, fs: &mut Self, ()|{
+                Ok(fs.read_f32_matrix())
             });
             _methods.add_method_mut("read_u16", |_, fs: &mut Self, ()|{
                 Ok(fs.read_u16())
@@ -346,6 +364,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("rewind", |_, fs: &mut Self, ()|{
                 fs.inner.rewind().map_err(|_|LuaError::RuntimeError("Failed to rewind file cursor".to_string()))
+            });
+            _methods.add_method("size", |_, fs: &Self, ()|{
+                Ok(fs.len)
             });
             _methods.add_method_mut("drop", |_, fs: &mut Self, ()|{
                 if let Some(fd) = fs.inner.get_fd() {

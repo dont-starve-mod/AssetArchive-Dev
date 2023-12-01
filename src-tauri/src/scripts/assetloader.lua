@@ -230,7 +230,7 @@ function BuildLoader:GetSwapIcon()
 end
 
 -- loader for <anim.bin>
-AnimLoader = Class(function(self, f, lazy)
+AnimLoader = Class(function(self, f)
     local function error(e)
         self.error = e
         funcprint("Error in AnimLoader._ctor(): "..e)
@@ -247,7 +247,6 @@ AnimLoader = Class(function(self, f, lazy)
         return error(ERROR.UNEXPECTED_EOF)
     end
 
-    self.lazy = lazy
     local animlist = {}
     for i = 1, numanims do
         local name = f:read_variable_length_string()
@@ -280,27 +279,10 @@ AnimLoader = Class(function(self, f, lazy)
             if numelements == nil then
                 return error(ERROR.UNEXPECTED_EOF)
             end
-            if lazy then
-                f:seek_forward(numelements* 40)
-            else
-                local element = {}
-                for k = 1, numelements do
-                    local e = {
-                        imghash = f:read_u32(),
-                        imgindex = f:read_u32(),
-                        layerhash = f:read_u32(),
-                        matrix = { f:read_and_unpack("ffffff") },
-                    }
-                    local z_index = f:read_f32()
-                    if z_index == nil then
-                        return error(ERROR.UNEXPECTED_EOF)
-                    else
-                        e.z_index = (z_index + 5)* numelements / 10 + 0.5
-                        table.insert(element, e)
-                    end
-                end
-                table.insert(frame, element)
-            end
+            local element = {
+                raw = f:read_exact(numelements* 40)
+            }
+            table.insert(frame, element)
         end
 
         anim.frame = frame
@@ -313,6 +295,26 @@ AnimLoader = Class(function(self, f, lazy)
 
     f:close()
 end)
+
+function AnimLoader:ParseFrames(anim)
+    for _, v in ipairs(anim.frame) do
+        if v.raw ~= nil then
+            local num = #v.raw/40
+            local f = CreateBytesReader(v.raw)
+            for i = 1, num do
+                local e = {
+                    imghash = f:read_u32(),
+                    imgindex = f:read_u32(),
+                    layerhash = f:read_u32(),
+                    matrix = f:read_f32_matrix(),
+                    z_index = (f:read_f32() + 5)* num / 10 + 0.5
+                }
+                v[i] = e
+            end
+            v.raw = nil
+        end
+    end
+end
 
 -- loader for *.xml file
 XmlLoader = Class(function(self, f, skip_image_parser)
@@ -577,6 +579,48 @@ function TexLoader:__tostring()
         return string.format("Tex<error=%s>", self.error)
     else
         return string.format("Tex<nummips=%d>", #self.mipmaps)
+    end
+end
+
+-- loader for .ksh file
+KshLoader = Class(function(self, f)
+    local function error(e)
+        self.error = e
+        funcprint("Error in KshLoader._ctor(): "..e)
+        f:close()
+    end
+
+    if not f:seek_to_string(".vs") then
+        return error("Failed to found *.vs file identifier")
+    end
+    local len = f:read_u32()
+    local vs = f:read_exact(len)
+    if #vs ~= len then
+        return error("Failed to parse *.vs file content: size not match")
+    elseif not string.is_utf8(vs) then
+        return error("Failed to parse *.vs file content: not valid utf-8 string")
+    end
+    if not f:seek_to_string(".ps") then
+        return error("Failed to found *.ps file identifier")
+    end
+    local len = f:read_u32()
+    local ps = f:read_exact(len)
+    if #ps ~= len then
+        return error("Failed to parse *.ps file content: size not match")
+    elseif not string.is_utf8(ps) then
+        return error("Failed to parse *.ps file content: not valid utf-8 string")
+    end
+
+    self.ps = ps
+    self.vs = vs
+    f:close()
+end)
+
+function KshLoader:__tostring()
+    if self.error then
+        return string.format("Ksh<error=%s>", self.error)
+    else
+        return string.format("Ksh<vs=[%d] ps=[%d]>", #self.vs, #self.ps)
     end
 end
 

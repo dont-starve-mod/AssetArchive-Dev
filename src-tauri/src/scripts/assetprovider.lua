@@ -97,7 +97,7 @@ function DST_DataRoot:SetRoot(path, explicit)
 	local databundles = self:GetDataBundlesRoot()
 
 	if databundles:is_dir() then
-		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts"}do
+		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts", "shaders"}do
 			local zippath = databundles/(k..".zip")
 			local fs = zippath:is_file() and FileSystem.CreateReader(zippath)
 			if fs then
@@ -192,13 +192,13 @@ function DST_DataRoot:Iter(path)
 		local result = {}
 		if self.databundles[path] then
 			for _,name in ipairs(self.databundles[path]:List())do
-				table.insert(result, name)
+				result[name] = true
 			end
 		end
 		for _, file in ipairs((self.root/path):iter_file()) do
-			table.insert(result, path..file:name())
+			result[path..file:name()] = true -- use hashmap to prevent duplicated names
 		end
-		return result
+		return table.getkeys(result)
 	end
 end
 
@@ -248,6 +248,7 @@ local Provider = Class(function(self, root, static)
 	self.allxmlfile = {}
 	self.alltexelement = {}
 	self.alltexture = {}
+	self.allkshfile = {}
 
 	self.loaders = {
 		xml = {},
@@ -375,12 +376,25 @@ function Provider:ListAsset()
 
 	table.foreach(temp, function(_, v) v._depricated_redirect = inventoryimages_new end)
 
+	for _, v in ipairs(self.root:Iter("shaders/"))do
+		if v:endswith(".ksh") then
+			local ksh = KshLoader(self.root:Open(v, true))
+			if ksh.error then
+				print("Error loading ksh:")
+				print(ksh.error)
+			else
+				table.insert(self.allkshfile, v)
+			end
+		end
+	end
+
 	self.assets = {	
 		allzipfile = self.allzipfile,
 		alldynfile = self.alldynfile,
 		allxmlfile = self.allxmlfile,
 		alltexelement = self.alltexelement,
 		alltexture = self.alltexture,
+		allkshfile = self.allkshfile,
 	}
 
 	print("Start emitting data to frontend...")
@@ -471,7 +485,9 @@ function Provider:Load(args)
 	local time = now()
 	local result = { old_Load(self, args) }
 	print("[LOAD] type="..type..", args="..json.encode(args))
-	print("  time = "..string.format("%.1f", now() - time))
+	if now() - time > 50 then
+		print("  time = "..string.format("%.1f", now() - time))
+	end
 	return unpack(result)
 end
 
@@ -543,10 +559,13 @@ function Provider:GetAnimation(args)
 		if paths then
 			local result = {}
 			for k in pairs(paths) do
+				print(">")
 				local anim = self:LoadAnim(k)
+				print("Loaded", k)
 				if anim then
 					for _,v in ipairs(anim.animlist)do
 						if v.name == args.name and v.bankhash == bank then
+							anim:ParseFrames(v)
 							table.insert(result, v) -- TODO: v.assetpath ?
 						end
 					end
@@ -576,6 +595,7 @@ function Provider:LoadAnim(path)
 	local fs = self.root:Open(path)
 	if fs ~= nil then
 		local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ANIM)
+		print("zip decompressed")
 		if not zip.error then
 			local anim_raw = zip:Get("anim.bin")
 			if anim_raw == nil then
@@ -583,6 +603,7 @@ function Provider:LoadAnim(path)
 				return false
 			end
 			local anim = AnimLoader(CreateBytesReader(anim_raw))
+			print("Loaded")
 			if anim and not anim.error then
 				self.loaders.animbin[path] = anim
 				return anim
