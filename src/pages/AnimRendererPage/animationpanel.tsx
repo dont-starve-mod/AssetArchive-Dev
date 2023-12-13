@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import style from './animation.module.css'
 import * as PIXI from 'pixi.js'
 import animstateContext from './globalanimstate'
@@ -12,6 +12,11 @@ import { useMouseDrag, useMouseScroll } from '../../hooks'
 import AnimPlayerWidget from '../../components/AnimPlayerWidget'
 
 const int = (i: number)=> Math.round(i)
+
+const rgb2value = (s: string): number[] => {
+  s = s.replace("#", "")
+  return ([0,1,2]).map(i=> parseInt(s.substring(i*2, i*2+2), 16) / 255)
+}
 
 const getImgIndex = (imgList: any[], index: number)=> {
   if (imgList.length === 1) return 0
@@ -139,8 +144,14 @@ export default function AnimationPanel(props: IProps) {
     backgroundSize: "16px 16px",
     backgroundPosition: "0 0, 8px 8px",
   }
-  const axisColor = colorType === "transparent" ? "#111" : 
-    "#aaa"
+  const axisColor = useMemo(()=> {
+    if (colorType === "transparent")
+      return "#333"
+    const value = rgb2value(colorValue)
+    const delta = Math.abs(value[0]*255-200) + Math.abs(value[1]*255-200) + Math.abs(value[2]*255-200)
+    console.log(delta)
+    return delta < 180 ? "#333" : "#FFF"
+  }, [colorType, colorValue])
   
   const onMove = useCallback((x: number, y: number)=> {
     render.offset(x, y)

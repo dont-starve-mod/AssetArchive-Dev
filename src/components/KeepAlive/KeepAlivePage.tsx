@@ -24,22 +24,23 @@ export default function KeepAlivePage(props: KeepAlivePageProps): React.JSX.Elem
     let state = cacheStates[cacheId]
     let articleRef: HTMLElement | undefined = cacheStates["@widget"]
     if (state && state.node) {
-      console.log("restore-node-page", cacheId)
+      // console.log("restore-node-page", cacheId)
       state.node.forEach((child: HTMLElement)=> ref.current?.appendChild(child))
       scroll.current = state.scrollTop | 0
       if (articleRef){
         articleRef.scrollTop = state.scrollTop | 0
       }
       addRecord({namespace: cacheNamespace, cacheId})
+      appWindow.emit("restore_cache", {cacheId})
     }
     else {
-      console.log("mount-page", cacheId)
+      // console.log("mount-page", cacheId)
       mount({cacheId, element: props.children})
       addRecord({namespace: cacheNamespace, cacheId})
     }
     return ()=> {
       const scrollTop = scroll.current
-      console.log('unmount-page', cacheId, scrollTop)
+      // console.log('unmount-page', cacheId, scrollTop)
       if (state && state.scrollTop !== scrollTop) {
         cache({cacheId, scrollTop})
       }

@@ -1,6 +1,6 @@
 pub mod lua_misc {
     use rlua::prelude::{LuaResult, LuaString, LuaError};
-    use rlua::{Nil, UserData, Context, Value};
+    use rlua::{Nil, UserData, Context, Value, Table};
     use std::time::{SystemTime, UNIX_EPOCH};
     use indicatif::{ProgressBar, ProgressStyle};
     use webbrowser;
@@ -141,6 +141,12 @@ pub mod lua_misc {
             Ok(search(path.as_str()))
         })?)?;
 
+        // validate utf-8
+        let string_lib = globals.get::<_, Table>("string")?;
+        string_lib.set("is_utf8", lua_ctx.create_function(|_, s: LuaString|{
+            Ok(s.to_str().is_ok())
+        })?)?;
+
         // process
         globals.set("exit", lua_ctx.create_function(|_, code: Value| -> Result<(), LuaError>{
             let code = match code {
@@ -150,6 +156,7 @@ pub mod lua_misc {
             };
             std::process::exit(code);
         })?)?;
+
 
         Ok(())
     }

@@ -165,10 +165,12 @@ export class AnimState {
   private _event: EventTarget
   facingList: number[]
   autoFacing?: true
+  DEV_usingElementLoader: boolean
 
   animLoader: (param: {bank: hash, animation: string})=> AnimationData[] = dummy as any
   buildLoader: (param: {build: string})=> BuildData = dummy as any
   atlasLoader: (param: {build: string, sampler: number})=> ImageBitmap = dummy as any
+  elementLoader?: (param: {build: string, imghash: number, index: number})=> ImageBitmap = dummy as any
 
   frameList: FrameList
   symbolCollection: Map<number, string | number>
@@ -214,6 +216,8 @@ export class AnimState {
         }
       }
     })
+
+    this.DEV_usingElementLoader = true
   }
 
   // alias
@@ -572,10 +576,11 @@ export class AnimState {
   }
 
   // loaders
-  registerLoaders({animLoader, buildLoader, atlasLoader}){
+  registerLoaders({animLoader, buildLoader, atlasLoader, elementLoader}){
     this.animLoader = animLoader
     this.buildLoader = buildLoader
     this.atlasLoader = atlasLoader
+    this.elementLoader = elementLoader
   }
 
   // event

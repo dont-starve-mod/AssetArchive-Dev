@@ -1,0 +1,34 @@
+.template-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.template-list .template-card, .template-list .template-card-empty {
+  margin: 10px;
+  position: relative;
+  /* background-color: pink; */
+  border-radius: 2px;
+  cursor: pointer;
+  box-sizing: content-box;
+  border: 1px transparent solid;
+  box-shadow: 0 0 0 1px rgba(17,20,24,.15);
+}
+
+.template-list .template-card {
+  width: 130px;
+}
+
+.template-card-empty {
+  width: 100px!important;
+  border: 1px #ccc dashed!important;
+  box-shadow: none!important;
+}
+
+.template-title {
+  width: 100%;
+  line-height: 25px;
+  margin-bottom: 5px;
+  text-align: center;
+  word-wrap: break-word;
+}

@@ -14,6 +14,7 @@ import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import { ContextMenu2, ContextMenu2Popover } from '@blueprintjs/popover2'
 import { Menu, MenuItem } from '@blueprintjs/core'
+import { invoke } from '@tauri-apps/api'
 
 interface IProps {
   
@@ -38,17 +39,36 @@ export default function AnimRendererPage(props: IProps) {
 
   useLuaCallOnce<string>("animproject", (result)=> {
     const data: any = JSON.parse(result)
-    console.log(data)
     const cmds: Api[] = data.cmds
     animstate.clear()
     animstate.setApiList(cmds)
     animstateHooks.forceUpdate()
   }, {id, type: "load"}, [id])
 
+  // auto save...
+  // TODO: 可能需要一个更好的实现
   useEffect(()=> {
+    const save = ()=> {
+      const data = {
+        id,
+        api_list: animstate.getApiList(),
+        render_param: {
+          ...render.serialize(),
+          facing: animstate.getActualFacing(),
+        }
+      }
+      invoke("lua_call", {api: "animproject", param: JSON.stringify({
+        type: "save",
+        data,
+      })}).then(
+        ()=> {},
+        error=> console.error("Error in autosave:", error)
+      )
+    }
+    const timer = setInterval(save, 10*1000)
+    return ()=> clearInterval(timer)
+  }, [id])
 
-    animstate.insert({name: "SetBank", args: ["1"]}, 0)
-  }, [])
   useEffect(()=> {
     const unlisten = appWindow.listen<any>("forceupdate", ({payload})=> {
       console.log("ForceUpdate event from:", payload)

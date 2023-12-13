@@ -231,14 +231,14 @@ export default function AnimListPage() {
   )
 }
 
-interface IAnimProjectItemHandlers {
+type AnimProjectItemHandlers = {
   onChangeTitle: (title: string)=> void,
   onChangeDescription: (description: string)=> void,
   onRequestDuplicating: (props: AnimProject)=> void,
   onRequestDeleting: ()=> void,
 }
 
-function AnimProjectItem(props: AnimProject & IAnimProjectItemHandlers & {disable?: boolean}) {
+function AnimProjectItem(props: AnimProject & AnimProjectItemHandlers & {disable?: boolean}) {
   const {title, id} = props
   const openProject = ()=> openAnimSubwindow({id})
   return <div className={style["recent-project-item"]}>
@@ -269,7 +269,7 @@ const formatMtime = (mtime?: number): string=> {
   }
 }
 
-function AnimProjectPreview(props: AnimProject & IAnimProjectItemHandlers) {
+function AnimProjectPreview(props: AnimProject & AnimProjectItemHandlers) {
   const {title, description, cmds} = props
   const [isInputFocus, setInputFocus] = useState(false)
   const backdropStyle: React.CSSProperties = {

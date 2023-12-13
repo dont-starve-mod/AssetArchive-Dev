@@ -80,16 +80,25 @@ export function addDocuments(index: IndexName, doc: any[], options?: DocumentOpt
 }
 
 export type Response = SearchResponse<Record<string, any>, SearchParams>
-// const cache = new LRUCache<string, SearchResponse<Record<string, any>, SearchParams>>({max: 4})
 
 export async function search(index: IndexName, query: string, options?: SearchParams) {
   checkValid()
+
+  let result = await state.client.index(index).search(query, options)
+  return result
+}
+
+const cache = new LRUCache<string, Response>({max: 4})
+export async function searchWithCache(index: IndexName, query: string, options?: SearchParams) {
+  checkValid()
+  // options param is `constant` now, so don't hash it :p
   // let cacheKey = `${index}@${query}<${JSON.stringify(options)}>`
-  // if (cache.has(cacheKey)){
-  //   return cache.get(cacheKey)
-  // }
-  let result = await state.client.index(index)
-    .search(query, options)
+  let cacheKey = `${index}@${query}`
+  if (cache.has(cacheKey)){
+    return cache.get(cacheKey)
+  }
+  let result = await state.client.index(index).search(query, options)
+  cache.set(cacheKey, result)
   return result
 }
 

@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox } from '@blueprintjs/core'
-import { Collapse, ButtonGroup } from '@blueprintjs/core'
+import { ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
 import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useSaveFileDialog, useBatchDownloadDialog } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
 import style from './index.module.css'
-import Preview from '../../components/Preview'
+import Preview, { killPreviewSfx } from '../../components/Preview'
 import ClickableTag from '../../components/ClickableTag'
 import Hash from '../../components/HumanHash'
 import FacingString from '../../components/FacingString'
@@ -19,7 +19,6 @@ import BatchDownloadButton from '../../components/BatchDownloadButton'
 import { FmodEvent, FmodProject } from '../../searchengine'
 import SfxPlayer from '../../components/SfxPlayer'
 import { AccessableItem } from '../../components/AccessableItem'
-import { invoke } from '@tauri-apps/api'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -620,10 +619,7 @@ function FmodProjectPage(props: FmodProject) {
     // listen for page cache
     let unlisten = appWindow.listen<any>("unmount_cache", ({payload: {cacheId}})=> {
       if (cacheId.startsWith("assetPage")) {
-        invoke("fmod_send_message", {data: JSON.stringify({
-          api: "KillSound",
-          args: ["PREVIEW_SFX"],
-        })})
+        killPreviewSfx()
       }
     })
     return ()=> { unlisten.then(f=> f()) }

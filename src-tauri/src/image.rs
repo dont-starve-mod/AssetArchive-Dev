@@ -189,6 +189,14 @@ pub mod lua_image {
             }
         }
 
+        fn pixel_size(&self) -> usize {
+            match self.inner.color() {
+                ColorType::Rgba8 => 4,
+                ColorType::Rgb8 => 3,
+                _ => usize::MAX,
+           }
+        }
+
         fn from_img(inner: DynamicImage) -> Self {
             Image {
                 width: inner.width(),
@@ -480,21 +488,30 @@ pub mod lua_image {
                     .map_err(|e|LuaError::RuntimeError(e.to_string()))
             });
             // get pixel rgba of coord (x, y) (starts from left-top)
-            _methods.add_method("getpixel", |_, img: &Self, (x, y): (i64, i64)|{
-                if x < 0 || y < 0 || x > (u32::MAX as i64)|| y > (u32::MAX as i64) {
-                    // out of type range
-                    return Ok(Variadic::new());
-                }
-                let (x, y) = (x as u32, y as u32);
+            _methods.add_method("get_pixel", |_, img: &Self, (x, y): (u32, u32)|{
                 if x >= img.width || y >= img.height {
-                    // out of image size range
-                    Ok(Variadic::new())
+                    Err(LuaError::RuntimeError(format!("out of size ({}x{})", img.width, img.height)))
                 }
                 else{
-                    let pixel = unsafe { img.inner.unsafe_get_pixel(x as u32, y as u32) };
+                    let pixel = unsafe { img.inner.unsafe_get_pixel(x, y) };
                     let rgba = pixel.channels();
-                    Ok(Variadic::from_iter(rgba.iter().copied()))
+                    Ok(rgba.iter().copied().collect::<Vec<u8>>())
                 } 
+            });
+            _methods.add_method_mut("put_pixel", |_, img: &mut Self, (x, y, pixel): (u32, u32, Vec<u8>)|{
+                if x >= img.width || y >= img.height {
+                    Err(LuaError::RuntimeError(format!("out of size ({}x{})", img.width, img.height)))
+                }
+                else {
+                    let size = img.pixel_size();
+                    if pixel.len() != size {
+                        Err(LuaError::RuntimeError(format!("pixel size not match, expected {}, got {}", size, pixel.len())))
+                    }
+                    else {
+                        unsafe { img.inner.unsafe_put_pixel(x, y, *Pixel::from_slice(pixel.as_slice())) }
+                        Ok(())
+                    }
+                }
             });
             // save image to path
             _methods.add_method("save", |_, img: &Self, path: String|{

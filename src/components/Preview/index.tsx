@@ -164,7 +164,7 @@ function Texture(props: TextureProps) {
 
 }
 
-interface CCProps extends PreviewProps {
+type CCProps = PreviewProps & {
   cc: string,
   percent?: number,
   [K: string]: any, // generic image loader props
@@ -492,6 +492,13 @@ function Sfx(props: {path: string, param_list: any[]} & PreviewProps) {
         style={{position: "absolute", transform: "translate(-50%, -50%)", left: "50%", top: "50%"}}/>
     </div>
   )
+}
+
+export function killPreviewSfx() {
+  invoke("fmod_send_message", {data: JSON.stringify({
+    api: "KillSound",
+    args: [SFX_ID],
+  })})
 }
 
 export default {

@@ -2,9 +2,9 @@ import { appWindow } from "@tauri-apps/api/window"
 import { WebviewWindow } from "@tauri-apps/api/window"
 import { v5 as uuidv5 } from 'uuid'
 
-const uuidNS = uuidv5("AnimProject", uuidv5.URL)
+const uuidNS = uuidv5("PostProcessor", uuidv5.URL)
 
-export function openAnimSubwindow({id}: {id: string}) {
+export function openPostProcessSubwindow({id}: {id: string}) {
   const label = uuidv5(id, uuidNS)
   let subwindow = WebviewWindow.getByLabel(label)
   if (subwindow) {
@@ -13,8 +13,8 @@ export function openAnimSubwindow({id}: {id: string}) {
   }
   else {
     subwindow = new WebviewWindow(label, {
-      title: "Anim Renderer",
-      url: "/anim/" + encodeURIComponent(id).replace(".", "%2E"),
+      title: "Post Processor",
+      url: "/effect/" + encodeURIComponent(id).replace(".", "%2E"),
       minWidth: 700,
       minHeight: 500,
       fileDropEnabled: false,

@@ -49,7 +49,7 @@ export class ResizableCache extends LRUCache<string, any> {
   }
 
   checkCapacity() {
-    console.log("check:", this.size, this._capacity)
+    // console.log("check:", this.size, this._capacity)
     let results: string[] = []
     if (this._capacity > 0 && this.size > this._capacity){
       const keys = this.rkeys()

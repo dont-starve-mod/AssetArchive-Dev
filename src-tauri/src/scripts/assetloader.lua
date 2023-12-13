@@ -747,20 +747,390 @@ ZipLoader.NAME_FILTER = {
 
 DynLoader = Class(ZipLoader, FileSystem.DynLoader_Ctor)
 
--- function DynLoader.IsDyn(path)
---     local f = CreateReader(path)
---     if f then
---         local result = f:read_string(#DYN_SIG) == DYN_SIG
---         f:close()
---         return result
---     end
--- end
+local function FmodBytesToGUID(bytes)
+    assert(type(bytes) == "string")
+    assert(#bytes == 16)
+    local buffer = {}
+    for i = 1, 16 do
+        table.insert(buffer, string.format("%02x", string.byte(bytes, i)))
+    end
+    local p1 = table.concat({buffer[4], buffer[3], buffer[2], buffer[1]}, "")
+    local p2 = table.concat({buffer[6], buffer[5]}, "")
+    local p3 = table.concat({buffer[8], buffer[7]}, "")
+    local p4 = table.concat(buffer, "", 9, 10)
+    local p5 = table.concat(buffer, "", 11, 16)
+    return table.concat({p1, p2, p3, p4, p5}, "-")
+end
 
--- function DynLoader.IsZip(path)
---     local f = CreateReader(path)
---     if f then
---         local result = f:read_string(#ZIP_SIG) == ZIP_SIG
---         f:close()
---         return result
---     end
--- end
+-- loader for *.fev file, only parse sound reference, other data are loaded from libfmodex
+FevLoader = Class(function(self, f)
+    local function error(e)
+        self.error = e
+        funcprint("Error in FevLoader._ctor(): "..e)
+        f:close()
+    end
+    local function trim(s)
+        if s:endswith("\0") then
+            s = s:sub(1, #s-1)
+        end
+        return s
+    end
+    f:seek_to_string("RIFF")
+    f:seek_to_string("LIST")
+    f:seek_to_string("PROJ")
+    f:seek_to_string("OBCT")
+    f:seek_forward(20)
+    local numbanks = f:read_u32()
+    f:seek_forward(4)
+    local numcategories = f:read_u32()
+    f:seek_forward(4)
+    local numgroups = f:read_u32()
+    f:seek_forward(36)
+    local numevents = f:read_u32()
+    f:seek_forward(28)
+    local numreverbs = f:read_u32()
+    f:seek_forward(4)
+    local numwaveforms = f:read_u32()
+    f:seek_forward(28)
+    local numsounddefs = f:read_u32()
+    f:seek_forward(128)
+    local name = f:read_variable_length_string()
+
+    print(string.format("\n%d Banks\n%d Categories\n%d Events\n%d Waveforms\n%d Sounddefs\n",
+        numbanks, numcategories, numevents, numwaveforms, numsounddefs))
+    print(name)
+
+    self.numbanks = numbanks
+    self.numevents = numevents
+    self.numcategories = numcategories
+    self.numwaveforms = numwaveforms
+    self.numsounddefs = numsounddefs
+
+    f:seek_to_string("LGCY")
+    f:seek_forward(12)
+    self.project_name = trim(f:read_variable_length_string())
+
+    local bank_list = {} -- fmod sound bank / fsb
+    f:seek_forward(8)
+    for i = 1, numbanks do
+        f:seek_forward(20)
+        local name = trim(f:read_variable_length_string())
+        table.insert(bank_list, name)
+    end
+
+    self.bank_list = bank_list
+
+    local category_list = {}
+    for i = 1, numcategories do
+        local name = trim(f:read_variable_length_string())
+        f:seek_forward(20)
+        table.insert(category_list, name)
+    end
+
+    local name_object = {}
+
+    local event_list = {}
+    local function ParseEvent()
+        local type = f:read_u32()
+        if type == 16 then -- simple event
+            local name_index = f:read_u32()
+            local guid_bytes = f:read_exact(16)
+            local guid = FmodBytesToGUID(guid_bytes)
+            f:seek_forward(144)
+            local num = f:read_u32()
+            assert(num == 1 or num == 0, "simple event must have only 0/1 sounddef")
+            local index = f:read_u32()
+            f:seek_forward(58)
+            local category = f:read_variable_length_string()
+            assert(#category > 2, "Failed to get cateogry name at "..f:tell())
+            local event = {
+                type = "simple",
+                name_index = name_index,
+                guid = guid,
+                has_sounddef = num == 1,
+                sounddef_list = { index },
+            }
+            table.insert(event_list, event)
+            table.insert(name_object, event)
+        elseif type == 8 then -- multi-track event
+            local name_index = f:read_u32()
+            local guid_bytes = f:read_exact(16)
+            local guid = FmodBytesToGUID(guid_bytes)
+            f:seek_forward(144)
+            local numlayers = f:read_u32()
+            local refs = {}
+            for j = 1, numlayers do
+                f:seek_forward(6)
+                local numsounds = f:read_u16()
+                local numenvelopes = f:read_u16()
+                assert(numsounds + numenvelopes < 100, "Too many numsounds or numenvelopes at "..f:tell())
+                for k = 1, numsounds do
+                    local index = f:read_u16()
+                    table.insert(refs, index)
+                    f:seek_forward(56)
+                end
+                for k = 1, numenvelopes do
+                    f:seek_forward(4)
+                    local length = f:read_u32()
+                    if length > 0 then
+                        f:seek_forward(length) -- FMOD Highpass Simple / FMOD Lowpass Simple / ...
+                    end
+                    f:seek_forward(12)
+                    local numpoints = f:read_u32()
+                    f:seek_forward(4*numpoints)
+                    f:seek_forward(8)
+                end
+            end
+            local numparams = f:read_u32()
+            f:seek_forward(32*numparams)
+            f:seek_forward(8)
+            local category = f:read_variable_length_string()
+            assert(#category > 2, "Failed to get cateogry name at "..f:tell())
+            local event = {
+                type = "multi-track",
+                name_index = name_index,
+                guid = guid,
+                has_sounddef = #refs > 0,
+                sounddef_list = refs,
+            }
+            table.insert(event_list, event)
+            table.insert(name_object, event)
+        else
+            error("Event type number invalid at "..f:tell())
+            return true
+        end
+    end
+
+    local function ParseGroup()
+        local group_name_index = f:read_u32()
+        f:seek_forward(4)
+        local numsubgroups = f:read_u32()
+        local numevents = f:read_u32()
+        for i = 1, numsubgroups do
+            if ParseGroup() then
+                return true
+            end
+        end
+        for i = 1, numevents do
+            if ParseEvent() then
+                return true
+            end
+        end
+    end
+
+    local numrootgroups = f:read_u32()
+    for i = 1, numrootgroups do
+        ParseGroup()
+    end
+    
+    local num = f:read_u32()
+    f:seek_forward(74* num) -- unknown data with known size :p
+
+    -- -- TODO:
+    -- -- it's quite hard to locate starting of sounddef region
+    -- -- so use some fuzzy search method to find it
+    -- -- * may skip sounddef without any source file
+    -- -- * may cause incorrect sounddef index
+    -- while false do
+    --     local s = f:seek_to_next_string(4)
+    --     if not s:find(">") and not s:find("<") and not s:find("?") and s:byte(#s-3) == 46 then
+    --         local ext = s:sub(#s - 3, #s)
+    --         if ext ~= ".wav" and ext ~= ".mp3" then
+    --             error("Unexpected sound file extension: "..ext)
+    --         end
+    --         local current = f:tell()
+    --         f:seek_to(current - #s - 5 - 8 - 12)
+    --         break
+    --     end
+    -- end
+    -- 
+    -- ↑ now it's solved
+    
+    local numsounddefs = f:read_u32() -- same as self.numsounddefs
+    local sounddef_list = {}
+    for i = 1, numsounddefs do
+        -- print(">>>>>>>>>>>>>>> Def", i, f:tell())
+        local name_index = f:read_u32()
+        local num = f:read_u32()
+        local sounddef = {
+            name_index = name_index,
+            file_list = {},
+        }
+        local numwaveforms = f:read_u32()
+        for j = 1, numwaveforms do
+            local type = f:read_u32()
+            local weight = f:read_u32()
+            if type == 0 then
+                local path = trim(f:read_variable_length_string())
+                local num = f:read_u32()
+                local index = f:read_u32()
+                local lengthms = f:read_u32()
+                table.insert(sounddef.file_list, {
+                    path = path,
+                    lengthms = lengthms,
+                    num = num, -- ukn num...
+                    index = index, -- ukn index...
+                })
+            elseif type == 1 then
+                f:seek_forward(8)
+            elseif type == 2 or type == 3 then
+                -- do nothing
+            end
+        end
+
+        table.insert(sounddef_list, sounddef)
+        table.insert(name_object, sounddef)
+    end
+    f:seek_to_string("EPRP")
+    f:seek_to_string("STRR")
+    local len = f:read_u32()
+    local numstrings = f:read_u32()
+    local offset_list = {}
+    for i = 1, numstrings do
+        table.insert(offset_list, f:read_u32())
+    end
+    local content = f:read_exact(len - 4 - 4* numstrings)
+    local string_table = {}
+    for i = 1, #offset_list - 1 do
+        local s = trim(content:sub(offset_list[i] + 1, offset_list[i + 1]))
+        table.insert(string_table, s)
+    end
+    -- last string
+    local s = trim(content:sub(offset_list[#offset_list] + 1, #content))
+    table.insert(string_table, s)
+
+    self.string_table = string_table
+
+    for k, v in ipairs(name_object)do
+        v.name = self:GetStringByIndex(v.name_index)
+    end
+
+    self.event_list = event_list
+    self.sounddef_list = sounddef_list
+
+    f:close()
+
+    self:UNSTABLE_AlignSounddefIndex()
+end)
+
+function FevLoader:GetStringByIndex(index, strict)
+    local value = self.string_table[index + 1]
+    if strict ~= false and value == nil then
+        error("Failed to get global string["..index.."] (table size is "..#self.string_table..")")
+    end
+    return value
+end
+
+function FevLoader:UNSTABLE_AlignSounddefIndex()
+    if self.numwaveforms == 0 then
+        self.sounddef_offset = 0
+    else
+        local max_index = 0
+        for _, v in ipairs(self.event_list)do
+            for _, index in ipairs(v.sounddef_list)do
+                max_index = math.max(max_index, index)
+            end
+        end
+        assert(max_index + 1 == #self.sounddef_list)
+    end
+end
+
+-- loader for *.fsb file
+-- this part is modified from `python-fsb5`
+local FsbLoader = Class(function(self, f)
+    assert(f:read_exact(4) == "FSB5")
+    local version = f:read_u32()
+    assert(version > 0)
+    local numsamples = f:read_u32()
+    local sample_headers_size = f:read_u32()
+    local string_table_size = f:read_u32()
+    local data_size = f:read_u32()
+    local mode = f:read_u32()
+    f:seek_forward(32)
+    local header_size = f:tell()
+    print(f:tell())
+    print(numsamples)
+    print(string_table_size)
+    for i = 1, numsamples do
+        --
+    end
+    f:seek_to(header_size + sample_headers_size)
+    print(f:tell())
+    local offset_list = {}
+    local string_table = {}
+    for i = 1, numsamples do
+        table.insert(offset_list, f:read_u32())
+    end
+    local start = numsamples* 4
+    local content = f:read_exact(string_table_size - start)
+    for i = 1, numsamples - 1 do
+        table.insert(string_table, 
+            content:sub(offset_list[i] - start, offset_list[i + 1] - start - 1))
+    end
+    -- last one
+    local s = content:sub(offset_list[numsamples] - start + 1, #content)
+    while s:endswith("\0") do -- trim end of string
+        s = s:sub(1, #s - 1)
+    end
+    table.insert(string_table, s)
+
+
+    exit()
+end)
+
+function FsbLoader:GetFileExtension(format)
+    if type(format) == "number" then
+        format = assert(self.FORMAT[format], "Invalid format number: "..format)
+    end
+    return format == "VORBIS" and "ogg"
+        or format == "PCM8" or format == "PCM16" or format == "PCM32" and "wav"
+        or format == "MPEG" and "mp3"
+        or "bin"
+end
+
+-- FsbLoader(FileSystem.CreateReader("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/mods/sakana/sound/lycoreco_sfx0.fsb"))
+
+
+FsbLoader.FORMAT = {
+    "PCM8", -- [1]
+    "PCM16",
+    "PCM24",
+    "PCM32",
+    "PCMFLOAT",
+    "GCADPCM",
+    "IMAADPCM",
+    "VAG",
+    "HEVAG",
+    "XMA",
+    "MPEG",
+    "CELT",
+    "AT9",
+    "XWMA",
+    "VORBIS", -- [15]
+}
+-- FevLoader(FileSystem.CreateReader("/Users/wzh/Desktop/mod_tools/FMOD_Designer/test2/test.fev"))
+-- FevLoader(FileSystem.CreateReader("/Users/wzh/Desktop/mod_tools/FMOD_Designer/test3/test.fev"))
+-- FevLoader(FileSystem.CreateReader("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/mods/sakana/sound/lycoreco_sfx0.fev"))
+-- FevLoader(FileSystem.CreateReader("/Users/wzh/Desktop/mod_tools/FMOD_Designer/test8/test.fev"))
+-- exit()
+-- FevLoader(FileSystem.CreateReader("/Users/wzh/WIN-230201/desktop/homura-12.8/sound/lw_homura.fev"))
+-- FevLoader(FileSystem.CreateReader("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/data/sound/yotc_2022_2.fev"))
+-- exit()
+local p = FileSystem.Path("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/data/sound/")
+local temp2 = {}
+for _, fev in ipairs(p:iter_file_with_extension("fev")) do
+    print(fev)
+    local a,b = pcall(function()FevLoader(FileSystem.CreateReader(fev)) end)
+    if not a then
+        table.insert(temp2, fev:name())
+        print(fev:name())
+        print(b)
+        exit()
+        break
+    end
+end
+
+print(json.encode(temp2))
+if #temp2 >0 then exit() end
+
+-- exit()

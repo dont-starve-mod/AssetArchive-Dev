@@ -12,6 +12,7 @@ import { MeiliSearch } from 'meilisearch'
 import type { AllAssetTypes } from '../../searchengine'
 import type { AssetDesc } from '../../assetdesc'
 import { setAddr, addDocuments, search } from '../../global_meilisearch'
+import { useOS } from '../../hooks'
 
 // shutdown app if main window is closed. (so that all sub windows will be closed, too)
 globalListen("tauri://destroyed", (e)=> {
@@ -124,7 +125,6 @@ export default function AppInit() {
       try{
         await invoke("app_init")
         window.app_init = true
-
         // create meilisearch client before registering `assets` event handler
         const addr = await invoke<string>("meilisearch_get_addr")
         setAddr(addr)
@@ -274,9 +274,10 @@ function ThemeHandler() {
 }
 
 function GlobalHotKey() {
+  const {isMacOS} = useOS()
   useHotkeys([
     {
-      combo: "mod + p",
+      combo: isMacOS ? "mod + p" : "ctrl + p",
       label: "搜索",
       global: true,
       onKeyDown(e) {

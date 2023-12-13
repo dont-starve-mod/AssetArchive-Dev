@@ -3,7 +3,15 @@ import { cacheActionTypes } from "./cacheActionTypes"
 import cacheContext from "./cacheContext"
 import { ResizableCache } from "./cacheCapacity"
 
-function cacheReducer(cacheStates, action) {
+type CacheStates = {
+  // ["@widget"]: JSX.Element,
+  [K: string]: {
+    cacheId: string,
+    element: JSX.Element,
+    status: cacheActionTypes,
+  }
+}
+function cacheReducer(cacheStates: CacheStates, action) {
   let payload = action.payload
   let cacheId = payload.cacheId
   switch (action.type){
@@ -62,7 +70,7 @@ export default function KeepAliveProvider(props) {
   }, [])
   const mount = useCallback(({cacheId, element})=> {
     if (!cacheStates[cacheId]){
-      console.log("mount callback", cacheId, element)
+      // console.log("mount callback", cacheId, element)
       dispatch({type: cacheActionTypes.CREATING, payload: {cacheId, element}})
     }
   }, [cacheStates])

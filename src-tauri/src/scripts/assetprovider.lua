@@ -48,8 +48,10 @@ function DST_DataRoot:ResolvePath(path)
                 return self:ResolvePath(path/"dontstarve_steam.app")
             elseif name == "Don't Starve Together Dedicated Server" then
                 return self:ResolvePath(path/"dontstarve_dedicated_server_nullrenderer.app")
-            elseif name == "dontstarve_steam.app" or name == "dontstarve_dedicated_server_nullrenderer.app" then
-                return self:ResolvePath(path/"Contents/data")
+            elseif name == "dont_starve" then
+            	return self:ResolvePath(path/"dontstarve_steam.app")
+            elseif name == "dontstarve_steam.app" or name == "dontstarve_dedicated_server_nullrenderer.app" or name == "dontstarve_steam.app" then
+                return self:ResolvePath(path/"Contents"/"data")
             elseif name == "Contents" and path:parent():is_dir() then
                 return self:ResolvePath(path:parent())
             end
@@ -909,7 +911,7 @@ function Provider:GetImageWithCC(args)
 		if img == DYN_ENCRYPT then
 			return img
 		elseif type(img) == "userdata" then
-			img:clone()
+			img = img:clone()
 			img:apply_cc(cc_bytes, args.percent or 1)
 			if args.format == "img" then
 				return img
@@ -922,6 +924,43 @@ function Provider:GetImageWithCC(args)
 			end
 		end
 	end
+end
+
+function Provider:GetImageWithInsanityShader(args)
+	-- a dedicated image postprocessor by cpu calculation, for debug only
+	args.format = "img"
+	args.type = args.sourceType
+	local img = self:Load(args)
+
+	if type(img) ~= "userdata" then
+		error("Failed to load img: "..json.encode(args))
+	end
+
+	local img1 = img:clone()
+	local w, h = img:size()
+	local img2 = img:affine_transform(w, h, {1,0,0,1,
+		math.floor(w* 0.1),
+		math.floor(h* -0.2),
+	}, Image.NEAREST)
+	-- merge two imgs
+	for y = 0, h - 1 do
+		for x = 0, w - 1 do
+			local pixel1 = img1:get_pixel(x, y)
+			local pixel2 = img2:get_pixel(x, y)
+			local x_offset = math.abs(x - w / 2) / w 
+			local y_offset = math.abs(y - h / 2) / h
+			local percent = 2 *( x_offset * x_offset + y_offset * y_offset )
+			local pixel = {} -- target
+			for i = 1, 3 do
+				pixel[i] = pixel1[i] * (1-percent) + pixel2[i] * percent
+				pixel[i] = math.clamp(pixel[i], 0, 255)
+			end
+			pixel[4] = 255
+			img2:put_pixel(x, y, pixel)
+		end
+	end
+	img2:save("test_insanity.png")
+	exit()
 end
 
 function Provider:LoadXml(path)

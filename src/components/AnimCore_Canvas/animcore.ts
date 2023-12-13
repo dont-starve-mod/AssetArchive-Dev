@@ -10,6 +10,8 @@ const animLoading: {[K: string]: true} = {}
 const animData : {[K: string]: AnimationData[]}= {}
 const atlasLoading: {[K: string]: true} = {}
 const atlasData: {[K: string]: AtlasObject} = {}
+const elementLoading: {[K: string]: true} = {}
+const elementData: {[K: string]: ImageBitmap} = {}
 
 /* 动画资源加载器 */
 function pushError(error: any, msg: any){
@@ -89,7 +91,7 @@ function animLoader({bank, animation}: {bank: hash, animation: string}, error): 
   load()
 }
 
-interface ImageData {
+type ImageData = {
   index: number,
   bbx: number,
   bby: number,
@@ -145,8 +147,6 @@ function buildLoader({build}: {build: string}, error): BuildData | undefined{
   load()
 }
 
-// const toInt = b=> b[3]*16777216 + b[2]*65535 + b[1]*256 + b[0]
-
 type AtlasObject = ImageBitmap
 
 function atlasLoader({build, sampler}: {build: string, sampler: number}, error): AtlasObject | undefined{
@@ -177,7 +177,38 @@ function atlasLoader({build, sampler}: {build: string, sampler: number}, error):
   load()
 }
 
-const defaultLoaders = { animLoader, buildLoader, atlasLoader }
+// TODO: element loader的粒度有点太细了，会导致动画中途第一次加载的图片闪烁
+// 需要再优化一下
+
+function elementLoader({build, imghash, index}: 
+  {build: string, imghash: number, index: number}, error): ImageBitmap {
+  if (!build || typeof imghash !== "number" || typeof index !== "number") return
+  const id = `${build}-${imghash}-${index}`
+  if (elementData[id] !== undefined) return elementData[id]
+  if (elementLoading[id]) return
+  async function load(){
+    try {
+      elementLoading[id] = true
+      const response = await get<number[]>({type: "symbol_element", build, imghash, index, format: "png"})
+      if (response.length > 0){
+        const array = Uint8Array.from(response)
+        const blob = new Blob([array])
+        const img = await createImageBitmap(blob)
+        delete elementLoading[id]
+        console.log("Load element success: " + id)
+        elementData[id] = img
+      }
+      else {
+        pushError(error, "Atlas not exists: " + id)
+      }
+    }catch(e){
+      pushError(error, "Atlas loading error: " + id + " - " + e.message)
+    }
+  }
+  load()
+}
+
+const defaultLoaders = { animLoader, buildLoader, atlasLoader, elementLoader }
 
 const int = (i: number)=> Math.round(i)
 
@@ -245,15 +276,28 @@ function onUpdate(time: number){
           const img = imgList[index]
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
-          const atlas = anim.atlasLoader({build: sourceBuild.name, sampler})
-          if (!atlas) return
-          const {width: WIDTH, height: HEIGHT} = atlas // Atlas image
-          const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
-          ctx.save()
-          ctx.transform(...matrix) /* affine transform matrix */
-          ctx.drawImage(atlas, int(bbx*x_scale), int(bby*y_scale), int(w*x_scale), int(h*y_scale),
-            x-w/2, y-h/2, w, h) /* bbox & anchor */
-          ctx.restore()
+          if (anim.DEV_usingElementLoader && anim.elementLoader){
+            const element = anim.elementLoader({build: sourceBuild.name, imghash, index})
+            if (!element) return
+            const {width: WIDTH, height: HEIGHT} = element
+            // const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
+            const x_scale = 1, y_scale = 1 // TODO: fix symbol resize
+            ctx.save()
+            ctx.transform(...matrix)
+            ctx.drawImage(element, 0, 0, WIDTH, HEIGHT, x-w/2, y-h/2, w, h)
+            ctx.restore()
+          }
+          else {
+            const atlas = anim.atlasLoader({build: sourceBuild.name, sampler})
+            if (!atlas) return
+            const {width: WIDTH, height: HEIGHT} = atlas // Atlas image
+            const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
+            ctx.save()
+            ctx.transform(...matrix) /* affine transform matrix */
+            ctx.drawImage(atlas, int(bbx*x_scale), int(bby*y_scale), int(w*x_scale), int(h*y_scale),
+              x-w/2, y-h/2, w, h) /* bbox & anchor */
+            ctx.restore()
+          }
         })
         ctx.restore()
         if (canvas.render.axis === "front") renderAxis()

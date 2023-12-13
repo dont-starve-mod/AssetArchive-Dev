@@ -282,6 +282,15 @@ pub mod lua_filesystem {
                 Err(_)=> None
             }
         }
+
+        fn read_u8(&mut self)-> Option<u8> {
+            match self.read_exact(1) {
+                Ok(bytes)=> {
+                    Some(bytes[0])
+                },
+                Err(_)=> None
+            }
+        }
     }
 
     impl UserData for ReadStream {
@@ -304,6 +313,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("read_u16", |_, fs: &mut Self, ()|{
                 Ok(fs.read_u16())
+            });
+            _methods.add_method_mut("read_u8", |_, fs: &mut Self, ()|{
+                Ok(fs.read_u8())
             });
             _methods.add_method_mut("read_exact", |lua_ctx, fs: &mut Self, len: usize|{
                 if let Ok(buf) = fs.read_exact(len) {

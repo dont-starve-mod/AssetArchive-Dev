@@ -61,6 +61,8 @@ IpcHandlers.Register("appinit", function()
 	}
 end)
 
+-- IpcHandlers["appinit"]("{}")
+
 IpcHandlers.Register("setroot", function(param)
 	if GLOBAL.root:SetRoot(param.path) then
 		IpcEmitEvent("update_setting", json.encode_compliant({

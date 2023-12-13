@@ -54,7 +54,7 @@ function AssetIndex:DoIndex(ignore_cache)
 				build = {},
 			}
 			if anim_raw ~= nil then
-				local al = AnimLoader(CreateBytesReader(anim_raw), true)
+				local al = AnimLoader(CreateBytesReader(anim_raw))
 				if not al.error then
 					for _, anim in ipairs(al.animlist) do
 						table.insert(info.anim, {
