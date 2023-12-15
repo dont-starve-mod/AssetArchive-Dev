@@ -939,26 +939,6 @@ FevLoader = Class(function(self, f)
     
     local num = f:read_u32()
     f:seek_forward(74* num) -- unknown data with known size :p
-
-    -- -- TODO:
-    -- -- it's quite hard to locate starting of sounddef region
-    -- -- so use some fuzzy search method to find it
-    -- -- * may skip sounddef without any source file
-    -- -- * may cause incorrect sounddef index
-    -- while false do
-    --     local s = f:seek_to_next_string(4)
-    --     if not s:find(">") and not s:find("<") and not s:find("?") and s:byte(#s-3) == 46 then
-    --         local ext = s:sub(#s - 3, #s)
-    --         if ext ~= ".wav" and ext ~= ".mp3" then
-    --             error("Unexpected sound file extension: "..ext)
-    --         end
-    --         local current = f:tell()
-    --         f:seek_to(current - #s - 5 - 8 - 12)
-    --         break
-    --     end
-    -- end
-    -- 
-    -- ↑ now it's solved
     
     local numsounddefs = f:read_u32() -- same as self.numsounddefs
     local sounddef_list = {}
