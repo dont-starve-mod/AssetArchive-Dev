@@ -174,6 +174,7 @@ pub mod lua_filesystem {
         inner: Box<dyn ReadStreamTrait>,
         len: Option<usize>,
         data_mode: DataMode,
+        file_path: Option<String>,
     }
 
     unsafe impl Send for ReadStream{ }
@@ -191,6 +192,7 @@ pub mod lua_filesystem {
                 inner: Box::new(f),
                 len: None,
                 data_mode: DataMode::LittleEndian,
+                file_path: Some(path.to_string()),
             })
         }
 
@@ -200,7 +202,8 @@ pub mod lua_filesystem {
                 // f: Box::new(BytesReader{index: 0, bytes}),
                 inner: Box::new(Cursor::new(bytes)),
                 len: Some(len),
-                data_mode: DataMode::LittleEndian ,
+                data_mode: DataMode::LittleEndian,
+                file_path: None,
             }
         }
 
@@ -283,6 +286,19 @@ pub mod lua_filesystem {
             }
         }
 
+        fn read_u64(&mut self)-> Option<u64> {
+            match self.read_exact(8) {
+                Ok(bytes)=> {
+                    let bytes: [u8; 8] = bytes.try_into().unwrap();
+                    match self.data_mode {
+                        DataMode::BigEndian => Some(u64::from_be_bytes(bytes)),
+                        DataMode::LittleEndian => Some(u64::from_le_bytes(bytes)),
+                    }
+                },
+                Err(_)=> None
+            }
+        }
+
         fn read_u8(&mut self)-> Option<u8> {
             match self.read_exact(1) {
                 Ok(bytes)=> {
@@ -310,6 +326,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("read_f32_matrix", |_, fs: &mut Self, ()|{
                 Ok(fs.read_f32_matrix())
+            });
+            _methods.add_method_mut("read_u64", |_, fs: &mut Self, ()|{
+                Ok(fs.read_u64())
             });
             _methods.add_method_mut("read_u16", |_, fs: &mut Self, ()|{
                 Ok(fs.read_u16())
@@ -376,6 +395,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("rewind", |_, fs: &mut Self, ()|{
                 fs.inner.rewind().map_err(|_|LuaError::RuntimeError("Failed to rewind file cursor".to_string()))
+            });
+            _methods.add_method("path", |_, fs: &Self, ()|{
+                Ok(fs.file_path.clone())
             });
             _methods.add_method("size", |_, fs: &Self, ()|{
                 Ok(fs.len)
@@ -591,6 +613,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method("name", |_, path: &Self, ()|{
                 Ok(path.inner.file_name().map(|s|s.to_string_lossy().to_string()))
+            });
+            _methods.add_method("stem", |_, path: &Self, ()|{
+                Ok(path.inner.file_stem().map(|s|s.to_string_lossy().to_string()))
             });
             _methods.add_method("with_name", |_, path: &Self, name: String|{
                 Ok(path.with_name(name))

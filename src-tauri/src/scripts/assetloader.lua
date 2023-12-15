@@ -754,9 +754,9 @@ local function FmodBytesToGUID(bytes)
     for i = 1, 16 do
         table.insert(buffer, string.format("%02x", string.byte(bytes, i)))
     end
-    local p1 = table.concat({buffer[4], buffer[3], buffer[2], buffer[1]}, "")
-    local p2 = table.concat({buffer[6], buffer[5]}, "")
-    local p3 = table.concat({buffer[8], buffer[7]}, "")
+    local p1 = table.concat(buffer, "", 1, 4)
+    local p2 = table.concat(buffer, "", 5, 6)
+    local p3 = table.concat(buffer, "", 7, 8)
     local p4 = table.concat(buffer, "", 9, 10)
     local p5 = table.concat(buffer, "", 11, 16)
     return table.concat({p1, p2, p3, p4, p5}, "-")
@@ -805,6 +805,8 @@ FevLoader = Class(function(self, f)
     self.numcategories = numcategories
     self.numwaveforms = numwaveforms
     self.numsounddefs = numsounddefs
+    self.project_name = trim(name)
+    self.path_prefix = self.project_name.."/"
 
     f:seek_to_string("LGCY")
     f:seek_forward(12)
@@ -816,6 +818,7 @@ FevLoader = Class(function(self, f)
         f:seek_forward(20)
         local name = trim(f:read_variable_length_string())
         table.insert(bank_list, name)
+        -- print(i, name)
     end
 
     self.bank_list = bank_list
@@ -828,6 +831,15 @@ FevLoader = Class(function(self, f)
     end
 
     local name_object = {}
+    local name_index_stack = {}
+    local function get_path(index)
+        local result = {}
+        for _,v in ipairs(name_index_stack)do
+            table.insert(result, v) -- copy
+        end
+        table.insert(result, index)
+        return result
+    end
 
     local event_list = {}
     local function ParseEvent()
@@ -835,7 +847,7 @@ FevLoader = Class(function(self, f)
         if type == 16 then -- simple event
             local name_index = f:read_u32()
             local guid_bytes = f:read_exact(16)
-            local guid = FmodBytesToGUID(guid_bytes)
+            -- local guid = FmodBytesToGUID(guid_bytes)
             f:seek_forward(144)
             local num = f:read_u32()
             assert(num == 1 or num == 0, "simple event must have only 0/1 sounddef")
@@ -845,17 +857,17 @@ FevLoader = Class(function(self, f)
             assert(#category > 2, "Failed to get cateogry name at "..f:tell())
             local event = {
                 type = "simple",
-                name_index = name_index,
-                guid = guid,
+                path_index = get_path(name_index),
+                -- guid = guid,
                 has_sounddef = num == 1,
-                sounddef_list = { index },
+                sounddef_index_list = { index },
             }
             table.insert(event_list, event)
             table.insert(name_object, event)
         elseif type == 8 then -- multi-track event
             local name_index = f:read_u32()
             local guid_bytes = f:read_exact(16)
-            local guid = FmodBytesToGUID(guid_bytes)
+            -- local guid = FmodBytesToGUID(guid_bytes)
             f:seek_forward(144)
             local numlayers = f:read_u32()
             local refs = {}
@@ -888,10 +900,10 @@ FevLoader = Class(function(self, f)
             assert(#category > 2, "Failed to get cateogry name at "..f:tell())
             local event = {
                 type = "multi-track",
-                name_index = name_index,
-                guid = guid,
+                path_index = get_path(name_index),
+                -- guid = guid,
                 has_sounddef = #refs > 0,
-                sounddef_list = refs,
+                sounddef_index_list = refs,
             }
             table.insert(event_list, event)
             table.insert(name_object, event)
@@ -906,11 +918,13 @@ FevLoader = Class(function(self, f)
         f:seek_forward(4)
         local numsubgroups = f:read_u32()
         local numevents = f:read_u32()
+        table.insert(name_index_stack, group_name_index) -- push
         for i = 1, numsubgroups do
             if ParseGroup() then
                 return true
             end
         end
+        table.remove(name_index_stack, #name_index_stack) -- pop
         for i = 1, numevents do
             if ParseEvent() then
                 return true
@@ -949,7 +963,6 @@ FevLoader = Class(function(self, f)
     local numsounddefs = f:read_u32() -- same as self.numsounddefs
     local sounddef_list = {}
     for i = 1, numsounddefs do
-        -- print(">>>>>>>>>>>>>>> Def", i, f:tell())
         local name_index = f:read_u32()
         local num = f:read_u32()
         local sounddef = {
@@ -962,14 +975,14 @@ FevLoader = Class(function(self, f)
             local weight = f:read_u32()
             if type == 0 then
                 local path = trim(f:read_variable_length_string())
-                local num = f:read_u32()
-                local index = f:read_u32()
+                local fsb_index = f:read_u32()
+                local file_index = f:read_u32()
                 local lengthms = f:read_u32()
                 table.insert(sounddef.file_list, {
                     path = path,
                     lengthms = lengthms,
-                    num = num, -- ukn num...
-                    index = index, -- ukn index...
+                    fsb_name = assert(self.bank_list[fsb_index + 1]),
+                    file_index = file_index,
                 })
             elseif type == 1 then
                 f:seek_forward(8)
@@ -1002,16 +1015,51 @@ FevLoader = Class(function(self, f)
     self.string_table = string_table
 
     for k, v in ipairs(name_object)do
-        v.name = self:GetStringByIndex(v.name_index)
+        if v.name_index then
+            v.name = self:GetStringByIndex(v.name_index)
+        end
+        if v.path_index then
+            local temp = {}
+            for _,v in ipairs(v.path_index)do
+                table.insert(temp, self:GetStringByIndex(v))
+            end
+            v.path = table.concat(temp, "/")
+        end
     end
 
     self.event_list = event_list
     self.sounddef_list = sounddef_list
 
-    f:close()
+    self.event_map = {}
+    for _,v in ipairs(self.event_list)do
+        -- self.event_map[v.guid] = v
+        self.event_map[v.path] = v
+        if v.has_sounddef then
+            v.file_list = {}
+            for _, index in ipairs(v.sounddef_index_list)do
+                local def = assert(sounddef_list[index + 1])
+                for _, file in ipairs(def.file_list)do
+                    table.insert(v.file_list, file)
+                end
+            end
+        end
+    end
 
-    self:UNSTABLE_AlignSounddefIndex()
+    f:close()
 end)
+
+function FevLoader:TrimPath(path)
+    if path:startswith(self.path_prefix) then
+        return string.sub(path, #self.path_prefix + 1, #path)
+    else
+        return nil
+    end
+end
+
+function FevLoader:GetEventByPath(path)
+    local path = self:TrimPath(path)
+    return path ~= nil and self.event_map[path] or nil
+end
 
 function FevLoader:GetStringByIndex(index, strict)
     local value = self.string_table[index + 1]
@@ -1021,41 +1069,91 @@ function FevLoader:GetStringByIndex(index, strict)
     return value
 end
 
-function FevLoader:UNSTABLE_AlignSounddefIndex()
-    if self.numwaveforms == 0 then
-        self.sounddef_offset = 0
-    else
-        local max_index = 0
-        for _, v in ipairs(self.event_list)do
-            for _, index in ipairs(v.sounddef_list)do
-                max_index = math.max(max_index, index)
-            end
-        end
-        assert(max_index + 1 == #self.sounddef_list)
-    end
-end
+-- [removed] klei dontstarve sound banks have CONFLICT guid, don't use this
+-- function FevLoader:GetEventByGUID(guid)
+--     return self.event_map[guid]
+-- end
 
 -- loader for *.fsb file
--- this part is modified from `python-fsb5`
-local FsbLoader = Class(function(self, f)
-    assert(f:read_exact(4) == "FSB5")
+-- this class is modified from `python-fsb5` (see https://github.com/HearthSim/python-fsb5)
+FsbLoader = Class(function(self, f)
+    local function error(e)
+        self.error = e
+        funcprint("Error in FsbLoader._ctor(): "..e)
+        f:close()
+    end
+    if f:read_exact(4) ~= "FSB5" then
+        return error("Invalid file sig")
+    end
     local version = f:read_u32()
-    assert(version > 0)
+    if version == 0 then
+        return error("Unsupported fsb version: "..version)
+    end
     local numsamples = f:read_u32()
     local sample_headers_size = f:read_u32()
     local string_table_size = f:read_u32()
     local data_size = f:read_u32()
     local mode = f:read_u32()
+    self.mode = mode
+    self.format = self.FORMAT[mode] or "UNKNOWN"
     f:seek_forward(32)
     local header_size = f:tell()
-    print(f:tell())
-    print(numsamples)
-    print(string_table_size)
+    local sample_list = {}
+    local Bits = Algorithm.Bits
     for i = 1, numsamples do
-        --
+        local current = f:tell()
+        local raw = f:read_exact(8)
+        local next_chunk = Bits(raw, 0, 1)
+        local frequency_index  = Bits(raw, 1, 4)
+        local frequency = -1
+        local channels   =  Bits(raw, 5, 1) + 1
+        local data_offset = Bits(raw, 6, 28) * 16
+        local samples    =  Bits(raw, 34, 30)
+        -- print(next_chunk, frequency_index, channels, data_offset, samples)
+        while next_chunk == 1 do
+            local raw = f:read_exact(4)
+            next_chunk = Bits(raw, 0, 1)
+            local chunk_size = Bits(raw, 1,  24)
+            local chunk_type_index = Bits(raw, 25, 7)
+            local chunk_type = self.META_CHUNK_TYPE[chunk_type_index]
+            if chunk_type == "LOOP" then
+                assert(chunk_size == 8)
+                local data = { from = f:read_u32(), to = f:read_u32() }
+            elseif chunk_type == "FREQUENCY" then
+                assert(chunk_size == 4)
+                frequency = f:read_u32()
+            elseif chunk_type == "VORBISDATA" then
+                local data = { crc = f:read_u32() }
+                f:seek_forward(chunk_size - 4)
+            elseif chunk_type == "CHANNELS" then
+                f:seek_forward(chunk_size)
+            else
+                f:seek_forward(chunk_size)
+            end
+        end
+
+        if frequency < 0 then
+            frequency = self.FREQUENCY[frequency_index] or -1
+        end
+
+        if frequency < 0 then
+            print("Warning: unexpected frequency value at "..current)
+            print(f:path())
+            break
+        end
+
+        table.insert(sample_list, {
+            default_name = string.format("sound-%04d", i),
+            channels = channels,
+            data_offset = data_offset,
+            frequency = frequency,
+            samplers = samples,
+        })
     end
-    f:seek_to(header_size + sample_headers_size)
-    print(f:tell())
+    if f:tell() ~= header_size + sample_headers_size then
+        print("Warning: wrong cursor position")
+        f:seek_to(header_size + sample_headers_size)
+    end
     local offset_list = {}
     local string_table = {}
     for i = 1, numsamples do
@@ -1074,8 +1172,23 @@ local FsbLoader = Class(function(self, f)
     end
     table.insert(string_table, s)
 
+    for i,v in ipairs(string_table) do
+        sample_list[i].name = v
+    end
 
-    exit()
+    assert(f:tell() == header_size + sample_headers_size + string_table_size)
+    for i, v in ipairs(sample_list) do
+        if i < #sample_list then
+            v.data_size = sample_list[i+1].data_offset - v.data_offset
+        else
+            v.data_size = data_size - v.data_offset
+        end
+    end
+
+    self.sample_list = sample_list
+
+    f:close()
+    -- print(json.encode(sample_list[#sample_list]))
 end)
 
 function FsbLoader:GetFileExtension(format)
@@ -1088,8 +1201,25 @@ function FsbLoader:GetFileExtension(format)
         or "bin"
 end
 
--- FsbLoader(FileSystem.CreateReader("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/mods/sakana/sound/lycoreco_sfx0.fsb"))
+function FsbLoader:GetSampleInfoByIndex(index)
+    index = index + 1
+    return assert(self.sample_list[index], 
+        "Failed to get sample in ["..index.."] (max = "..#self.sample_list..")")
+end
 
+function FsbLoader:GetSampleRaw(index_list)
+    local path = assert(self.filepath, "fsb.filepath not provided")
+    local f = assert(FileSystem.CreateReader(path), "Failed to open fsb file: "..tostring(path))
+    f:close()
+end
+
+function FsbLoader:__tostring()
+    if self.error then
+        return string.format("<FsbLoader error=%s>", self.error)
+    else
+        return string.format("<FsbLoader num=%s format=%s>", #self.sample_list, self.format)
+    end
+end
 
 FsbLoader.FORMAT = {
     "PCM8", -- [1]
@@ -1108,29 +1238,44 @@ FsbLoader.FORMAT = {
     "XWMA",
     "VORBIS", -- [15]
 }
--- FevLoader(FileSystem.CreateReader("/Users/wzh/Desktop/mod_tools/FMOD_Designer/test2/test.fev"))
--- FevLoader(FileSystem.CreateReader("/Users/wzh/Desktop/mod_tools/FMOD_Designer/test3/test.fev"))
--- FevLoader(FileSystem.CreateReader("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/mods/sakana/sound/lycoreco_sfx0.fev"))
--- FevLoader(FileSystem.CreateReader("/Users/wzh/Desktop/mod_tools/FMOD_Designer/test8/test.fev"))
--- exit()
--- FevLoader(FileSystem.CreateReader("/Users/wzh/WIN-230201/desktop/homura-12.8/sound/lw_homura.fev"))
--- FevLoader(FileSystem.CreateReader("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/data/sound/yotc_2022_2.fev"))
--- exit()
-local p = FileSystem.Path("/Users/wzh/Library/Application Support/Steam/steamapps/common/Don't Starve Together/dontstarve_steam.app/Contents/data/sound/")
-local temp2 = {}
-for _, fev in ipairs(p:iter_file_with_extension("fev")) do
-    print(fev)
-    local a,b = pcall(function()FevLoader(FileSystem.CreateReader(fev)) end)
-    if not a then
-        table.insert(temp2, fev:name())
-        print(fev:name())
-        print(b)
-        exit()
-        break
+
+FsbLoader.FREQUENCY = {
+    8000,
+    11000,
+    11025,
+    16000,
+    22050,
+    24000,
+    32000,
+    44100,
+    48000,
+    [10] = 44100,
+}
+
+FsbLoader.META_CHUNK_TYPE = {
+    "CHANNELS",
+    "FREQUENCY",
+    "LOOP",
+    [6] = "XMASEEK",
+    [7] = "DSPCOEFF",
+    [10]= "XWMADATA",
+    [11]= "VORBISDATA",
+}
+
+function FevLoader:LinkToFsb(map)
+    -- {[name: string]: fsb}
+    for _,event in ipairs(self.event_list)do
+        if event.has_sounddef then
+            for _, ref in ipairs(event.file_list)do
+                local fsb = map[ref.fsb_name]
+                if fsb ~= nil then
+                    ref.file_info = fsb:GetSampleInfoByIndex(ref.file_index)
+                    ref.file_info.fsb_name = ref.fsb_name
+                else
+                    ref.file_info = { error = "FsbNotFound" }
+                end
+            end
+        end
     end
 end
 
-print(json.encode(temp2))
-if #temp2 >0 then exit() end
-
--- exit()

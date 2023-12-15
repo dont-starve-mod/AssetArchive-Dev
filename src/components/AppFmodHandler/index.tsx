@@ -67,6 +67,7 @@ export default function AppFmodHandler() {
 
   const onGetData = useCallback((response: string)=> {
     if (response.length === 0) return
+    console.log("GetFmodData", response.length)
     const data = JSON.parse(response)
     data.forEach(([key, value]:
       ["allfmodevent" | "allinfo", string]) => {

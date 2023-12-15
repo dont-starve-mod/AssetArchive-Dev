@@ -251,6 +251,8 @@ local Provider = Class(function(self, root, static)
 	self.alltexelement = {}
 	self.alltexture = {}
 	self.allkshfile = {}
+	self.allfevfile = {}
+	self.allfsbfile = {}
 
 	self.loaders = {
 		xml = {},
@@ -390,14 +392,44 @@ function Provider:ListAsset()
 		end
 	end
 
-	self.assets = {	
+	for _, v in ipairs(self.root:Iter("sound/"))do
+		if v:endswith(".fev") then
+			local fev = FevLoader(self.root:Open(v, false))
+			if not fev.error then
+				table.insert(self.allfevfile, fev)
+			end
+		end
+		if v:endswith(".fsb") then
+			local f = self.root:Open(v, false)
+			local fsb = FsbLoader(f)
+			if not fsb.error then
+				table.insert(self.allfsbfile, fsb)
+				fsb.filepath = f:path()
+				fsb.filestem = NameOf(v)
+			end
+		end
+	end
+
+	self.assets = {
 		allzipfile = self.allzipfile,
 		alldynfile = self.alldynfile,
 		allxmlfile = self.allxmlfile,
 		alltexelement = self.alltexelement,
 		alltexture = self.alltexture,
 		allkshfile = self.allkshfile,
+		-- NOTE: fev and fsb are lazy loaded (not indexed by search engine)
+		-- allfevfile = self.allfevfile,
+		-- allfsbfile = self.allfsbfile,
 	}
+
+	-- link fev reference to fsb
+	local fsb_map = {}
+	for _,fsb in ipairs(self.allfsbfile)do
+		fsb_map[fsb.filestem] = fsb
+	end
+	for _,fev in ipairs(self.allfevfile)do
+		fev:LinkToFsb(fsb_map)
+	end
 
 	print("Start emitting data to frontend...")
 
@@ -476,6 +508,8 @@ function Provider:Load(args)
 		return self:GetSymbolElement(args)
 	elseif type == "animbin" then
 		return self:GetAnimBin(args)
+	elseif type == "fev_ref" then
+		return self:GetFevRefInfo(args)
 	elseif type == "show" then
 		return self:ShowAssetInFolder(args)
 	end
@@ -1144,6 +1178,17 @@ function Provider:BatchDownload(args)
 		end
 		IpcEmitEvent("progress", json.encode_compliant{ done = true })
 		return json.encode_compliant{ success = true, output_dir_path = output_dir_path:as_string() }
+	end
+end
+
+function Provider:GetFevRefInfo(args)	
+	if type(args.path) == "string" then
+		for _,v in ipairs(self.allfevfile)do
+			local event = v:GetEventByPath(args.path)
+			if event then
+				return event
+			end
+		end
 	end
 end
 

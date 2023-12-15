@@ -55,6 +55,7 @@ export interface TexNoRef extends IBasicAsset {
 export interface FmodEvent extends IBasicAsset, FmodEventInfo {
   type: "fmodevent",
   path: string,
+  guid: string,
   project_name: string,
 }
 

@@ -566,7 +566,7 @@ function ZipPage({type, file, id}) {
 }
 
 function FmodEventPage(props: FmodEvent) {
-  const {path, project, lengthms, category, param_list} = props
+  const {path, project, lengthms, category, param_list, guid} = props
   const typeStr = useMemo(()=> {
     if (category.startsWith("master/set_sfx/"))
       return "音效" 
@@ -595,6 +595,9 @@ function FmodEventPage(props: FmodEvent) {
       return param_list.map(({name})=> name).join(" / ")
   }, [param_list])
 
+  useLuaCallOnce<string>("load", console.log,
+  { type: "fev_ref", guid }, [guid])
+
   return (
     <div>
       <H3>{path} <AssetType type={"fmodevent"}/></H3>
@@ -604,6 +607,7 @@ function FmodEventPage(props: FmodEvent) {
       <p>类型：{typeStr}</p>
       <p>时长：{lengthStr}</p>
       <p>参数：{paramList}</p>
+      <p>ggg{guid}</p>
       <AssetFilePath type="fev_link" path={project}/>
     </div>
   )
@@ -625,6 +629,10 @@ function FmodProjectPage(props: FmodProject) {
     return ()=> { unlisten.then(f=> f()) }
   }, [])
 
+  // useLuaCallOnce<string>("load", response=> {
+  //   console.log(response)
+  // }, {type: "fev_ref", guid: ""}, [], [])
+
   return (
     <div>
       <H3>{file}<AssetType type="fmodproject"/></H3>
@@ -636,6 +644,7 @@ function FmodProjectPage(props: FmodProject) {
       }
       <H5>基本信息</H5>
       <AssetFilePath type="fev" path={name}/>
+
     </div>
   )
 }

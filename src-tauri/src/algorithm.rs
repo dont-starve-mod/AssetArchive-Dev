@@ -227,9 +227,22 @@ pub mod lua_algorithm {
                 Ok(result)
             }
         })?)?;
+        table.set("Bits", lua_ctx.create_function(|_, (bytes, start, len): (LuaString, u128, u128)|{
+            let bytes = bytes.as_bytes();
+            if bytes.len() > 16 {
+                Err(LuaError::RuntimeError("bytes length must be not bigger than 8".to_string()))
+            }
+            else {
+                let mut buffer = [0; 16];
+                buffer[0..bytes.len()].clone_from_slice(bytes);
+                let value = u128::from_le_bytes(buffer);
+                let stop = start + len;
+                Ok((value & ((1 << stop) - 1)) >> start)
+            }
+        })?)?;
 
-        let globals = lua_ctx.globals();
-        globals.set("Algorithm", table)?;
+        lua_ctx.globals().set("Algorithm", table)?;
+    
         Ok(())
     }
 }

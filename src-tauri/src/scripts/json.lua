@@ -145,6 +145,60 @@ function encode (v)
   end
 end
 
+function encode_pretty (v, depth)
+  depth = depth or 0
+  -- Handle nil values
+  if v==nil then
+    return "null"
+  end
+
+  local vtype = base.type(v)
+
+  -- Handle strings
+  if vtype=='string' then
+    return '"' .. encodeString(v) .. '"'      -- Need to handle encoding in string
+  end
+
+  -- Handle booleans
+  if vtype=='number' or vtype=='boolean' then
+    return base.tostring(v)
+  end
+
+  -- Handle tables
+  if vtype=='table' then
+    local rval = {}
+    -- Consider arrays separately
+    local bArray, maxCount = isArray(v)
+    if bArray then
+      for i = 1,maxCount do
+        table.insert(rval, encode_pretty(v[i], depth + 1))
+      end
+    else  -- An object, not an array
+      for i,j in base.pairs(v) do
+        if isEncodable(i) and isEncodable(j) then
+          table.insert(rval, '"' .. encodeString(i) .. '":' .. encode_pretty(j, depth + 1))
+        end
+      end
+    end
+    if bArray then
+      return '[\n' .. table.concat(rval,',\n') ..'\n]'
+    else
+      return '{\n' .. 
+        string.rep("  ", depth)..table.concat(rval,',\n'..string.rep("  ", depth)) .. 
+        '\n}'
+    end
+  end
+
+  -- Handle null values
+  if vtype=='function' and v==null then
+    return 'null'
+  end
+
+  if not (false) then
+    base.tracked_assert(false,'encode attempt to encode unsupported type ' .. vtype .. ':' .. base.tostring(v))
+  end
+end
+
 
 --- Encodes a string to be JSON-compliant, only use in encode_compliant(v).
 function encodeString_compliant(s)
