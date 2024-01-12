@@ -4,10 +4,11 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppSetting, useIntersectionObserver, useLuaCall, useLuaCallOnce } from '../../hooks'
-import { Button, Dialog, Icon, Spinner, Tag } from '@blueprintjs/core'
+import { Button, Dialog, Icon, IconName, Spinner, Tag } from '@blueprintjs/core'
 import { appWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api'
 import store, { useSelector } from '../../redux/store'
+import { base64DecToArr } from '../../base64_util'
 
 interface PreviewProps {
   width?: number,
@@ -291,10 +292,10 @@ function Atlas(props: AtlasProps) {
   const [loadingState, setState] = useState(LoadingState.Loading)
   const {build, sampler} = props
 
-  useLuaCallOnce<number[]>("load", result=> {
+  useLuaCallOnce<string>("load", result=> {
     async function load(){
       try {
-        const array = Uint8Array.from(result)
+        const array = Uint8Array.from(base64DecToArr(result))
         const blob = new Blob([array])
         const bitmap = await createImageBitmap(blob)
         if (props.onCreateImageBitmap) {
@@ -310,7 +311,7 @@ function Atlas(props: AtlasProps) {
     }
     load()
       
-  }, {type: "atlas", format: "png", /*rw: renderWidth, rh: renderHeight, */build, sampler},
+  }, {type: "atlas", format: "png_base64", /*rw: renderWidth, rh: renderHeight, */build, sampler},
   [build, sampler, width, height, appeared],
   [appeared])
   
@@ -415,32 +416,39 @@ function Zip(props: {file: string} & PreviewProps) {
   [file, idList, idIndex, appeared, isPureAnimation],
   [appeared && !isPureAnimation])
 
-  return <div ref={ref} style={PREIVEW_STYLE}>
-    <Loading size={loadingSize} loadingState={loadingState}/>
-    <canvas ref={canvas} width={renderWidth} height={renderHeight} style={
-      {width, height}
-    }/>
-    {
-      idList.length > 1 && 
-      <Button 
-        // minimal
-        intent="primary"
-        icon="refresh"
-        small
-        style={{position: "absolute", right: 0, top: 0, transform: "translate(50%, -50%) scale(0.8)"}}
-        onClick={(e: React.MouseEvent)=> {
-          e.stopPropagation()
-          setIndex(i=> i + 1 === idList.length ? 0 : i + 1)
-        }}>
-      </Button>
-    }
-    {
-      isPureAnimation && 
-      <div style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)"}}>
-        <Icon icon="walk" style={{color: "#aaa"}} size={30}/>
+  if (isPureAnimation) {
+    return <SimpleIcon icon="walk"/>
+  }
+  else {
+    return (
+      <div ref={ref} style={PREIVEW_STYLE}>
+        <Loading size={loadingSize} loadingState={loadingState}/>
+        <canvas ref={canvas} width={renderWidth} height={renderHeight} style={
+          {width, height}
+        }/>
+        {
+          idList.length > 1 && 
+          <Button 
+            // minimal
+            intent="primary"
+            icon="refresh"
+            small
+            style={{position: "absolute", right: 0, top: 0, transform: "translate(50%, -50%) scale(0.8)"}}
+            onClick={(e: React.MouseEvent)=> {
+              e.stopPropagation()
+              setIndex(i=> i + 1 === idList.length ? 0 : i + 1)
+            }}>
+          </Button>
+        }
+        {
+          isPureAnimation && 
+          <div style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)"}}>
+            <Icon icon="walk" style={{color: "#aaa"}} size={30}/>
+          </div>
+        }
       </div>
-    }
-  </div>
+    )
+  }
 }
 
 const SFX_ID = "PREVIEW_SFX"
@@ -501,6 +509,18 @@ export function killPreviewSfx() {
   })})
 }
 
+export function SimpleIcon({icon}: {icon: IconName}) {
+  return (
+    <div style={{position: "relative", width: "100%", height: "100%"}}>
+      <Button 
+        minimal
+        large
+        icon={icon} 
+        style={{position: "absolute", transform: "translate(-50%, -50%) scale(1.2)", left: "50%", top: "50%"}}/>
+  </div>
+  )
+}
+
 export default {
   Image,
   Texture,
@@ -509,5 +529,6 @@ export default {
   Atlas,
   Zip,
   SymbolElement,
+  SimpleIcon,
   Sfx,
 }

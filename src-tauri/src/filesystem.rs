@@ -433,6 +433,10 @@ pub mod lua_filesystem {
             Path { inner: path }
         }
 
+        pub fn get_inner(&self) -> PathBuf {
+            self.inner.clone()
+        }
+
         fn from(s: &str) -> Self {
             Path { inner: PathBuf::from(s)}
         }

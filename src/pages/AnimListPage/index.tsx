@@ -3,7 +3,7 @@ import { Alert, Button, ButtonGroup, H3, H5, Icon, PopoverInteractionKind, Toast
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import style from './style.module.css'
-import { Popover2 } from '@blueprintjs/popover2'
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { EditableText } from '@blueprintjs/core'
 import AnimCore from '../../components/AnimCore_Canvas'
 import { invoke } from '@tauri-apps/api'
@@ -181,7 +181,43 @@ export default function AnimListPage() {
     <Button icon="sort-alphabetical-desc" onClick={()=> setSorting(["title", true])} minimal></Button>
     <Button icon="history" onClick={()=> setSorting(["mtime", true])} minimal/>
     </H5>
-    <div className={style["recent-project-list"]}>
+    <table className={style["project-list-table"]}>
+      <thead className="">
+        <th>名字</th>
+        <th>上次修改</th>
+        <th>预览
+          <Tooltip2 content={"预览模式只展示动画基础外观，无调色效果。"}>
+            <Button icon="help" minimal small style={{marginTop: -3, marginBottom: -0}}/>
+          </Tooltip2>
+        </th>
+      </thead>
+      <tbody>
+        {
+          sortedProjectList.map((item, index)=> {
+            return <tr>
+              <td>
+                {item.title || "未命名项目"}
+              </td>
+              <td>
+                {formatMtime(item.mtime)}
+              </td>
+              <td>
+                <Popover2 
+                  disabled={false}
+                  content={<AnimProjectPreview {...item}/>}
+                  interactionKind={PopoverInteractionKind.HOVER}
+                  hoverCloseDelay={0}
+                >
+                  <Button minimal icon="eye-open"/>
+                </Popover2>
+              </td>
+            </tr>
+          })
+        }
+      </tbody>
+
+    </table>
+    {/* <div className={style["recent-project-list"]}>
       {
         sortedProjectList.map((item, index)=> {
           const {id} = item
@@ -196,7 +232,7 @@ export default function AnimListPage() {
           </div>
         })
       }
-    </div>
+    </div> */}
     <div style={{height: 20}}></div>
     <H5>新建项目</H5>
     <div className={style["template-list"]}>

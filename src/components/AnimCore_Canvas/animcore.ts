@@ -2,6 +2,7 @@ import smallhash from "../../smallhash"
 import { hash, AnimState } from "./animstate"
 import { RenderParams, IRenderParams } from "./renderparams"
 import { invoke } from "@tauri-apps/api"
+import { base64DecToArr } from "../../base64_util"
 
 /* 动画资源 */
 const buildLoading: {[K: string]: true} = {}
@@ -158,9 +159,9 @@ function atlasLoader({build, sampler}: {build: string, sampler: number}, error):
   async function load(){
     try {
       atlasLoading[id] = true
-      const response = await get<number[]>({type: "atlas", build, sampler, format: "png"})
+      const response = await get<string>({type: "atlas", build, sampler, format: "png_base64"})
       if (response.length > 0){
-        const array = Uint8Array.from(response)
+        const array = Uint8Array.from(base64DecToArr(response))
         const blob = new Blob([array])
         const atlas = await createImageBitmap(blob)
         delete atlasLoading[id]

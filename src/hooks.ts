@@ -3,9 +3,11 @@ import { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { appWindow } from "@tauri-apps/api/window"
 import { open, save } from "@tauri-apps/api/dialog"
 import type { AppSettings } from "./redux/reducers/appsettings"
-import { update as UpdateSetting, update } from "./redux/reducers/appsettings"
+import { update as UpdateSetting } from "./redux/reducers/appsettings"
+import { update as UpdateLocal } from "./redux/reducers/localstorage"
 import { useDispatch, useSelector } from "./redux/store"
 import { FmodPlayingInfo } from "./components/AppFmodHandler"
+import { LocalStorage } from "./redux/reducers/localstorage"
 
 const DYN_ENCRYPT = "DYN_ENCRYPT"
 
@@ -172,8 +174,8 @@ export function useLuaCallLax(api: rLuaAPI, fn, defaultParams = {}, deps: React.
   }, deps)
 }
 
-export function useCopySuccess(type?: "image" | "path") {
-  let message = (type === "image" ? "图片" : type === "path" ? "路径" : "") 
+export function useCopySuccess(type?: "image" | "path" | "code") {
+  let message = (type === "image" ? "图片" : type === "path" ? "路径" : type === "code" ? "源代码" : "") 
     + "已拷贝至剪切板"
   return ()=> appWindow.emit("toast", { message, icon: "endorsed", intent: "success"})
 }
@@ -252,7 +254,7 @@ export function useSaveFileDialog(saveFn, filters, defaultPath: string) {
 }
 
 /** common batch save dialog */
-export function useBatchDownloadDialog(type: "xml" | "build", data?: {[K in "file" | "build"]?: string}) {
+export function useBatchDownloadDialog(type: "xml" | "build" | "fev_ref", data?: {[K in "file" | "build" | "path"]?: string}) {
   const call = useLuaCall("batch_download", ()=> {})
   
   const fn = useCallback(async ()=> {
@@ -307,14 +309,25 @@ export function useSaveFileCall(defaultParams: LuaCallParams, filters, defaultPa
 export function useAppSetting<K extends keyof AppSettings>(key: K):
 [AppSettings[K], (v: AppSettings[K])=> void]
 {
-  const appsettings = useSelector(({appsettings})=> appsettings)
+  const value = useSelector(({appsettings})=> appsettings[key])
   const dispatch = useDispatch()
-  
-  const value = appsettings[key]
   const call = useLuaCall("set", ()=> {}, {key}, [key])
-  const set = (v: AppSettings[K])=> {
-    dispatch(UpdateSetting({key: key, value: v})) 
-    call({value: v})
+  const set = (value: AppSettings[K])=> {
+    dispatch(UpdateSetting({key, value})) 
+    call({value})
+  }
+  return [ value, set ]
+}
+
+/** localstorage getter & setter */
+export function useLocalStorage<K extends keyof LocalStorage>(key: K):
+[LocalStorage[K], (v: LocalStorage[K])=> void]
+{
+  const value = useSelector(({localstorage})=> localstorage[key])
+  const dispatch = useDispatch()
+  const set = (value: LocalStorage[K])=> {
+    dispatch(UpdateLocal({key, value}))
+    
   }
   return [ value, set ]
 }

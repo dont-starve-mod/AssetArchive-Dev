@@ -38,6 +38,8 @@ export function AccessableItem(props: Result){
               
             type === "tex_no_ref" ?
               <MatchText text={props.file} match={match["file"]} markStyle={MARK_STYLE}/> :
+            type === "shader" ?
+              <MatchText text={props.file} match={match["file"]} markStyle={MARK_STYLE}/> :
             type === "fmodevent" ? 
               <MatchText text={props.path} match={match["path"]} markStyle={MARK_STYLE}/> :
             type === "fmodproject" ?
@@ -69,6 +71,8 @@ export function AccessableItem(props: Result){
             <Preview.Texture {...props} {...PREIVEW_SIZE}/> :
           type === "fmodevent" ? 
             <Preview.Sfx {...props} {...PREIVEW_SIZE}/> :
+          type === "shader" ? 
+            <Preview.SimpleIcon icon="code"/> :
           <></>
         }
       </div>

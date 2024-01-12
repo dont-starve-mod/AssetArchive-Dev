@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Dialog, DialogBody, DialogFooter, H4, Icon } from '@blueprintjs/core'
 import { RadioGroup, Radio, Button, Slider } from '@blueprintjs/core'
-import { useAppSetting, useLuaCall, useLuaCallOnce } from '../../hooks'
+import { useAppSetting, useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { DragFolderPanel } from '../../components/GameRootSetter'
 import { invoke } from '@tauri-apps/api'
@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const [theme, setTheme] = useAppSetting("theme")
   const [volume, setVolume] = useAppSetting("volume")
   const [resolution, setResolution] = useAppSetting("resolution")
-  const [numResults, setNumResults] = useAppSetting("num_search_results")
+  const [numResults, setNumResults] = useLocalStorage("num_search_results_per_page")
   const [showDesc, setShowDesc] = useAppSetting("quick_search_desc")
   const [ffmpegState, setFState] = useState<FFmpeg>({
     installed: false,
@@ -70,16 +70,16 @@ export default function SettingsPage() {
     </RadioGroup>
     <br/>
     <RadioGroup
-      label="可同时显示搜索结果的最大数量"
+      label="每页展示搜索结果的数量"
       onChange={e=> setNumResults(Number(e.currentTarget.value))}
       selectedValue={numResults}
       inline={true}
     >
+      <Radio label='50' value={50}/>
       <Radio label="100" value={100}/>
-      <Radio label='500' value={500}/>
-      <Radio label="1000" value={1000}/>
+      <Radio label="200" value={1000}/>
       <Radio labelElement={<Tooltip2 content={"展示太多搜索结果会导致卡顿，请谨慎开启"} placement="right">
-        <>无上限 <Icon icon="small-info-sign"/></></Tooltip2>} value={-1}/>
+        <>500 <Icon icon="small-info-sign"/></></Tooltip2>} value={500}/>
     </RadioGroup>
     <hr/>
     <H4>画质</H4>

@@ -340,6 +340,7 @@ function Provider:ListAsset()
 		end
 	end
 
+	-- TODO: 单机版材质还有其他目录
 	for _, v in ipairs(self.root:Iter("levels/textures/"))do
 		if v:endswith(".tex") then
 			texpath_all[v] = true
@@ -387,7 +388,11 @@ function Provider:ListAsset()
 				print("Error loading ksh:")
 				print(ksh.error)
 			else
-				table.insert(self.allkshfile, v)
+				table.insert(self.allkshfile, Asset("shader", {
+					file = v,
+					_ps = ksh.ps,
+					_vs = ksh.vs,
+				}))
 			end
 		end
 	end
@@ -509,7 +514,9 @@ function Provider:Load(args)
 	elseif type == "animbin" then
 		return self:GetAnimBin(args)
 	elseif type == "fev_ref" then
-		return self:GetFevRefInfo(args)
+		return self:GetFevRef(args)
+	elseif type == "shader_src" then
+		return self:GetShaderSource(args)
 	elseif type == "show" then
 		return self:ShowAssetInFolder(args)
 	end
@@ -619,7 +626,14 @@ function Provider:GetAnimBin(args)
 		if not anim then
 			return false
 		else
-			return anim.animlist
+			local result = {}
+			for _,v in ipairs(anim.animlist)do
+				anim:ParseFrames(v)
+				table.insert(result, v)
+			end
+
+			print(json.encode(result))
+			return result
 		end
 	end
 end
@@ -703,6 +717,8 @@ function Provider:GetAtlas(args)
 					return { width = w, height = h, bytes = atlas:GetImageBytes(index) }
 				elseif args.format == "img" then
 					return atlas:GetImage(index)
+				elseif args.format == "png_base64" then
+					return atlas:GetImage(index):save_png_base64()
 				elseif args.format == "png" then
 					return atlas:GetImage(index):save_png_bytes()
 				elseif args.format == "copy" then
@@ -1178,19 +1194,73 @@ function Provider:BatchDownload(args)
 		end
 		IpcEmitEvent("progress", json.encode_compliant{ done = true })
 		return json.encode_compliant{ success = true, output_dir_path = output_dir_path:as_string() }
+	elseif type == "fev_ref" then
+		local event = args.path -- dontstarve/common/together/spawn_vines/spawnportal_armswing
+		local data = self:GetFevRef(args)
+		assert(data, "Failed to load fev ref: "..tostring(event))
+		local args_data = {}
+		local count = 0
+		for _,v in ipairs(data.file_list)do
+			if args_data[v.fsb_name] == nil then
+				args_data[v.fsb_name] = {}
+			end
+			table.insert(args_data[v.fsb_name], v.file_index)
+			count = count + 1
+		end
+		if count > 1 then
+			local output_dir_path = CreateOutputDir((string.gsub(event, "/", "_")))
+			for fsb_name, index_list in pairs(args_data)do
+				local index_list_str = table.concat(index_list, ",")
+				print("Extracting from "..fsb_name.." ["..index_list_str.."]")
+				local fsb_path_str = (self.root/"sound"/fsb_name):as_string()..".fsb" -- TODO: use some generic code...
+				FsbExtractSync(
+					fsb_path_str,
+					index_list,
+					output_dir_path
+				)
+			end
+			return json.encode_compliant{ success = true, output_dir_path = output_dir_path:as_string() }
+		elseif count == 1 then
+			local fsb_name, index_list = next(args_data)
+			print("Extracting from "..fsb_name.." ["..index_list[1].."]")
+			local fsb_path_str = (self.root/"sound"/fsb_name):as_string()..".fsb" -- TODO: use some generic code...
+			local output = FsbExtractSync(
+				fsb_path_str,
+				index_list,
+				target_dir
+			)
+			-- select file (not parent folder)
+			local wave_path = string.sub(output[1], select(2, string.find(output[1], "PATH: ")) + 1, #output[1])
+			return json.encode_compliant{ success = true, output_dir_path = (target_dir/wave_path):as_string() }
+		else
+			error("No sound file to export: "..event)
+		end
 	end
 end
 
-function Provider:GetFevRefInfo(args)	
-	if type(args.path) == "string" then
+function Provider:GetFevRef(args)
+	if args.format == "save" then
+		local file_index = assert(args.file_index)
+		local fsb_name = assert(args.fsb_name)
+		local path = assert(args.path)
+		-- TODO -->
+		local fsb_path_str = (self.root/"sound"/fsb_name):as_string()..".fsb"
+		-- file rename not impl...
+		error("not impl")
+	elseif type(args.path) == "string" then
 		for _,v in ipairs(self.allfevfile)do
 			local event = v:GetEventByPath(args.path)
-			if event then
+			if event ~= nil then
 				return event
 			end
 		end
 	end
 end
+
+-- function Provider:GetShaderSource(args)
+-- 	if type(args.file) == "string" then
+-- 		for _,v in ipairs(self.allkshfile)do
+-- 			if v.file 
 
 function Provider:ShowAssetInFolder(args)
 	if not self.root or not self.root:IsValid() then 

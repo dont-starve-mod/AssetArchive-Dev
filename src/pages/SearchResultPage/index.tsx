@@ -1,4 +1,4 @@
-import { H3, Icon, Spinner, TabId, Tag } from '@blueprintjs/core'
+import { Button, H3, H6, Icon, MenuItem, NumericInput, Radio, RadioGroup, Spinner, TabId, Tag } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
@@ -11,6 +11,9 @@ import { AccessableItem } from '../../components/AccessableItem'
 import { appWindow } from '@tauri-apps/api/window'
 import { killPreviewSfx } from '../../components/Preview'
 import { useSelector } from '../../redux/store'
+import { Select2 } from '@blueprintjs/select'
+import { Classes, Popover2 } from '@blueprintjs/popover2'
+import { useLocalStorage } from '../../hooks'
 
 // TODO: 该组件的保活机制还有一些问题，需要深入测试
 
@@ -84,9 +87,10 @@ export default function SearchResultPage() {
 function SearchResultDisplay({result}: {result: Response}) {
   const {query, hits} = result
   const [tab, selectTab] = useState<TabId>("all")
-  const [currentPage, setTabCurrentPage] = useState(
+  const [currentPages, setTabCurrentPages] = useState(
     Object.fromEntries(SEARCH_RESULT_TYPE_ALL.map(({key})=> [key, 0])))
-  const numResultsPerPage = useSelector(({appsettings})=> appsettings.num_search_results)
+  const numResultsPerPage = useSelector(({localstorage})=> localstorage.num_search_results_per_page)
+  // const numResultsPerPage = 10
   const scroll = useRef<{
     top: {[K: string]: number},
     node: {[K: string]: HTMLDivElement},
@@ -100,20 +104,18 @@ function SearchResultDisplay({result}: {result: Response}) {
     let groups: {[K: string]: any[]} = Object.fromEntries(
       SEARCH_RESULT_TYPE_ALL.map(({key})=> [key, []])
     )
-    hits.forEach(item=> groups[item.type].push(item))
+    hits.forEach(item=> (groups[item.type] || groups["misc"]).push(item))
     groups["all"] = hits
     return groups
   }, [hits])
 
-  const resultNums = Object.fromEntries(
+  const totalPages = Object.fromEntries(
     Object.entries(resultGroups).map(([k,v])=> 
       [k, {
         num: v.length,
         totalPage: Math.ceil(v.length / numResultsPerPage)
       }])
   )
-
-  console.log(resultNums)
 
   const setTabScroll = useCallback((key: TabId)=> {
     if ((scroll.top[key] || 0) > 0 && scroll.node[key] && scroll.top[key] !== scroll.node[key].scrollTop){
@@ -146,6 +148,13 @@ function SearchResultDisplay({result}: {result: Response}) {
     return ()=> { unlisten.then(f=> f()) }
   }, [])
 
+  useEffect(()=> {
+    let unlisten = appWindow.listen<any>("reset_search_page_number", ()=> {
+      setTabCurrentPages(v=> Object.fromEntries(Object.keys(v).map(k=> [k, 0])))
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [setTabCurrentPages])
+
   return (
     <>
       <div style={{borderBottom: "1px solid #ddd"}}>
@@ -164,25 +173,31 @@ function SearchResultDisplay({result}: {result: Response}) {
         onScroll={e=> scroll.top["all"] = e.currentTarget.scrollTop}
         className={style["result-list"]} 
         style={{display: tab === "all" ? "block" : "none"}}>
-        {
-          hits.map((item)=> 
-            <AccessableItem key={item.id} {...item}/>
-          )
-        }
+        <ResultPagesView 
+          items={hits} 
+          scrollZero={()=> {scroll.top.all = 1; setTabScroll("all")}}
+          currentPage={currentPages["all"]}
+          totalPage={totalPages["all"].totalPage}
+          numResultsPerPage={numResultsPerPage}
+          setCurrentPage={(v: number)=> setTabCurrentPages({...currentPages, all: v})}
+          />
         <NoResult/>
       </div>
       <div>
         {
           SEARCH_RESULT_TYPE.map(({key})=>
-          <div
+           <div
             ref={node=> scroll.node[key] = node}
             onScroll={e=> scroll.top[key] = e.currentTarget.scrollTop}
             className={style["result-list"]} style={{display: tab === key ? "block" : "none"}} key={key}>
-            {
-              resultGroups[key].map(item=> 
-                <AccessableItem key={item.id} {...item}/>
-              )
-            }
+            <ResultPagesView
+              items={resultGroups[key]}
+              scrollZero={()=> {scroll.top[key] = 1; setTabScroll(key)}}
+              currentPage={currentPages[key]}
+              totalPage={totalPages[key].totalPage}
+              numResultsPerPage={numResultsPerPage}
+              setCurrentPage={(v: number)=> setTabCurrentPages({...currentPages, [key]: v})}
+            />
             <NoResult/>
           </div>
           )
@@ -190,22 +205,97 @@ function SearchResultDisplay({result}: {result: Response}) {
       </div>
     </>
   )
-} 
+}
+
+type ResultPagesViewProps = {
+  items: any[],
+  currentPage: number,
+  totalPage: number,
+  numResultsPerPage: number,
+  scrollZero: ()=> void,
+  setCurrentPage: (page: number)=> void,
+}
+
+function ResultPagesView({items, currentPage, numResultsPerPage, totalPage, setCurrentPage, scrollZero}: ResultPagesViewProps) {
+  const pageIndex = Math.min(Math.max(0, currentPage), totalPage - 1)
+  const minIndex = pageIndex * numResultsPerPage
+  const maxIndex = (pageIndex + 1)* numResultsPerPage - 1
+
+  const nextPage = useCallback(()=> {
+    setCurrentPage(Math.min(totalPage - 1, pageIndex + 1))
+    scrollZero()
+  }, [pageIndex, setCurrentPage, scrollZero])
+
+  const prevPage = useCallback(()=> {
+    setCurrentPage(Math.max(0, pageIndex - 1))
+    scrollZero()
+  }, [pageIndex, setCurrentPage, scrollZero])
+
+  const firstPage = useCallback(()=> {
+    setCurrentPage(0)
+    scrollZero()
+  }, [setCurrentPage, scrollZero])
+
+  return (
+    <>
+      {
+        items.map((item, index)=> {
+          return index >= minIndex && index <= maxIndex && <AccessableItem {...item}/>
+        })
+      }
+      <div style={{height: 10}}/>
+      <Button icon="step-backward" disabled={pageIndex === 0} onClick={firstPage}/>
+      <div style={{display: "inline-block", width: 10}}/>
+      <Button icon="arrow-left" disabled={pageIndex === 0} onClick={prevPage}>上一页</Button>
+      <div style={{display: "inline-block", width: 10}}/>
+      <Button icon="arrow-right" disabled={pageIndex >= totalPage - 1} onClick={nextPage}>下一页</Button>
+      <div style={{display: "inline-block", width: 10}}/>
+      <PageNumSetter/>
+    </>
+  )
+}
+
+function PageNumSetter() {
+  const [numResultsPerPage, setNumResultsPerPage] = useLocalStorage("num_search_results_per_page")
+  return (
+    <>
+      <Popover2 
+        // minimal
+        content={<div className={`shadow-box ${Classes.POPOVER2_DISMISS}`} style={{padding: 10}}>
+          <H6>每页展示的结果数量</H6>
+          <RadioGroup selectedValue={numResultsPerPage} onChange={e=> setNumResultsPerPage(Number(e.currentTarget.value))}>
+          {/* // onChange={e=> setNumResultsPerPage(e.currentTarget.value)}> */}
+            <Radio label="50" value={50}/>
+            <Radio label="100" value={100}/>
+            <Radio label="200" value={200}/>
+            <Radio label="500" value={500}/>
+          </RadioGroup>
+        </div>}
+      >
+        <Button icon="cog"/>
+      </Popover2>
+    </>
+  )
+}
 
 function GroupTag({children, selected, onClick}) {
-  return <Tag minimal interactive
-    intent={selected ? "primary" : "none"}
-    style={{margin: 4, marginLeft: 0}}
-    onClick={()=> onClick()}>
-    {children}
-  </Tag>
+  return (
+    <Tag 
+      minimal 
+      interactive
+      intent={selected ? "primary" : "none"}
+      style={{margin: 4, marginLeft: 0}}
+      onClick={()=> onClick()}>
+      {children}
+    </Tag>
+  )
 }
 
 function NoResult() {
   return (
     <div className={style["no-result"]}>
       <p>
-        <Icon icon="search" style={{color: "#ccc", marginRight: 5}}/>
+        <Icon icon="search" style={{color: "#ccc", marginLeft: -10, marginRight: 5}}/>
         没找到想要的结果？
         <a onClick={()=> alert("这个还没写")}>反馈...</a></p>
     </div>

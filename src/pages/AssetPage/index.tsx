@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox } from '@blueprintjs/core'
+import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox, Menu, MenuItem, Callout } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
 import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useSaveFileDialog, useBatchDownloadDialog } from '../../hooks'
@@ -16,9 +16,11 @@ import KeepAlivePage, { KeepAlivePageProps } from '../../components/KeepAlive/Ke
 import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
 import AssetFilePath from '../../components/AssetFilepath'
 import BatchDownloadButton from '../../components/BatchDownloadButton'
-import { FmodEvent, FmodProject } from '../../searchengine'
+import { FmodEvent, FmodProject, Shader } from '../../searchengine'
 import SfxPlayer from '../../components/SfxPlayer'
 import { AccessableItem } from '../../components/AccessableItem'
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
+import Code from '../../components/Code'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -31,6 +33,7 @@ function getTypeKeyById(id: string): string {
     case "t": return "alltexelement"
     case "x": return "allxmlfile"
     case "n": return "alltexture"
+    case "r": return "allkshfile"
     case "f": return id.startsWith("fev") ? "allfmodproject" : "allfmodevent"
   }
   throw Error("Failed to get type key: " + id)
@@ -79,6 +82,8 @@ export default function AssetPage() {
         return <KeepAlive key={id}>
           <TexNoRefPage {...asset} key={id}/>
         </KeepAlive>
+    case "shader":
+      return <ShaderPage {...asset} key={id}/>
     case "fmodevent":
       return <FmodEventPage {...asset} key={id}/>
     case "fmodproject":
@@ -399,6 +404,7 @@ function ZipPage({type, file, id}) {
       setAnimList(false)
     }
     else {
+      console.log(result)
       setAnimList(JSON.parse(result))
     }
   }, {type: "animbin", file}, [file])
@@ -537,7 +543,12 @@ function ZipPage({type, file, id}) {
               <th>动画库</th>
               <th>名字</th>
               <th>朝向</th>
-              <th>帧数&nbsp;<Icon icon="help"/> </th>
+              <th>帧数
+                <Tooltip2 placement="right" content={"30帧 = 1秒"}>
+                  <Button icon="help" minimal small
+                    style={{marginTop: -4, marginBottom: -2}} />
+                </Tooltip2>
+              </th>
             </thead>
             <tbody>
             {
@@ -565,8 +576,23 @@ function ZipPage({type, file, id}) {
   </div>
 }
 
+type FevRefFileList = Array<{
+  fsb_name: string,
+  lengthms: number,
+  path: string,
+  file_info: {
+    channels: 1 | 2,
+    data_size: number,
+    default_name: string,
+    fsb_name: string,
+    name: string,
+    frequency: number,
+    samplers: number,
+  }
+}>
+
 function FmodEventPage(props: FmodEvent) {
-  const {path, project, lengthms, category, param_list, guid} = props
+  const {path, project, lengthms, category, param_list} = props
   const typeStr = useMemo(()=> {
     if (category.startsWith("master/set_sfx/"))
       return "音效" 
@@ -595,21 +621,124 @@ function FmodEventPage(props: FmodEvent) {
       return param_list.map(({name})=> name).join(" / ")
   }, [param_list])
 
-  useLuaCallOnce<string>("load", console.log,
-  { type: "fev_ref", guid }, [guid])
+  const [refData, setRefData] = useState<FevRefFileList>(undefined)
+  useLuaCallOnce<string>("load", response=> {
+    const data = JSON.parse(response)
+    if (data.has_sounddef){
+      setRefData(data.file_list)
+    }
+    else{
+      setRefData([])
+    }
+  },
+    { type: "fev_ref", path }, [path])
 
   return (
     <div>
       <H3>{path} <AssetType type={"fmodevent"}/></H3>
-      <SfxPlayer {...props}/>
+      {
+        lengthms === 0 ? 
+        <Callout intent='danger' style={{paddingBottom: 5, marginBottom: 10, marginTop: 20}}>
+          <p>
+            这是一个未使用任何音频素材的空音效，无法播放和导出。
+          </p>
+        </Callout> : <SfxPlayer {...props}/>
+      }
       <div style={{height: 10}}/>
       <H5>基本信息</H5>
-      <p>类型：{typeStr}</p>
+      <p>分类：{typeStr}</p>
       <p>时长：{lengthStr}</p>
       <p>参数：{paramList}</p>
-      <p>ggg{guid}</p>
       <AssetFilePath type="fev_link" path={project}/>
+      <br/>
+      <H5>音频文件</H5>
+      {
+        Array.isArray(refData) ?
+        <div>
+          <SoundRefList path={path} data={refData}/>
+        </div> :
+        <div style={{width: 50}}>
+          <Spinner size={40}/>
+        </div>
+      }
     </div>
+  )
+}
+
+function SoundRefList(props: {data: FevRefFileList, path: string}) {
+  const {data, path} = props
+  if (data.length === 0)
+    return <p>什么都没有 ¯\_(ツ)_/¯ </p>
+
+  const formatLength = useCallback((lengthms: number)=> {
+    if (lengthms < 1000) {
+      return `${lengthms}毫秒`
+    }
+    else {
+      return `${(lengthms/1000).toFixed(2)}秒`
+    }
+  }, [])
+
+  const formatFileSize = useCallback((size: number)=> {
+    if (size < 1024) {
+      return `${size} b`
+    }
+    else if (size < 1024* 1024) {
+      return `${(size/1024).toFixed(2)} Kb`
+    }
+    else {
+      return `${(size/1024/1024).toFixed(2)} Mb`
+    }
+  }, [])
+
+  const success = useCopySuccess("path")
+  const showFsb = useLuaCall<string>("load", ()=> {}, {type: "show"})
+
+  return (
+    <>
+      本音效引用了{data.length}个音频文件。
+      {/* <Button icon="download" onClick={()=> download()}>批量导出</Button> */}
+      <BatchDownloadButton type="fev_ref" path={path}/>
+      <table className={style["fev-ref-table"]}>
+        <thead>
+          <th>文件名</th>
+          <th>时长</th>
+          {/* <th>文件大小</th> */}
+          <th>采样率</th>
+          <th>声道</th>
+          <th>包名</th>
+          <th>导出</th>
+        </thead>
+        <tbody>
+          {
+            data.map(v=> <tr>
+              <td className={style["table-name"]}>{v.file_info.name}</td>
+              <td>{formatLength(v.lengthms)}</td>
+              {/* <td>{formatFileSize(v.file_info.data_size)}</td> */}
+              <td>{`${v.file_info.frequency} Hz`}</td>
+              <td>{v.file_info.channels === 1 ? "单声道" : "双声道"}</td>
+              {/* <td>{v.fsb_name}.fsb</td> */}
+              <td>
+                <Popover2 
+                  minimal
+                  placement="top-start"
+                  content={<Menu>
+                    <MenuItem text="拷贝路径" icon="duplicate" 
+                      onClick={()=> writeText(`sound/${v.fsb_name}.fsb`).then(()=> success())}/>
+                    <MenuItem text="打开文件位置" icon="folder-open"
+                      onClick={()=> showFsb({file: `sound/${v.fsb_name}.fsb`})}/>
+                  </Menu>}>
+                    <a>{v.fsb_name}.fsb</a>
+                </Popover2>
+              </td>
+              <td>
+                <Button icon="download" onClick={()=> window.alert("TODO: unimpl")}/>
+              </td>
+            </tr>)
+          }
+        </tbody>
+      </table>
+    </>
   )
 }
 
@@ -629,10 +758,6 @@ function FmodProjectPage(props: FmodProject) {
     return ()=> { unlisten.then(f=> f()) }
   }, [])
 
-  // useLuaCallOnce<string>("load", response=> {
-  //   console.log(response)
-  // }, {type: "fev_ref", guid: ""}, [], [])
-
   return (
     <div>
       <H3>{file}<AssetType type="fmodproject"/></H3>
@@ -645,6 +770,25 @@ function FmodProjectPage(props: FmodProject) {
       <H5>基本信息</H5>
       <AssetFilePath type="fev" path={name}/>
 
+    </div>
+  )
+}
+
+function ShaderPage(props: Shader) {
+  const {file, _vs, _ps} = props
+  const success = useCopySuccess("code")
+  return (
+    <div>
+      <H3>{file}<AssetType type="shader"/></H3>
+      <div style={{height: 10}}></div>
+      <H5>Vertex Shader 
+        <Button minimal icon="duplicate" onClick={()=> writeText(_vs).then(success)}/>
+      </H5>
+      <Code src={_vs} language='glsl'/>
+      <H5>Fragment Shader 
+        <Button minimal icon="duplicate" onClick={()=> writeText(_ps).then(success)}/>
+      </H5>
+      <Code src={_ps} language='glsl'/>
     </div>
   )
 }

@@ -6,13 +6,14 @@ import { Popover2 } from '@blueprintjs/popover2'
 import { useCopySuccess, useLuaCall } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
 
-interface IProps {
-  type: "xml" | "tex" | "xml_link" | "fev_link" | "fev",
-  path: string,
+type AssetFilePathProps = {
+  type: "xml" | "tex" | "xml_link" | "fev_link" | "fev" | "fsb",
+  path?: string,
+  name?: string,
 }
 
-export default function AssetFilePath(props: IProps) {
-  let {type, path} = props
+export default function AssetFilePath(props: AssetFilePathProps) {
+  let {type, path, name} = props
   const success = useCopySuccess("path")
   const navigate = useNavigate()
   const [bundleInfo, setBundleInfo] = useState<{zippath: string}>()

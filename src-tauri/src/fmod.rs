@@ -169,23 +169,27 @@ fn unpack_fmod_binary(bin_dir: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         unpack_file("fmodcore", include_bytes!("../bin/fmod/fmodcore").as_slice())?;
+        unpack_file("fmodext", include_bytes!("../bin/fmod/fmodext").as_slice())?;
         unpack_file("libfmodex.dylib", include_bytes!("../bin/fmod/libfmodex.dylib").as_slice())?;
         unpack_file("libfmodevent.dylib", include_bytes!("../bin/fmod/libfmodevent.dylib").as_slice())?;
         // chmod 777
-        let exec_path = bin_dir.join("fmodcore");
-        use std::os::unix::fs::PermissionsExt;
-        match exec_path.metadata() {
-            Ok(meta)=> {
-                let mut p = meta.permissions();
-                p.set_mode(0o777);
-                std::fs::set_permissions(exec_path, p).ok();
-            },
-            Err(e)=> println!("Failed to set mode: {}", e),
+        for name in ["fmodcore", "fmodext"] {
+            let exec_path = bin_dir.join(name);
+            use std::os::unix::fs::PermissionsExt;
+            match exec_path.metadata() {
+                Ok(meta)=> {
+                    let mut p = meta.permissions();
+                    p.set_mode(0o777);
+                    std::fs::set_permissions(exec_path, p).ok();
+                },
+                Err(e)=> println!("Failed to set mode: {}", e),
+            }
         }
     }
     #[cfg(target_os = "windows")]
     {
         unpack_file("fmodcore.exe", include_bytes!("../bin/fmod/fmodcore.exe").as_slice())?;
+        unpack_file("fmodext.exe", include_bytes!("../bin/fmod/fmodext.exe").as_slice())?;
         unpack_file("fmodex64.dll", include_bytes!("../bin/fmod/fmodex64.dll").as_slice())?;
         unpack_file("fmod_event64.dll", include_bytes!("../bin/fmod/fmod_event64.dll").as_slice())?;
     }
@@ -246,5 +250,66 @@ pub mod fmod_handler {
             },
             _=> Ok("".into()),
         }
+    }
+}
+
+pub mod lua_fmod {
+    use super::*;
+    use rlua::prelude::{LuaResult, LuaContext, LuaError};
+    use crate::filesystem::lua_filesystem::Path;
+    pub fn init(lua: LuaContext) -> LuaResult<()> {
+        let globals = lua.globals();
+        globals.set("FsbExtractSync", lua.create_function(|lua: _, (fsb_filepath, index_list, dir): (String, Vec<u32>, Path)|{
+            // get exec path from Lua globals (assigned in main.rs)
+            // not elegant, but should run correctly
+            let globals = lua.globals();
+            let bin: Path = globals.get("APP_BIN_DIR")?;
+            let fmod_workdir = bin.get_inner().join("fmod");
+            unpack_fmod_binary(&bin.get_inner()).ok();
+            std::env::set_current_dir(&fmod_workdir)
+                .map_err(|e| LuaError::RuntimeError(format!("Failed to change work directory: {}", e)))?;
+            let name = if cfg!(target_os="windows") { "fmodext.exe" } else { "fmodext" };
+            let result = Command::new(fmod_workdir.join(name))
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::inherit())
+                .args([
+                    fsb_filepath,
+                    index_list.iter().map(|v|v.to_string()).collect::<Vec<String>>().join(","),
+                    dir.get_inner().to_string_lossy().to_string()])
+                .output()
+                .map_err(|e| LuaError::RuntimeError(format!("Failed to execute fmodext child process: {}", e)))?;
+
+            let lines = String::from_utf8(result.stdout)
+                .map_err(|e| LuaError::RuntimeError(format!("Failed to parse output: {}", e)))?;
+            Ok(lines.split('\n')
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>())
+
+            // let (tx, rx) = sync_channel::<String>(32);
+            // let (tx_out, tx_err) = (tx.clone(), tx.clone());
+
+            // let stdout = child.stdout.take().unwrap();
+            // std::thread::spawn(move|| {
+            //     BufReader::new(stdout).lines().for_each(|line|{
+            //         let s = line.unwrap();
+            //         if s.starts_with("[FMOD]") {
+            //             println!("{}", &s); // just print it
+            //         }
+            //         else {
+            //             tx_out.send(s).ok();
+            //         }
+            //     });
+            // });
+            // let stderr = child.stderr.take().unwrap();
+            // std::thread::spawn(move|| {
+            //     BufReader::new(stderr).lines().for_each(|line|{
+            //         let s = line.unwrap();
+            //     });
+            // });
+
+            // Ok(true)
+        })?)?;
+        Ok(())
     }
 }

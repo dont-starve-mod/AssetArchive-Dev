@@ -12,7 +12,7 @@ import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
-import type { AllAssetTypes } from './searchengine'
+import type { AllAssetTypes, Shader } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import MyTest from './components/MyTest'
 import AppFmodHandler from './components/AppFmodHandler'
@@ -27,6 +27,7 @@ declare global {
 			alldynfile: AnimDyn[],
 			allzipfile: AnimZip[],
 			alltexture: TexNoRef[],
+			allkshfile: Shader[],
 			allfmodevent: FmodEvent[],
 			allfmodproject: FmodProject[],
 		}

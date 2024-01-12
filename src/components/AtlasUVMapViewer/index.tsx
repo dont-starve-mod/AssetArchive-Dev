@@ -1,12 +1,11 @@
 import React, { useCallback, useRef, useState } from 'react'
 import type { XmlData } from '../../pages/AssetPage'
 import style from './index.module.css'
-import { useCopyTexElement, useGenericSaveFileCb, useIntersectionObserver, useMouseDrag, useMouseScroll, useSaveFileCall } from '../../hooks'
+import { useCopyTexElement, useIntersectionObserver, useLocalStorage, useMouseDrag, useMouseScroll, useSaveFileCall } from '../../hooks'
 import { useMouseDragClick, useLuaCallOnce } from '../../hooks'
-import { off } from 'process'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { useNavigate } from 'react-router-dom'
-import { Button, Menu, MenuItem } from '@blueprintjs/core'
+import { Button, Dialog, Switch } from '@blueprintjs/core'
 
 interface BuildAtlasProps {
 
@@ -44,14 +43,20 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
   const [basicScale, setBasicScale] = useState(0)
   const [scale, setScale] = useState(1)
   const onScroll = useCallback((v: number, e: React.WheelEvent)=> {
+    console.log(">>>>")
     const newScale = Math.min(Math.max(scale * Math.pow(.99, v*0.5), 0.2), 8.0)
     const delta = newScale - scale
     setScale(newScale)
     const {clientX, clientY} = e
-    const {x, y} = imgRef.current.getBoundingClientRect()
-    setOffset(offset=> [offset[0]+(x-clientX-offset[0])*delta*basicScale, offset[1]+(y-clientY-offset[1])*delta*basicScale])
+    const {x, y} = boxRef.current.getBoundingClientRect()
+    const relX = clientX - x, relY = clientY - y
+    console.log(relX - offset[0],relY - offset[1])
+    setOffset([
+      offset[0]-(relX-offset[0])*delta*basicScale,
+      offset[1]-(relY-offset[1])*delta*basicScale
+    ])
     // TODO: fix this
-  }, [scale])
+  }, [scale, offset])
   const [onMouseDown] = useMouseDrag(onDrag)
   const [onWheel, onMouseEnter, onMouseLeave] = useMouseScroll(onScroll)
   const [imgSize, setImgSize] = useState([0, 0])
@@ -120,6 +125,9 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
     type: "image", xml,
   }, "image", "image.png", [xml])
 
+  const [showUV, setShowUV] = useLocalStorage("atlas_view_show_uvbox")
+  const [showBorder, setShowBorder] = useLocalStorage("atlas_view_show_border")
+
   return (
     <div>
       <hr/>
@@ -127,7 +135,7 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
         <p>
           <strong>元素:&nbsp;</strong>
           {
-            info ? `${info.name} (${info.width}x${info.height})` : "未选择"
+            info ? `${info.name} (${info.width}✕${info.height})` : "未选择"
           }
           {
             info && <div style={{display: "inline-block", paddingLeft: 5}}>
@@ -157,11 +165,15 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
           </div>
           <img 
             ref={imgRef} 
-            draggable={false} 
-            style={{position: "absolute", left: offset[0], top: offset[1], outline: "4px solid green"}}
+            draggable={false}
+            style={{position: "absolute", left: offset[0], top: offset[1], outline: showBorder ? "4px solid green" : null}}
               width={renderWidth}
               height={renderHeight}
               />
+          <div
+            style={{position: "absolute", left: offset[0]-2, top: offset[1]-2,
+              width: 4, height: 4, backgroundColor: "pink",
+            }}/>
           <div className={style["uv-box-container"]}>
             {
               data.elements.map(({uv: [u1, u2, v1, v2], width, height, name, id}, index)=> {
@@ -170,13 +182,16 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
                   borderWidth: 2,
                   zIndex: 1,
                 } : {}
+                const colorStyle = showUV ? undefined : { borderColor: "transparent" }
                 return (
                   <div key={index} className={style["uv-box"]} style={{
                     left: offset[0] + Math.floor(u1* renderWidth),
                     top: offset[1] + Math.floor((1-v2)* renderHeight),
                     width: width* basicScale* scale + 1,
-                    height: height* basicScale* scale + 1,    
-                    ...selectedStyle,                
+                    height: height* basicScale* scale + 1,
+                    ...colorStyle, 
+                    ...selectedStyle,
+                         
                   }}
                     onMouseEnter={()=> {
                       setHoveredInfo({id, name, width, height, uv: [u1, u2, v1, v2]})
@@ -198,8 +213,25 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
         <div style={{position: "absolute", right: 5, top: 5, width: 30, height: 30}}>
           <Tooltip2 content={"重置视图"}>
             <Button icon="reset" onClick={onClickReset}/>
-
           </Tooltip2>
+          <div style={{height: 4}}></div>
+          <Popover2 
+            content={<div 
+              className='shadow-box'
+              style={{
+                userSelect: "none", WebkitUserSelect: "none",
+                backgroundColor: "white", padding: 10, paddingBottom:4, borderRadius: 2}}>
+              <Switch label='切割框' 
+                checked={showUV} 
+                onChange={e=> setShowUV(e.currentTarget.checked)}></Switch>
+              <Switch label='外框' 
+                checked={showBorder} 
+                onChange={e=> setShowBorder(e.currentTarget.checked)}></Switch>
+            </div>}
+            minimal
+            placement="left">
+            <Button icon="cog"/>
+          </Popover2>
         </div>
       </div>
     </div>

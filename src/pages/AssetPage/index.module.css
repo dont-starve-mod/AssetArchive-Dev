@@ -89,3 +89,24 @@
   font-weight: 700;
   text-decoration: underline;
 }
+
+.fev-ref-table {
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  padding: 4px;
+}
+
+.fev-ref-table th {
+  text-align: left;
+}
+
+.fev-ref-table td, .fev-ref-table th {
+  padding: 2px 8px;
+}
+
+.fev-ref-table .table-name {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

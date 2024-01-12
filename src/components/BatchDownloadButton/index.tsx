@@ -4,12 +4,12 @@ import { useLuaCall } from '../../hooks'
 import { open } from '@tauri-apps/api/dialog'
 import { appWindow } from '@tauri-apps/api/window'
 
-interface IProps {
-  type: "xml" | "build",
+interface BatchDownloadButtonProps {
+  type: "xml" | "build" | "fev_ref",
   [K: string]: any,
 }
 
-export default function BatchDownloadButton(props: IProps) {
+export default function BatchDownloadButton(props: BatchDownloadButtonProps) {
   const [loading, setLoading] = useState(false)
 
   const call = useLuaCall<string>("batch_download", result=> {
@@ -17,7 +17,7 @@ export default function BatchDownloadButton(props: IProps) {
     const data: { success: boolean, output_dir_path: string} = JSON.parse(result)
     if (data.success){
       appWindow.emit("toast", {
-        message: "下载成功",
+        message: "导出成功",
         icon: "saved", 
         intent: "success",
         savepath: data.output_dir_path 
@@ -30,13 +30,15 @@ export default function BatchDownloadButton(props: IProps) {
       multiple: false,
       title: ""
     })
-    setLoading(true)
-    call({...props, target_dir: dirpath})
+    if (typeof dirpath === "string"){
+      setLoading(true)
+      call({...props, target_dir: dirpath})
+    }
   }, [call])
 
   return (
     <Button loading={loading} icon="download" onClick={()=> fn()}>
-      批量下载
+      批量导出
     </Button>
   )
 }

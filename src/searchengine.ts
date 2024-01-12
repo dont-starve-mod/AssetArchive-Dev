@@ -51,6 +51,14 @@ export interface TexNoRef extends IBasicAsset {
   _is_cc?: true,
 }
 
+/** *.ksh file */
+export interface Shader extends IBasicAsset {
+  type: "shader",
+  file: string,
+  _ps: string,
+  _vs: string,
+}
+
 /** sound path, for example: `turnoftides/common/together/moon_glass/mine` */
 export interface FmodEvent extends IBasicAsset, FmodEventInfo {
   type: "fmodevent",
@@ -66,7 +74,7 @@ export interface FmodProject extends IBasicAsset, FmodProjectInfo {
   file: string,
 }
 
-type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef | FmodEvent | FmodProject
+type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef | Shader | FmodEvent | FmodProject
 export type AllAssetTypes = Asset
 export type Matches = Array<{indices: Array<[number, number]>, key: string}>
 export type Result = AllAssetTypes & FuseResult<AllAssetTypes> & { matches: Matches }

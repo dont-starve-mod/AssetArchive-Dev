@@ -57,6 +57,10 @@ function Asset.FromGame(type, file)
 			return
 		elseif file:endswith(".bin") then
 			return
+		elseif file:endswith(".fsb") then
+			-- fmod sound bank should not be exposed to user
+			-- instead, sound files are accessed from fmod event
+			return 
 		end
 	end
 	if (type == "ANIM" or type == "PKGREF") and file:endswith(".zip") then
@@ -71,22 +75,14 @@ function Asset.FromGame(type, file)
 	if (type == "ATLAS" or type == "ATLAS_BUILD" or type == "FILE") and file:endswith(".xml") then
 		return Asset("xml", { file = file })
 	end
-	if type == "SOUND" or type == "SHADER" or type == "PKGREF" and file:endswith(".fsb") then
-		return
+	if file:endswith(".fev") then
+		return Asset("fmodproject", { file = file, name = NameOf(file)} ) -- TODO: name 是否有后缀？
+	end
+	if type == "SHADER" and file:endswith(".ksh") then
+		return Asset("shader", { file = file })
 	end
 
-			-- elif type == "SOUND":
-		-- 	# 暂时忽略，以后要加上
-		-- 	return None
-		-- elif type == "PKGREF" and file.endswith(".fsb"):
-		-- 	# 暂时忽略，以后要加上
-		-- 	return None
-		-- elif type == "SHADER" and file.endswith(".ksh"):
-		-- 	# 暂时忽略，以后的以后再加上
-		-- 	return None
-
 	print_error("无法解析的Asset: ", type, file)
-	-- body
 end
 
 
@@ -96,7 +92,8 @@ Asset.ID_TYPES = {
 	xml = "x",
 	tex = "t",
 	sound = "s",
-	tex_no_ref = "n"
+	tex_no_ref = "n",
+	shader = "r",
 }
 
 function TexElementIdGetter(xml)

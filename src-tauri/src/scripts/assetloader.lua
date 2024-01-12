@@ -611,6 +611,13 @@ KshLoader = Class(function(self, f)
         return error("Failed to parse *.ps file content: not valid utf-8 string")
     end
 
+    while ps:endswith("\0")do
+        ps = ps:sub(1, #ps - 1)
+    end
+    while vs:endswith("\0")do
+        vs = vs:sub(1, #vs - 1)
+    end
+    
     self.ps = ps
     self.vs = vs
     f:close()
@@ -762,7 +769,7 @@ local function FmodBytesToGUID(bytes)
     return table.concat({p1, p2, p3, p4, p5}, "-")
 end
 
--- loader for *.fev file, only parse sound reference, other data are loaded from libfmodex
+-- loader for *.fev file, only parse sound reference, other data are loaded by libfmodex
 FevLoader = Class(function(self, f)
     local function error(e)
         self.error = e
@@ -770,10 +777,13 @@ FevLoader = Class(function(self, f)
         f:close()
     end
     local function trim(s)
-        if s:endswith("\0") then
-            s = s:sub(1, #s-1)
+        if s == nil then
+            return nil
+        elseif s:endswith("\0") then
+            return s:sub(1, #s-1)
+        else
+            return s
         end
-        return s
     end
     f:seek_to_string("RIFF")
     f:seek_to_string("LIST")
@@ -796,9 +806,9 @@ FevLoader = Class(function(self, f)
     f:seek_forward(128)
     local name = f:read_variable_length_string()
 
-    print(string.format("\n%d Banks\n%d Categories\n%d Events\n%d Waveforms\n%d Sounddefs\n",
-        numbanks, numcategories, numevents, numwaveforms, numsounddefs))
-    print(name)
+    if name == nil then
+        return error(ERROR.UNEXPECTED_EOF)
+    end
 
     self.numbanks = numbanks
     self.numevents = numevents
@@ -850,11 +860,13 @@ FevLoader = Class(function(self, f)
             -- local guid = FmodBytesToGUID(guid_bytes)
             f:seek_forward(144)
             local num = f:read_u32()
-            assert(num == 1 or num == 0, "simple event must have only 0/1 sounddef")
+            if num > 1 then
+                error("simple event must have only 0/1 sounddef")
+                return true
+            end
             local index = f:read_u32()
             f:seek_forward(58)
             local category = f:read_variable_length_string()
-            assert(#category > 2, "Failed to get cateogry name at "..f:tell())
             local event = {
                 type = "simple",
                 path_index = get_path(name_index),
@@ -875,7 +887,6 @@ FevLoader = Class(function(self, f)
                 f:seek_forward(6)
                 local numsounds = f:read_u16()
                 local numenvelopes = f:read_u16()
-                assert(numsounds + numenvelopes < 100, "Too many numsounds or numenvelopes at "..f:tell())
                 for k = 1, numsounds do
                     local index = f:read_u16()
                     table.insert(refs, index)
@@ -897,7 +908,6 @@ FevLoader = Class(function(self, f)
             f:seek_forward(32*numparams)
             f:seek_forward(8)
             local category = f:read_variable_length_string()
-            assert(#category > 2, "Failed to get cateogry name at "..f:tell())
             local event = {
                 type = "multi-track",
                 path_index = get_path(name_index),
@@ -924,12 +934,12 @@ FevLoader = Class(function(self, f)
                 return true
             end
         end
-        table.remove(name_index_stack, #name_index_stack) -- pop
         for i = 1, numevents do
             if ParseEvent() then
                 return true
             end
         end
+        table.remove(name_index_stack, #name_index_stack) -- pop
     end
 
     local numrootgroups = f:read_u32()
@@ -1054,6 +1064,7 @@ end
 --     return self.event_map[guid]
 -- end
 
+
 -- loader for *.fsb file
 -- this class is modified from `python-fsb5` (see https://github.com/HearthSim/python-fsb5)
 FsbLoader = Class(function(self, f)
@@ -1143,7 +1154,7 @@ FsbLoader = Class(function(self, f)
     local content = f:read_exact(string_table_size - start)
     for i = 1, numsamples - 1 do
         table.insert(string_table, 
-            content:sub(offset_list[i] - start, offset_list[i + 1] - start - 1))
+            content:sub(offset_list[i] - start + 1, offset_list[i + 1] - start - 1))
     end
     -- last one
     local s = content:sub(offset_list[numsamples] - start + 1, #content)
@@ -1258,4 +1269,3 @@ function FevLoader:LinkToFsb(map)
         end
     end
 end
-

@@ -298,6 +298,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         globals.set("APP_CONFIG_DIR", app_dir(resolver.app_config_dir(), true))?;
         globals.set("APP_LOG_DIR", app_dir(resolver.app_log_dir(), true))?;
         globals.set("APP_DATA_DIR", app_dir(resolver.app_data_dir(), true))?;
+        globals.set("APP_BIN_DIR", app_dir(resolver.app_data_dir().map(|p|p.join("bin")), true))?;
         
         globals.set("HOME_DIR", app_dir(tauri::api::path::home_dir(), false))?;
         globals.set("DOWNLOAD_DIR", app_dir(tauri::api::path::download_dir(), false))?;
@@ -329,6 +330,7 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         misc::lua_misc::init(lua_ctx).unwrap_or_else(init_error("lua_misc"));
         args::lua_args::init(lua_ctx).unwrap_or_else(init_error("lua_args"));
         ffmpeg::lua_ffmpeg::init(lua_ctx).unwrap_or_else(init_error("ffmpeg"));
+        fmod::lua_fmod::init(lua_ctx).unwrap_or_else(init_error("fmod"));
 
         // delete some functions
         globals.set("dofile", Nil)?;

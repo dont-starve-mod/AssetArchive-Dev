@@ -495,7 +495,7 @@ pub mod lua_image {
                 else{
                     let pixel = unsafe { img.inner.unsafe_get_pixel(x, y) };
                     let rgba = pixel.channels();
-                    Ok(rgba.iter().copied().collect::<Vec<u8>>())
+                    Ok(rgba.to_vec())
                 } 
             });
             _methods.add_method_mut("put_pixel", |_, img: &mut Self, (x, y, pixel): (u32, u32, Vec<u8>)|{
@@ -526,6 +526,11 @@ pub mod lua_image {
             // get png file bytes of image
             _methods.add_method("save_png_bytes", |lua: Context, img: &Self, ()|{
                 lua.create_string(img.save_png_bytes().as_slice())
+            });
+            // get png file bytes and convert to base64
+            _methods.add_method("save_png_base64", |_, img: &Self, ()|{
+                use base64::prelude::*;
+                Ok(BASE64_STANDARD.encode(img.save_png_bytes()))
             });
             // convert to rgba sequence
             _methods.add_method("to_bytes", |lua: Context, img: &Self, ()|{

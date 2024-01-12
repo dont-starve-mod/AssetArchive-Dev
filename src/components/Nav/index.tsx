@@ -3,7 +3,7 @@ import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox, Icon, 
 import { useNavigate } from 'react-router-dom'
 import { appWindow } from '@tauri-apps/api/window'
 import MatchText from '../MatchText'
-import { useAppSetting, useOS } from '../../hooks'
+import { useAppSetting, useLocalStorage, useOS } from '../../hooks'
 import style from './style.module.css'
 import { AllAssetTypes } from '../../searchengine'
 import { Popover2 } from '@blueprintjs/popover2'
@@ -139,6 +139,7 @@ export default function Nav() {
 
 function VolumeIcon() {
   const [volume] = useAppSetting("volume")
+  console.log(volume)
   const [open, setOpen] = useState(false)
   const icon: IconName = volume > 50 ? "volume-up" : volume > 0 ? "volume-down" : "volume-off"
   return (
@@ -251,6 +252,8 @@ function QuickSearchItem(props: AllAssetTypes & { onClickItem: Function, matches
         (type === "tex") ?
           <MatchText text={props.tex} match={matches["tex"]}/> :
         (type === "tex_no_ref") ? 
+          <MatchText text={props.file} match={matches["file"]}/> :
+        (type === "shader") ?
           <MatchText text={props.file} match={matches["file"]}/> :
         (type === "fmodevent") ? 
           <MatchText text={props.path} match={matches["path"]}/> :

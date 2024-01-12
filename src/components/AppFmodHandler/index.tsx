@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from '../../redux/store'
 import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
-import { useAppSetting } from '../../hooks'
+import { useAppSetting, useLocalStorage } from '../../hooks'
 import { setState } from '../../redux/reducers/appstates'
 
 export type FmodEventInfo = {
@@ -67,7 +67,7 @@ export default function AppFmodHandler() {
 
   const onGetData = useCallback((response: string)=> {
     if (response.length === 0) return
-    console.log("GetFmodData", response.length)
+    // console.log("GetFmodData", response.length)
     const data = JSON.parse(response)
     data.forEach(([key, value]:
       ["allfmodevent" | "allinfo", string]) => {

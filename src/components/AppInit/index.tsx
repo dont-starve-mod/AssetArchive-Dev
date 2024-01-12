@@ -48,8 +48,12 @@ function generateDocument(data: {[K: string]: AllAssetTypes[]}) {
       const {file} = item
       result.push({id, type, file})
     }
+    else if (type === "shader") {
+      const {file, _vs, _ps} = item
+      result.push({id, type, file})
+    }
     else {
-      throw Error("Invalid asset type: " + type)
+      console.warn("Invalid asset type", item)
     }
   }))
   const ids = new Set()
