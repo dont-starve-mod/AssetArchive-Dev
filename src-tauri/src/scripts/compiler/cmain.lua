@@ -68,7 +68,6 @@ function EntryManager:ResolveAssets(list)
 		local asset = Asset.FromGame(type, file)
 		if asset ~= nil then
 			if type == "INV_IMAGE" then
-				-- find xml file of minimap icon
 				local xml, name = provider:ResolveInvImage(file)
 				asset.type = "tex"
 				asset.xml = xml
@@ -95,7 +94,6 @@ function EntryManager:BuildPredefs()
 		}, {is_new = true, is_predef = true})
 	end
 end
-
 
 function EntryManager:BuildPrefabs()
 	print_info("[EntryManager] BuildPrefabs")
@@ -277,7 +275,7 @@ local function main(GLOBAL)
 
 	GLOBAL.prefabdata = prefabdata
 	-- run asset annotator
-	local run = require "compiler.assetdesc.run"
+	local run = require "compiler.assetdesc.dmain"
 	run(GLOBAL)
 
 
@@ -288,8 +286,6 @@ local function main(GLOBAL)
 		"return "..
 		json.encode(FileSystem.GetString("assetdesc.dat"))
 	)
-
-
 end
 
 return {

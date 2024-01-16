@@ -24,7 +24,7 @@ function Asset:__tostring()
 			self.type, self.xml, self.tex)
 	else
 		return string.format("Asset<%s %s>",
-			self.type, self.file)
+			self.type, self.file or self.path)
 	end
 end
 
@@ -52,7 +52,7 @@ function Asset.FromGame(type, file)
 	if type == "PKGREF" and file:startswith("movies/") then
 		return
 	end
-	if type == "PKGREF" or type == "ASSET_PKGREF" then
+	if type == "PKGREF" or type == "ASSET_PKGREF" or type == "SOUND" then
 		if file:endswith(".tex") then
 			return
 		elseif file:endswith(".bin") then
@@ -82,7 +82,7 @@ function Asset.FromGame(type, file)
 		return Asset("shader", { file = file })
 	end
 
-	print_error("无法解析的Asset: ", type, file)
+	print_error("Unresolved Asset: ", type, file)
 end
 
 
@@ -91,6 +91,7 @@ Asset.ID_TYPES = {
 	animdyn = "d",
 	xml = "x",
 	tex = "t",
+	fmodevent = "f",
 	sound = "s",
 	tex_no_ref = "n",
 	shader = "r",

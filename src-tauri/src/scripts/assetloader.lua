@@ -828,7 +828,6 @@ FevLoader = Class(function(self, f)
         f:seek_forward(20)
         local name = trim(f:read_variable_length_string())
         table.insert(bank_list, name)
-        -- print(i, name)
     end
 
     self.bank_list = bank_list

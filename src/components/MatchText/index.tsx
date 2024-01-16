@@ -1,17 +1,19 @@
 import React, { CSSProperties } from 'react'
 
-interface IProps {
+type MatchTextProps = {
   text: string,
   match?: {start: number, length: number}[],
-  markStyle?: CSSProperties,
+  style?: CSSProperties,
+  markClassName?: string,
 }
 
 /** highlight meilisearch result matchesPosition */
-export default function MatchText(props: IProps){
+export default function MatchText(props: MatchTextProps){
   let {
     text, 
     match, 
-    markStyle = {color: "#6020d0", fontWeight: 500}, 
+    style = {fontWeight: 500},
+    markClassName = "highlight-color"
   } = props
 
   if (match === undefined) {
@@ -23,9 +25,14 @@ export default function MatchText(props: IProps){
   match.forEach(({start, length}, i)=> {
     let end = start + length
     if (index < start){
-      result.push(<span key={`0-${i}`}>{text.substring(index, start)}</span>)
+      result.push(
+      <span key={`0-${i}`}>{text.substring(index, start)}</span>)
     }
-    result.push(<span key={`1-${i}`} style={markStyle}>{text.substring(start, end)}</span>)
+    result.push(
+      <span key={`1-${i}`} style={style} className={markClassName}>
+        {text.substring(start, end)}
+      </span>
+    )
     index = end
   })
   result.push(<span key={"fin"}>{text.substring(index)}</span>)

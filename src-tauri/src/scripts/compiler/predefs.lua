@@ -61,6 +61,9 @@ local function GetAlias2(key, po)
 	if key == "walkingplank" or key == "walkingplank_grass" then
 		return { po:GetName(key).."（船上的）" }
 	end
+	if key == "sharkboi_icespike" then
+		return { string.format("%s（%s）", po:GetName(key), po:GetName("sharkboi")) }
+	end
 end
 
 local PREDEF_ALIAS_GROUP = {

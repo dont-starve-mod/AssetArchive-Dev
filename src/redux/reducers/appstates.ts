@@ -18,6 +18,7 @@ const appstates = createSlice<AppStates, SliceCaseReducers<AppStates>>({
     fmod_playing_info: {},
     fmod_param_value: {
       intensity: 1,
+      nightmare: 1,
       param00: 0.5,
       param01: 0.5,
       param02: 0.5,

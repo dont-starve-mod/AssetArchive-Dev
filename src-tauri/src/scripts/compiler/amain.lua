@@ -6,9 +6,12 @@ assert(SCRIPT_ROOT ~= nil and #SCRIPT_ROOT > 0, "[Fatal] script root not defined
 local main_result = nil
 
 function table.clear(t)
+	local stored = {}
 	for k in pairs(t) do
 		t[k] = nil
+		stored[k] = v
 	end
+	return stored -- shallow copy of cleared table
 end
 
 local AnalyzerMethods = {
@@ -22,6 +25,7 @@ local AnalyzerMethods = {
 
 		-- change loader path to `scripts.zip`
 		-- disable local loader
+		package.old_loader = package.loaders
 		package.loaders = { 
 			function(path)
 				if cache[path] then return cache[path] end
@@ -48,8 +52,8 @@ local AnalyzerMethods = {
 		setmetatable(_G, {})
 
 		-- release all loaded
-		table.clear(package.loaded)
-		table.clear(package.preload)
+		package.old_loaded = table.clear(package.loaded)
+		package.old_preload = table.clear(package.preload)
 
 		-- dummy os lib
 		os = { time = function() return 0 end, clock = function() return 0 end }
@@ -296,11 +300,36 @@ local AnalyzerMethods = {
 		self.placers = placers
 	end,
 
+	LoadCustomize = function(self)
+		local customize = require "map/customize" 
+		local worldgen = customize.GetWorldGenOptions(nil, true)
+		local worldsettings = customize.GetWorldSettingsOptions(nil, true)
+		local customize_data = {}
+		for _,options in ipairs{worldgen, worldsettings}do
+			for _,v in ipairs(options)do
+				-- v.options = nil
+				-- v.default = nil
+				-- v.widget_type = nil
+				local name = assert(v.name)
+				local group = assert(v.group)
+				local atlas, image = assert(v.atlas), assert(v.image)
+				table.insert(customize_data, {
+					name = name,
+					group = group,
+					atlas = atlas,
+					image = image,
+				})
+			end
+		end
+		self.customize_data = customize_data
+	end,
+
 	WriteFile = function(self)
 		local prefabs = self.prefabs
 		local prefabnames = self.prefabnames
 		local prefabskins = self.prefabskins
 		local placers = self.placers
+		local customize_data = self.customize_data
 		
 		print_info("[Compiler] Link *_cooked")
 		for _,v in pairs(prefabs)do
@@ -325,7 +354,7 @@ local AnalyzerMethods = {
 
 		print_info("[Compiler] Link prefab placer")
 		
-		local data = { prefabs = {}, placers = {}, prefabskins = prefabskins }
+		local data = { prefabs = {}, placers = {}, prefabskins = prefabskins, customize = customize_data }
 		for k,v in pairs(prefabs)do
 			if v.name ~= "global" then
 				local assets, deps = {}, {}
@@ -375,8 +404,15 @@ local function main(GLOBAL)
 	analyzer:MountScriptZip(GLOBAL.root)
 	analyzer:CreateEnv()
 	analyzer:ScanAllPrefabs()
+	analyzer:LoadCustomize()
 	analyzer:WriteFile()
 	print("[Compiler] done 🎉")
+
+	package.loaders = package.old_loader
+	package.preload = package.preload
+	package.loaded = package.loaded
+
+	require "asset" -- override dst asset definition
 
 	return main_result
 end

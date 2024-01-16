@@ -57,7 +57,6 @@ local function compile()
 	prov:ListAsset()
 	env.prov = prov
 
-	print(string.rep("-", 40))
 	-- TODO: --force-reindex
 	
 	-- require("compiler.amain").main(env)

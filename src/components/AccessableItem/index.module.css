@@ -4,11 +4,15 @@
   padding: 10px 0;
   /* padding-top: 4px; */
   min-height: 30px;
-  /* background-color: rgb(209, 255, 255); */
+  border-radius: 2px;
 }
 
 .search-item-box:hover {
   background-color: #eee;
+}
+
+:global(.bp4-dark) .search-item-box:hover {
+  background-color: #fff2;
 }
 
 .search-item-box .left {

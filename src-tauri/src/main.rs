@@ -115,6 +115,7 @@ fn main() {
             fmod_get_data,
             meilisearch_get_addr,
             select_file_in_folder,
+            dev_host,
             set_drag_data,
             get_drag_data,
             clear_drag_data,
@@ -166,6 +167,12 @@ fn select_file_in_folder(path: String) -> bool {
 #[tauri::command]
 fn select_file_in_folder(path: String) -> bool {
     windows_select_file_in_folder(path)
+}
+
+#[tauri::command]
+fn dev_host() -> String {
+    std::env::var("ASSET_ARCHIVE_DEV_HOST")
+        .unwrap_or("".to_string())
 }
 
 #[tauri::command]

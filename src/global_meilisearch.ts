@@ -17,11 +17,13 @@ const queuedDocs: any[] = []
 export function setAddr(addr: string) {
   state.addr = addr
   state.client = new MeiliSearch({host: addr})
+  //@ts-ignore
+  window.client = state.client
 
   // state.client.createIndex("assets")
   state.client.index("assets").updateSettings({
     filterableAttributes: ["type"],
-    searchableAttributes: ["file", "tex", "fmodpath", "xml", "texpath"],
+    searchableAttributes: ["file", "tex", "fmodpath", "xml", "texpath", "plain_desc"],
     separatorTokens: ["/"],
     synonyms: SYNONYMS_MAP,
     pagination: {
@@ -43,7 +45,7 @@ function checkValid() {
     throw Error("Meilisearch client not valided")
 }
 
-type IndexName = "assets"
+type IndexName = "assets" | "assets_update"
 
 export function addDocuments(index: IndexName, doc: any[], options?: DocumentOptions) {
   if (!isValid()){
@@ -65,15 +67,25 @@ export function addDocuments(index: IndexName, doc: any[], options?: DocumentOpt
   else {
     queuedDocs.push({index, doc, options})
     queuedDocs.forEach(({index, doc, options})=> {
-      state.client.index(index)
-        .addDocuments(doc, options)
-        .then(
-          ()=> {},
-          error=> {
-            console.error("Error in adding documents\n", error)
+      if (index.endsWith("_update")){
+        state.client.index(index.replace("_update", ""))
+          .updateDocuments(doc, options)
+          .catch(error=> {
+            console.error("Error in updating documents\n", error)
             appWindow.emit("runtime_error", error)
-          }
-        )
+          })
+      }
+      else{
+        state.client.index(index)
+          .updateDocuments(doc, options)
+          .then(
+            ()=> {},
+            error=> {
+              console.error("Error in adding documents\n", error)
+              appWindow.emit("runtime_error", error)
+            }
+          )
+      }
     })
     queuedDocs.splice(0, queuedDocs.length)
   }
@@ -104,5 +116,3 @@ export async function searchWithCache(index: IndexName, query: string, options?:
 
 //@ts-ignore
 window.search = search
-//@ts-ignore
-window.client = ()=> state.client

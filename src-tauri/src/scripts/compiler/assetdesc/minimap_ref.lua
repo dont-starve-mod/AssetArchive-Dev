@@ -30,7 +30,7 @@ local PREFAB_REDIRECT = {
 	driftwood_small1 = "driftwood_tree",
 }
 
-local function FindMinimapRef(prefabdata)
+local function GetMinimapRef(prefabdata)
 	local prefabs = prefabdata.prefabs
 	local ref = {}
 	for _,v in ipairs(prefabs)do
@@ -58,7 +58,10 @@ end
 local function minimap_ref(env)
 	local prefabdata = assert(env.prefabdata)
 	return {
-		ref = FindMinimapRef(prefabdata)
+		-- {
+		-- 	 [K: minimap_icon_name]: prefab_name[],
+		-- }
+		ref = GetMinimapRef(prefabdata)
 	}
 end
 

@@ -1,5 +1,5 @@
 import Fuse from 'fuse.js'
-import type { AssetDesc } from './assetdesc'
+import type { AssetDesc, AssetDescLine } from './assetdesc'
 import type { FmodEventInfo, FmodProjectInfo } from './components/AppFmodHandler'
 export type FuseResult<T> = Fuse.FuseResult<T>
 
@@ -14,7 +14,8 @@ export type AssetListKey =
 export interface IBasicAsset {
   id: string,
   type: string,
-  description?: AssetDesc,
+  desc?: AssetDescLine[],
+  plain_desc?: string,
 }
 
 export interface Tex extends IBasicAsset{
@@ -63,7 +64,6 @@ export interface Shader extends IBasicAsset {
 export interface FmodEvent extends IBasicAsset, FmodEventInfo {
   type: "fmodevent",
   path: string,
-  guid: string,
   project_name: string,
 }
 
@@ -113,7 +113,6 @@ export class SearchEngine {
       "file",
       "tex",
       "path", // for fmodevent
-      "description_debug", // TODO: 只搜索plain text，忽略rich text
     ]
   }
   searcher: {

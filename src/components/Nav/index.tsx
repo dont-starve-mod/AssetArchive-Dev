@@ -57,6 +57,7 @@ export default function Nav() {
 
   const gotoResultPage = ()=> {
     navigate(`/search?q=${encodeURIComponent(query)}`)
+    setFocus(false)
   }
 
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>)=> {
@@ -66,8 +67,8 @@ export default function Nav() {
         event.currentTarget.select()
       }
     else if (event.key === "Enter" && query.length > 0) {
-      gotoResultPage()
-      setFocus(false)
+      // gotoResultPage()
+      // setFocus(false)
     }
     else {
       setFocus(true)
@@ -87,59 +88,61 @@ export default function Nav() {
     return ()=> { unlisten.then(f=> f()) }
   }, [])
 
-  return <Navbar style={{backgroundColor: "transparent", boxShadow: "none", width: "100%"}}
-    onMouseDown={handleDrag}>
-    <Navbar.Group align={Alignment.LEFT}>
-      <Button className="bp4-minimal" icon="circle-arrow-left"
-        disabled={history.length == 0}
-        onClick={()=> navigate(-1)}/>
-      <Button className="bp4-minimal" icon="circle-arrow-right" onClick={()=> navigate(1)}/>
-    </Navbar.Group>
-    <Navbar.Group align={Alignment.RIGHT}>
-      {/* <Navbar.Heading>Title</Navbar.Heading> */}
-      <div style={{position: "relative"}}>
-        <InputGroup type="search" placeholder={"搜索"} 
-          leftIcon="search" 
-          autoComplete="off" 
-          spellCheck="false" 
-          className="allow-input"
-          inputRef={inputRef}
-          onChange={handleSearch} onKeyDown={onKeyDown}
-          onCompositionStart={handleCompositionStart}
-          onCompositionEnd={handleCompositionEnd}
-          onFocus={(event)=> { setFocus(true); setQueryString(event.target.value.trim())} } 
-          onBlur={()=> setFocus(false)}/>
-          {
-            showResult && <QuickSearchResult
-              estimatedTotalHits={estimatedTotalHits} 
-              result={result} 
-              resultRef={resultRef} 
-              loading={isLoading}
-              onClickMore={gotoResultPage}
-              onClickItem={()=> setQueryString("")}/>
-          }
-      </div>
-      <Navbar.Divider/>
-      <VolumeIcon/>
-      <ColorThemeIcon/>
-      {
-        isWindows && <>
-          <Navbar.Divider />
-          <Button minimal icon="minus" onClick={()=> appWindow.minimize()}/>
-          <Button minimal icon="small-square" onClick={()=> appWindow.toggleMaximize()}/>
-          <Button minimal icon="cross" intent={closeButtonFocus ? "danger" : "none"}
-            onMouseOver={()=> setCloseButtonFocus(true)}
-            onMouseLeave={()=> setCloseButtonFocus(false)}
-            onClick={()=> appWindow.close()}/>
-        </>
-      }
-    </Navbar.Group>
-  </Navbar>
+  return (
+    <Navbar
+      className={style["navbar"]} 
+      onMouseDown={handleDrag}>
+      <Navbar.Group align={Alignment.LEFT}>
+        <Button className="bp4-minimal" icon="circle-arrow-left"
+          disabled={history.length == 0}
+          onClick={()=> navigate(-1)}/>
+        <Button className="bp4-minimal" icon="circle-arrow-right" onClick={()=> navigate(1)}/>
+      </Navbar.Group>
+      <Navbar.Group align={Alignment.RIGHT}>
+        {/* <Navbar.Heading>Title</Navbar.Heading> */}
+        <div style={{position: "relative"}}>
+          <InputGroup type="search" placeholder={"搜索"} 
+            leftIcon="search" 
+            autoComplete="off" 
+            spellCheck="false" 
+            className="allow-input"
+            inputRef={inputRef}
+            onChange={handleSearch} onKeyDown={onKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
+            onFocus={(event)=> { setFocus(true); setQueryString(event.target.value.trim())} } 
+            onBlur={()=> setFocus(false)}/>
+            {
+              showResult && <QuickSearchResult
+                estimatedTotalHits={estimatedTotalHits} 
+                result={result} 
+                resultRef={resultRef}
+                loading={isLoading}
+                onClickMore={gotoResultPage}
+                onClickItem={()=> setQueryString("")}/>
+            }
+        </div>
+        <Navbar.Divider/>
+        <VolumeIcon/>
+        <ColorThemeIcon/>
+        {
+          isWindows && <>
+            <Navbar.Divider />
+            <Button minimal icon="minus" onClick={()=> appWindow.minimize()}/>
+            <Button minimal icon="small-square" onClick={()=> appWindow.toggleMaximize()}/>
+            <Button minimal icon="cross" intent={closeButtonFocus ? "danger" : "none"}
+              onMouseOver={()=> setCloseButtonFocus(true)}
+              onMouseLeave={()=> setCloseButtonFocus(false)}
+              onClick={()=> appWindow.close()}/>
+          </>
+        }
+      </Navbar.Group>
+    </Navbar>
+  )
 }
 
 function VolumeIcon() {
   const [volume] = useAppSetting("volume")
-  console.log(volume)
   const [open, setOpen] = useState(false)
   const icon: IconName = volume > 50 ? "volume-up" : volume > 0 ? "volume-down" : "volume-off"
   return (
@@ -201,22 +204,92 @@ function ColorThemePicker(props: any) {
 }
 
 function QuickSearchResult({result, estimatedTotalHits, resultRef, onClickItem, onClickMore, loading}) {
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const maxIndex = result.length - 1
+  const listRef = useRef<HTMLDivElement>()
+  const elements = useRef<{[index: number]: HTMLDivElement}>({}).current
+
+  useEffect(()=> {
+    // clear selection when result changes
+    setSelectedIndex(-1)
+  }, [setSelectedIndex, result])
+
+  const scrollActiveItemIntoView = useCallback((index: number)=> {
+    const list = listRef.current
+    const div = elements[index]
+    if (list && div) {
+      const {top: listTop, bottom: listBottom} = list.getBoundingClientRect()
+      const {top: divTop,  bottom: divBottom} = div.getBoundingClientRect()
+      if (divTop < listTop){
+        list.scrollTop += divTop - listTop
+      }
+      else if (divBottom > listBottom){
+        list.scrollTop += divBottom - listBottom
+      }
+    }
+  }, [])
+
+  useEffect(()=> {
+    // TODO: fix delay between background color and scroll
+    scrollActiveItemIntoView(selectedIndex)
+  })
+
+  const navigate = useNavigate()
+
+  useEffect(()=> {
+    const onKeyDown = (event: KeyboardEvent)=> {
+      if (event.key === "ArrowDown"){
+        setSelectedIndex(v=> {
+          let index = Math.min(v + 1, maxIndex)
+          // scrollActiveItemIntoView(index)
+          return index
+        })
+      }
+      else if (event.key === "ArrowUp"){
+        setSelectedIndex(v=> {
+          let index = Math.max(0, v - 1)
+          // scrollActiveItemIntoView(index)
+          return index
+        })
+      }
+      else if (event.key === "Enter"){
+        event.preventDefault()
+        if (result[selectedIndex]){
+          navigate("/asset?id=" + encodeURIComponent(result[selectedIndex].id))
+        }
+        else {
+          onClickMore()
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return ()=> window.removeEventListener("keydown", onKeyDown)
+  }, [setSelectedIndex, maxIndex, selectedIndex, onClickMore, scrollActiveItemIntoView])
+
   return (
     <div className={style["quick-search-result"]} ref={resultRef} onMouseDown={e=> e.preventDefault()}>
-      <div className={style['result-list']}>
+      <div className={style['result-list']} ref={listRef}>
         {
           Object.keys(
             Array.from({length: 1000})).map((_, index)=> {
               return index < result.length && 
-              <QuickSearchItem key={index} onClickItem={onClickItem} {...result[index]}/>
+              <QuickSearchItem 
+                key={index}
+                itemRef={(div: HTMLDivElement)=> { elements[index] = div}} 
+                selected={selectedIndex === index} 
+                onClickItem={onClickItem} 
+                {...result[index]}/>
             })
         }
       </div>
+      {
+        // selectedIndex
+      }
       <div>
         {
           estimatedTotalHits === 0 ? <p>未找到结果。</p> :
           estimatedTotalHits > 1000 ? <p>找到了超过1000个结果。<a onClick={onClickMore}>更多...</a></p> :
-          <p>找到了约{estimatedTotalHits}个结果。<a onClick={onClickMore}>更多...</a></p>
+          <p>找到了约{estimatedTotalHits}个结果。<a onClick={onClickMore}>查看...</a></p>
         }
       </div>
       <div style={{position: "absolute", right: 10, bottom: 5, display: loading ? "block" : "none"}}>
@@ -232,13 +305,20 @@ type Matches = {
   [K: string]: {start: number, length: number}[]
 }
 
-function QuickSearchItem(props: AllAssetTypes & { onClickItem: Function, matches: Matches }) {
-  const {type, id, matches} = props
+function QuickSearchItem(props: AllAssetTypes & 
+  { onClickItem: Function, matches: Matches, selected?: boolean, itemRef: any }) {
+  const {type, id, matches, selected} = props
   const navigate = useNavigate()
 
   return (
-    <div 
-      style={{textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden"}} 
+    <div
+      ref={props.itemRef}
+      style={{
+        textOverflow: "ellipsis", 
+        whiteSpace: "nowrap", 
+        overflow: "hidden",
+        backgroundColor: selected ? "#e0d7ff70" : undefined, 
+      }}
       onClick={()=> {
         props.onClickItem()
         // TODO: 词条和asset的区别

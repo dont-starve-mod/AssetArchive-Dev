@@ -396,6 +396,7 @@ function Provider:ListAsset()
 			end
 		end
 	end
+	print("Shader done")
 
 	for _, v in ipairs(self.root:Iter("sound/"))do
 		if v:endswith(".fev") then
@@ -414,6 +415,7 @@ function Provider:ListAsset()
 			end
 		end
 	end
+	print("Sound done")
 
 	self.assets = {
 		allzipfile = self.allzipfile,

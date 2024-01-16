@@ -138,6 +138,17 @@ function RichText:Flatten()
 	return result
 end
 
+function RichText:FlattenWithPlain()
+	local data = self:Flatten()
+	local plain = {}
+	for _,v in ipairs(data)do
+		if v.text and v.text ~= "" then
+			table.insert(plain, v.text)
+		end
+	end
+	return data, table.concat(plain, " ")
+end
+
 function RichText:DebugPrintNode()
 	local node = self:FindHeadNode()
 	if node ~= self then

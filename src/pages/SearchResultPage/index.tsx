@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
 import { AllAssetTypes } from "../../searchengine"
-import AssetDescFormatter from '../../components/AssetDescFormatter'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import style from "./index.module.css"
 import { maxTotalHits, Response, isValid, searchWithCache } from '../../global_meilisearch'
@@ -64,7 +63,7 @@ export default function SearchResultPage() {
 
   return (
     <div>
-      <H3>搜索 <span style={{color: "#6020d0"}}>{query}</span></H3>
+      <H3>搜索 <span className="highlight-color">{query}</span></H3>
       {
         loading && 
         <div style={{width: 100, marginTop: 16, display: loading ? "block" : "none"}}>
@@ -244,11 +243,17 @@ function ResultPagesView({items, currentPage, numResultsPerPage, totalPage, setC
         })
       }
       <div style={{height: 10}}/>
-      <Button icon="step-backward" disabled={pageIndex === 0} onClick={firstPage}/>
+      <Button icon="step-backward" disabled={pageIndex <= 0} onClick={firstPage}/>
       <div style={{display: "inline-block", width: 10}}/>
-      <Button icon="arrow-left" disabled={pageIndex === 0} onClick={prevPage}>上一页</Button>
-      <div style={{display: "inline-block", width: 10}}/>
-      <Button icon="arrow-right" disabled={pageIndex >= totalPage - 1} onClick={nextPage}>下一页</Button>
+      <Button icon="arrow-left" disabled={pageIndex <= 0} onClick={prevPage}>
+        上一页
+      </Button>
+      <div style={{display: "inline-block", padding: 5}}>
+        {pageIndex + 1}/{totalPage}
+      </div>
+      <Button icon="arrow-right" disabled={pageIndex >= totalPage - 1} onClick={nextPage}>
+        下一页
+      </Button>
       <div style={{display: "inline-block", width: 10}}/>
       <PageNumSetter/>
     </>
@@ -260,7 +265,8 @@ function PageNumSetter() {
   return (
     <>
       <Popover2 
-        // minimal
+        minimal
+        placement="right-end"
         content={<div className={`shadow-box ${Classes.POPOVER2_DISMISS}`} style={{padding: 10}}>
           <H6>每页展示的结果数量</H6>
           <RadioGroup selectedValue={numResultsPerPage} onChange={e=> setNumResultsPerPage(Number(e.currentTarget.value))}>

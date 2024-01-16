@@ -88,6 +88,18 @@ export default function AppInit() {
   }, [])
 
   useEffect(()=> {
+    let unlisten = appWindow.listen<never>("update_assets_desc", ()=> {
+      const doc = []
+      Object.entries(window.assets_map).forEach(([id, v])=> {
+        if (typeof v.plain_desc === "string")
+          doc.push({ id, plain_desc: v.plain_desc })
+      })
+      addDocuments("assets_update", doc)
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
+
+  useEffect(()=> {
     async function init() {
       const handlers = [
         await globalListen<string>("settings", ({payload})=> {
@@ -108,13 +120,38 @@ export default function AppInit() {
           appWindow.emit("update_assets", assets)
           searchengine.initPayload = ()=> window.assets
         }),
-        await globalListen<string>("assetdesc", ({payload})=> {
+        await globalListen<string>("assetdesc", async ({payload})=> {
+          // Hook: fetch local data for dev
+          try {
+            let host = await invoke("dev_host")
+            if (host !== ""){
+              console.log("Load assetdesc from " + host)
+              let response = await fetch(host + "/assetdesc.lua")
+              payload = await response.text()
+              payload = JSON.parse(payload.substring(7))
+              console.log("Success")
+            }
+          }
+          catch(e){
+            // console.log("Failed to fetch, skip...")
+          }
+          // End of hook
           const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
-          Object.keys(assetdesc).forEach(k=> {
-            // console.log(assetdesc[k])
-            window.assets_map[k].description = assetdesc[k]
-            window.assets_map[k].description_debug = assetdesc[k].find(d=> d.type === "plain").value
+          Object.entries(assetdesc).forEach(([k, v])=> {
+            let desc = []
+            for (let i = 1; i < 1000; ++i) {
+              const d = v[i.toString()]
+              if (d){
+                desc.push(d)
+              }
+              else{
+                break
+              }
+            }
+            window.assets_map[k].desc = desc
+            window.assets_map[k].plain_desc = v.plain_desc
           })
+          appWindow.emit("update_assets_desc")
         }),
         await globalListen<string>("anim_predictable_data", ({payload})=> {
           const data = JSON.parse(payload)

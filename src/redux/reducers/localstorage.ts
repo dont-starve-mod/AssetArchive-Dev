@@ -7,6 +7,8 @@ export interface LocalStorage {
   num_search_results_per_page: number,
   atlas_view_show_border: boolean,
   atlas_view_show_uvbox: boolean,
+  tex_maximized: boolean,
+  tex_use_grid_background: boolean,
 }
 
 type Key = keyof LocalStorage
@@ -34,6 +36,8 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     num_search_results_per_page: 200,
     atlas_view_show_border: true,
     atlas_view_show_uvbox: true,
+    tex_maximized: false,
+    tex_use_grid_background: false,
     ...loadPersistant()
   }),
   reducers: {

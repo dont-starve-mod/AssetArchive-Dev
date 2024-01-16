@@ -25,4 +25,10 @@ export type PlainText = {
   value: string,
 }
 
-export type AssetDesc = Array<RichText | PlainText>
+export type AssetDescLine = RichText | PlainText
+
+export type AssetDesc = {
+  [K in "1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"]: RichText | PlainText
+} & {
+  plain_desc: string,
+}
