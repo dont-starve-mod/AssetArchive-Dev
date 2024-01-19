@@ -6,7 +6,7 @@ import { byte2facing } from '../../facing'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
 import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
 import { Button, ButtonGroup, H6, Radio, RadioGroup } from '@blueprintjs/core'
-import { Popover2 } from '@blueprintjs/popover2'
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
 import { useMouseDrag, useMouseScroll } from '../../hooks'
 import AnimPlayerWidget from '../../components/AnimPlayerWidget'
@@ -222,13 +222,19 @@ function Tools(props: {colorSetterProps: any}) {
     <ButtonGroup vertical minimal>
       <Popover2 minimal placement="left-start" popoverClassName={style["tools-popover"]}
         content={<BackgroundSetter {...props.colorSetterProps}/>}>
-        <Button icon="style"/>
+        <Tooltip2 content={"背景色"}>
+          <Button icon="style"/>
+        </Tooltip2>
       </Popover2>
       <Popover2 minimal placement="left-start" popoverClassName={style["tools-popover"]}
         content={<AxisSetter/>}>
-        <Button icon="plus"/>
+        <Tooltip2 content={"坐标轴"}>
+          <Button icon="plus"/>
+        </Tooltip2>
       </Popover2>
-      <Button icon="reset" onClick={()=> [render.reset(), appWindow.emit("forceupdate")]}/>
+      <Tooltip2 content={"重置视图"}>
+        <Button icon="reset" onClick={()=> [render.reset(), appWindow.emit("forceupdate")]}/>
+      </Tooltip2>
     </ButtonGroup>
   )
 }
@@ -299,7 +305,9 @@ function Facing() {
             }
           </RadioGroup>
         </div>}>
-        <Button icon="cube"/>
+        <Tooltip2 content="切换朝向">
+          <Button icon="cube"/>
+        </Tooltip2>
       </Popover2>
     </ButtonGroup>
   )

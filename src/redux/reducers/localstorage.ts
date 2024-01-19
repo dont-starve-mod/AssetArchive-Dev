@@ -9,6 +9,7 @@ export interface LocalStorage {
   atlas_view_show_uvbox: boolean,
   tex_maximized: boolean,
   tex_use_grid_background: boolean,
+  animlist_sorting: ["mtime"|"title", boolean],
 }
 
 type Key = keyof LocalStorage
@@ -38,6 +39,7 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     atlas_view_show_uvbox: true,
     tex_maximized: false,
     tex_use_grid_background: false,
+    animlist_sorting: ["mtime", true],
     ...loadPersistant()
   }),
   reducers: {

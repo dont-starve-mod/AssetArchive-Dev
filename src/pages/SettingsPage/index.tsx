@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Dialog, DialogBody, DialogFooter, H4, Icon } from '@blueprintjs/core'
+import React, { useEffect, useReducer, useState } from 'react'
+import { Dialog, DialogBody, DialogFooter, H4, Icon, Tag } from '@blueprintjs/core'
 import { RadioGroup, Radio, Button, Slider } from '@blueprintjs/core'
 import { useAppSetting, useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Tooltip2 } from '@blueprintjs/popover2'
@@ -7,6 +7,7 @@ import { DragFolderPanel } from '../../components/GameRootSetter'
 import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
 import { openInstaller } from '../FFmpegInstaller'
+import { listen } from '@tauri-apps/api/event'
 
 type FFmpeg = {
   installed: boolean,
@@ -29,10 +30,17 @@ export default function SettingsPage() {
   const installed = ffmpegState.installed || ffmpegState.custom_installed
 
   const showRoot = useLuaCall("showroot", ()=> {})
+  const [flag, updateFromInstaller] = useReducer(v=> v + 1, 0)
+  useEffect(()=> {
+    let unlisten = listen("ffmpeg_installed", ()=> {
+      updateFromInstaller()
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [updateFromInstaller])
 
   useLuaCallOnce<string>("ffmpeg_getstate", response=> {
     setFState(JSON.parse(response))
-  }, {}, [])
+  }, {}, [flag])
   
   return <div className='no-select'>
     <H4>游戏目录</H4>
@@ -104,13 +112,14 @@ export default function SettingsPage() {
       </div>
     {/* 索引文件管理 */}
     <hr/>
-    <H4>视频编码器</H4>
+    <H4>视频编码器
+      <Tag style={{marginLeft: 4}} intent={installed ? "success" : "warning"}>
+        {
+          installed ? "已安装" : "未安装"
+        }
+      </Tag>
+    </H4>
     <p>FFmpeg是一个开源的多媒体编解码程序，饥荒资源档案的部分功能（例如动画导出）需要依赖FFmpeg。</p>
-    <p>
-      {
-        installed ? "已安装。" : ""
-      }
-    </p>
     <Button icon="download" onClick={()=> openInstaller()}>
       {
         installed ? "配置" : "安装"

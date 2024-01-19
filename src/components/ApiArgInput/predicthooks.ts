@@ -1,7 +1,6 @@
-import { useCallback, useContext, useEffect, useState, useMemo } from "react"
+import { useCallback, useContext, useEffect, useState } from "react"
 import animstateContext from "../../pages/AnimRendererPage/globalanimstate"
 import { predict, fuseworker } from "../../asyncsearcher"
-import { FuseResult } from "../../searchengine"
 import { useSelector } from "../../redux/store"
 
 /** get global animstate instance, this hook can only use in animrenderer subwindow */
@@ -87,4 +86,23 @@ export function usePredicterFormatter(type: "default" | "symbol") {
           (typeof bestMatch === "string" ?  `\n你是否指的是“${bestMatch}”？` : "" )
     }
   }, [type])
+}
+
+export function useValidFlags(numParams?: number):
+  [boolean, (valid: boolean, index: number)=> void] {
+  const [flags, setFlags] = useState([true, true, true, true, true, true, true, true, true, true])
+  const setFlagOnIndex = useCallback((valid: boolean, index: number)=> {
+    if (index >= 0 && index < numParams) {
+      setFlags(v=> {
+        let result = Array.from(v) // clone
+        result[index] = valid
+        return result
+      })
+    }
+    else {
+      console.warn("useValidFlags: invalid index: ", index)
+    }
+  }, [numParams])
+  const valid = flags.find(v=> v === false) === undefined
+  return [valid, setFlagOnIndex]
 }

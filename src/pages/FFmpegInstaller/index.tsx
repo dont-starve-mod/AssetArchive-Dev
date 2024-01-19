@@ -3,6 +3,7 @@ import style from './index.module.css'
 import { WebviewWindow } from '@tauri-apps/api/window'
 import { Button, Card, H5, H6, Icon, InputGroup, Spinner, Tag } from '@blueprintjs/core'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
+import { emit } from '@tauri-apps/api/event'
 
 export default function FFmpegInstaller() {
   const [step, setStep] = useState<"intro"|"normal-install"|"custom-install">("intro")
@@ -11,6 +12,10 @@ export default function FFmpegInstaller() {
   useLuaCallOnce<string>("ffmpeg_getstate", response=> {
     setFState(JSON.parse(response))
   }, {}, [flag])
+
+  useEffect(()=> {
+    emit("ffmpeg_installed")
+  }, [flag])
 
   return (
     <div className={style["main"]}>
@@ -94,6 +99,7 @@ function Normal() {
     console.log(data)
     if (data.success) {
       setProgress("finish")
+      emit("ffmpeg_installed")
     }
     else {
       const {current_downloaded, status} = data

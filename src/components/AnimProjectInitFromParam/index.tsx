@@ -2,7 +2,7 @@ import { Dialog, DialogBody, DialogFooter, Button, Menu, MenuItem, Classes, } fr
 import { InputSharedProps } from "@blueprintjs/core/lib/esm/components/forms/inputSharedProps"
 import { Suggest2 } from "@blueprintjs/select"
 import { Tooltip2 } from "@blueprintjs/popover2"
-import { useState, useCallback, useEffect, useReducer } from "react"
+import { useState, useCallback, useEffect, useReducer, useRef } from "react"
 import type { FuseResult } from "../../renderer_predict"
 import { predict } from "../../asyncsearcher"
 import style from "./index.module.css"
@@ -112,6 +112,8 @@ function InitInput(props: {
       dispatch({type: field, payload: {value: bestMatchValue}})
   }
 
+  const [selectedItem, setSelectedItem] = useState(0)
+
   const onQueryChange = useCallback(async (value: string)=> {
     if (field !== "animation") {
       dispatch({type: field, payload: {value}})
@@ -145,30 +147,65 @@ function InitInput(props: {
     onAnimationQueryChange(value)
   }, [onAnimationQueryChange])
 
+  const onQueryChangeAll = useCallback((query: string)=> {
+    if (field !== "animation"){
+      onQueryChange(query)
+    }
+    else {
+      onAnimationQueryChange(query)
+    }
+    setSelectedItem(0)
+  }, [onQueryChange, onAnimationQueryChange, setSelectedItem, field])
+
+  const inputRef = useRef<any>()
+  const isFocus = useCallback(()=> {
+    return document.activeElement === (inputRef.current && inputRef.current.inputElement)
+  }, [])
+
+  useEffect(()=> {
+    const onKey = (event: KeyboardEvent)=> {
+      if (items.length > 0 && event.defaultPrevented === true && isFocus()){
+        const {key} = event
+        if (key === "ArrowUp") {
+          setSelectedItem(v=> Math.max(0, v - 1))
+        }
+        else if (key === "ArrowDown") {
+          setSelectedItem(v=> Math.min(v + 1, items.length - 1))
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return ()=> window.removeEventListener("keydown", onKey)
+  }, [items, setSelectedItem, isFocus])
+
+  const onItemSelect = useCallback(({item})=> {
+    onQueryChange(item[field])
+  }, [onQueryChange, field])
+
   return (
     <div style={{width: "100%"}}>
-      <div style={{display: "inline-block", width: "85%", marginRight: 10}}>
+      <div style={{display: "inline-block",  width: "85%", marginRight: 10}}>
         <Suggest2
+          ref={inputRef}
           items={[]}
           itemListPredicate={()=> items}
           itemListRenderer={()=> items.length ? 
             <PredictList<any> 
               items={items} 
+              selectedItem={selectedItem}
               onClickItem={item=> 
                 dispatch({type: field, payload: {value: getItemValue(item)}})
               }/> : <></>}
           fill={true}
           closeOnSelect={true}
           inputValueRenderer={getItemValue}
-          // TODO: select / key up/down to choose
-          // onItemSelect={v=> dispatch({type: field, payload: {focus: false, value: v}})}
-          // selectedItem={()=> items.find(v=> v.matches[0].value === value) || null}
-          // onItemSelect={v=> console.log("Select", v)}
+          activeItem={items[selectedItem]}
+          onItemSelect={onItemSelect}
           query={value}
-          onQueryChange={field !== "animation" ? onQueryChange : onAnimationQueryChange}
+          onQueryChange={onQueryChangeAll}
           popoverProps={{minimal: true, matchTargetWidth: true}}
           inputProps={{spellCheck: false, placeholder: "", style: {margin: "10px 0"}}}
-        />
+        /> 
       </div>
       <div style={{display: (warning || exists || loading) ? "inline-block" : "none"}}>
         <Tooltip2 content={warning ? warningHint : ""} placement="top-end" disabled={!warning} intent="danger">
@@ -186,15 +223,17 @@ function InitInput(props: {
   )
 }
 
-function PredictList<T>(props: {items: FuseResult<T>[], onClickItem: (item: FuseResult<T>)=> void}) {
+function PredictList<T>(props: {items: FuseResult<T>[], 
+  selectedItem: number, onClickItem: (item: FuseResult<T>)=> void}) {
   return (
     <div style={{maxHeight: 300, overflow: "auto", overscrollBehavior: "none"}}>
       <Menu>
         {
-          props.items.map(item=> 
+          props.items.map((item, index)=> 
             <MenuItem 
               id={item.matches[0].value}
               key={item.refIndex}
+              selected={props.selectedItem === index}
               // roleStructure="listoption"
               onClick={()=> {props.onClickItem(item)}}
               text={item.matches[0].value}

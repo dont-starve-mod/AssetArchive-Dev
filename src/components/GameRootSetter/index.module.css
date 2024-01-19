@@ -3,6 +3,10 @@
   animation: blink 1s infinite linear;
 }
 
+.video-box {
+  padding: 10px;
+}
+
 @keyframes blink{
   /* 0% {
     color: inherit;

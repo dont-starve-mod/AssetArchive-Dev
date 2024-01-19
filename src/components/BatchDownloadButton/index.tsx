@@ -4,13 +4,15 @@ import { useLuaCall } from '../../hooks'
 import { open } from '@tauri-apps/api/dialog'
 import { appWindow } from '@tauri-apps/api/window'
 
-interface BatchDownloadButtonProps {
+type BatchDownloadButtonProps = {
+  text?: string,
   type: "xml" | "build" | "fev_ref",
   [K: string]: any,
 }
 
 export default function BatchDownloadButton(props: BatchDownloadButtonProps) {
   const [loading, setLoading] = useState(false)
+  const {text = "批量导出"} = props
 
   const call = useLuaCall<string>("batch_download", result=> {
     setLoading(false)
@@ -38,7 +40,7 @@ export default function BatchDownloadButton(props: BatchDownloadButtonProps) {
 
   return (
     <Button loading={loading} icon="download" onClick={()=> fn()}>
-      批量导出
+      {text}
     </Button>
   )
 }

@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Button, Icon, InputGroup } from '@blueprintjs/core'
+import { Button, Dialog, Icon, InputGroup } from '@blueprintjs/core'
 import { MultistepDialog, DialogStep, RadioGroup, Radio, H4 } from '@blueprintjs/core'
-import { Tooltip2 } from '@blueprintjs/popover2'
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
 import style from './index.module.css'
 import { useLuaCall } from '../../hooks'
 import { open } from '@tauri-apps/api/dialog'
+// @ts-ignore
+import steam_dst from '../../media/steam-dst.mp4'
+// @ts-ignore
+import wg_dst from '../../media/wg-dst.mp4'
 
 const NEXT_TEXT = "下一步"
 const PREV_TEXT = "上一步"
@@ -84,16 +88,17 @@ function GameTypePanel(props){
 
 function OpenFolderPanel(props: { gametype: string }){
   const { gametype } = props
+  const [guideOpen, setGuideOpen] = useState("")
   return <div className="bp4-dialog-body" style={{minHeight: 160}}>
     {
       gametype == "dst-client-installed" ? <div className='bp4-running-text'>
         <p>打开游戏的安装位置。</p>
         <ul>
           <li>Steam平台：在游戏库中选择“饥荒联机版”，右键 -&gt; 管理 -&gt; 浏览本地文件。
-            <Button text="教程"/>
+            <Button text="详情" onClick={()=> setGuideOpen("steam-dst")}/>
           </li>
           <li>WG平台：点击饥荒，浏览游戏位置。
-            <Button text="教程"/> TODO: 插入gif引导图
+            <Button text="详情" onClick={()=> setGuideOpen("wg-dst")}/>
           </li>
         </ul>
       </div> :
@@ -121,6 +126,10 @@ function OpenFolderPanel(props: { gametype: string }){
       </div> : 
       <></>
     }
+    <Dialog isOpen={guideOpen != ""} onClose={()=> setGuideOpen("")} 
+      style={{width: 600, borderColor: "transparent", backgroundColor: "transparent"}}>
+      <Video type={guideOpen as any}/>
+    </Dialog>
   </div>
 }
 
@@ -190,4 +199,22 @@ export function DragFolderPanel(){
         placeholder=''/>
     </div>
   )
+}
+
+function VideoPopup(props: {type: string, isOpen: boolean}) {
+  return (
+    <Dialog isOpen={props.isOpen}>
+      <Video type={props.type as any}/>
+    </Dialog>
+  )
+}
+
+function Video(props: {type: "wg-dst" | "steam-dst"}) {
+  const {type} = props
+  const src = type === "wg-dst" ? wg_dst :
+    type === "steam-dst" ? steam_dst :
+    undefined
+  return <video style={{width: "100%"}} autoPlay muted loop>
+    <source src={src} />
+  </video>
 }

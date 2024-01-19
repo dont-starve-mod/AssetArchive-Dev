@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from 'react'
+import React, { SyntheticEvent, useCallback, useContext, useState } from 'react'
 import { Button, ButtonGroup, ButtonProps, Collapse, Dialog, DialogBody, Icon, IconName, InputGroup, Radio, RadioGroup } from '@blueprintjs/core'
 import style from './index.module.css'
 import ApiPicker from '../ApiPicker'
@@ -17,12 +17,12 @@ interface ActionProps {
   cb: (e: React.MouseEvent)=> void,
 }
 
-interface IProps {
+type ControlPanelProps = {
   title: string,
   actions?: Array<ActionProps | React.ReactNode>,
   children?: React.ReactNode,
 }
-export default function ControlPanel(props: IProps) {
+export default function ControlPanel(props: ControlPanelProps) {
   const {title, actions} = props
   const [showTools, setShowTools] = useState(false)
   const [unfold, setUnfold] = useState(true)
@@ -36,7 +36,7 @@ export default function ControlPanel(props: IProps) {
         <span>{title}</span>
         {
           unfold &&
-          <ButtonGroup minimal style={{position: "absolute", right: 2, top: 2}}>
+          <ButtonGroup minimal style={{position: "absolute", right: 2, top: 0}}>
             {
               actions?.map((item, index)=> {
                 if (React.isValidElement(item))
@@ -44,7 +44,7 @@ export default function ControlPanel(props: IProps) {
                 else {
                   const {icon, cb, tooltip} = item as ActionProps
                   return <SmallButton key={index}
-                    icon={icon} 
+                    icon={icon}
                     onClick={(e: React.MouseEvent)=> { e.stopPropagation(); cb(e) }}
                   />
                 }
@@ -67,13 +67,29 @@ export default function ControlPanel(props: IProps) {
 }
 
 function ApiPanel() {
+  const [open, setOpen] = useState(false)
+  const onPopoverInteraction = useCallback((_, event: SyntheticEvent<HTMLElement, Event>)=> {
+    const {type} = event
+    if (type === "mousedown") {
+      // console.log("MOUSE DOWN")
+      setOpen(false)
+    }
+    else if (type === "click") {
+      // console.log("CLICK")
+      setOpen(v=> !v)
+    }
+  }, [])
   return (
     <ControlPanel 
       title="指令面板"
       actions={[
         {icon: "translate", cb: console.log},
         <div onClick={e=> e.stopPropagation()}>
-          <Popover2 minimal position="right" content={<ApiPicker />} >
+          <Popover2 minimal placement="right-start" content={
+            <ApiPicker style={{display: open ? undefined : "none"}}/>
+          } 
+            // keep popover always mounted
+            isOpen onInteraction={onPopoverInteraction}>
             <SmallButton icon="plus"/>
           </Popover2>
         </div>,
@@ -95,7 +111,7 @@ function Export() {
       setFileExtension(value)
     }
   }, [])
-  const [bgcType, setBgcType] = useState<"transparent"|"solid">("solid")
+  const [bgcType, setBgcType] = useState<"use_current"|"transparent"|"solid">("solid")
   const [colorValue, setColorValue] = useState<string>("#c0c0c0")
   const onChangeColor = useCallback((e: React.ChangeEvent<HTMLInputElement>)=> {
     setBgcType("solid")
@@ -124,8 +140,10 @@ function Export() {
         rate,
         format: fileExtension,
         facing: animstate.getActualFacing(),
-        bgc: bgcType === "transparent" ? "transparent" : colorValue,
-      }
+        bgc: bgcType === "use_current" ?
+          (render.bgcType === "transparent" ? "transparent" : render.bgc) :
+          bgcType === "transparent" ? "transparent" : colorValue,
+      }  
     })
   }, [fileExtension, resolution, rate, bgcType, colorValue, call])
 
@@ -192,15 +210,19 @@ function Export() {
         </div>
       </RadioGroup>
       <br/>
-      {/* <p><strong>帧率</strong></p>
-      <InputGroup type="number" min={1} max={60} /> */}
       <p>
         <strong>背景颜色</strong>
-        <Tooltip2 content={"使用当前背景色"} placement="right">
+        {/* <Tooltip2 content={"使用当前背景色"} placement="right">
           <Button small icon="drawer-right-filled" style={{marginLeft: 10}} onClick={takeCurrentBgc}/>
-        </Tooltip2>
+        </Tooltip2> */}
       </p>
       <RadioGroup selectedValue={bgcType} onChange={e=> setBgcType(e.currentTarget.value as typeof bgcType)}>
+        <Radio labelElement={
+          <>
+            <span>和当前场景一致</span>
+            <Icon icon="arrow-right" style={{marginLeft: 4, color: "#666"}}/>
+          </>
+        } value={"use_current"}/>
         <Radio labelElement={
           <>
             <span>透明</span>
@@ -208,7 +230,7 @@ function Export() {
               (fileExtension === "mp4" || fileExtension === "gif") && bgcType === "transparent" &&
               <Tooltip2 content={
                 fileExtension === "mp4" ? 
-                <span>当前格式（mp4）不支持透明，<br/>背景色将被填充为纯黑。</span> :
+                <span>当前格式（mp4）不支持透明，背景色将被填充为纯黑。<br/>如需导出透明背景视频，请使用无损视频（mov）格式。</span> :
                 fileExtension === "gif" ?
                 <span>当前格式（gif）以透明背景导出时，<br/>图像边缘可能有锯齿，这是正常现象。</span> :
                 <></>

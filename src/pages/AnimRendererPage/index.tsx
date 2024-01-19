@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import SidePanel from './sidepanel'
 import AnimationPanel from './animationpanel'
-import AppRendererInit from '../../components/AppRendererInit'
-import RenderProgress from '../../components/RenderProgress'
 import { useParams } from 'react-router-dom'
 import animstateContext from './globalanimstate'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
@@ -12,13 +10,11 @@ import AssetManager from '../../components/AssetManager'
 import { appWindow } from '@tauri-apps/api/window'
 import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
-import { ContextMenu2, ContextMenu2Popover } from '@blueprintjs/popover2'
 import { Menu, MenuItem } from '@blueprintjs/core'
 import { invoke } from '@tauri-apps/api'
-
-interface IProps {
-  
-}
+import AppToaster from '../../components/AppToaster'
+import AppRendererInit from '../../components/AppRendererInit'
+import RenderProgress from '../../components/RenderProgress'
 
 const bodyStyle: React.CSSProperties = {
   position: "relative", 
@@ -28,7 +24,7 @@ const bodyStyle: React.CSSProperties = {
   WebkitUserSelect: "none",
 }
 
-export default function AnimRendererPage(props: IProps) {
+export default function AnimRendererPage() {
   const {id} = useParams()
   const [panelWidth, setPanelWidth] = useState<number>(250)
   const animstate = useRef(new AnimState()).current
@@ -91,6 +87,7 @@ export default function AnimRendererPage(props: IProps) {
       <AppRendererInit/>
       <AssetManager animstate={animstate} stateRef={state=> assetStateRef.current = state}/>
       <RenderProgress/>
+      <AppToaster/>
     </animstateContext.Provider>
   )
 }

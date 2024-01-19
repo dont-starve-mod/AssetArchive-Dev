@@ -46,6 +46,11 @@ export function useAnimStateHook(animstate: AnimState) {
     return ()=> animstate.removeEventListener("rebuildsymbolsource", onRebuild)
   }, [])
 
+  const getLatestApi = useCallback(()=> {
+    const list = animstate.getApiList()
+    return list.length > 0 && list[list.length - 1]
+  }, [])
+
   return {
     insertApi,
     enableApi,
@@ -54,6 +59,7 @@ export function useAnimStateHook(animstate: AnimState) {
     changeApiArg,
     rearrange,
     toggleFoldApi,
+    getLatestApi,
 
     forceUpdate,
   }

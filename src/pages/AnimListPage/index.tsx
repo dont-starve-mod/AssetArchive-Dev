@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useReducer, useMemo } from 'react'
 import { Alert, Button, H3, H5, Icon, PopoverInteractionKind, ToastProps } from '@blueprintjs/core'
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
-import { useLuaCall, useLuaCallOnce } from '../../hooks'
+import { useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
 import style from './style.module.css'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { EditableText } from '@blueprintjs/core'
@@ -61,7 +61,7 @@ const actionReducer: React.Reducer<State, Action | ResetAction> = (state, action
 
 export default function AnimListPage() {
   const [recent, setRecent] = useState<AnimProject[]>([])
-  const [sortBy, setSorting] = useState<["title" | "mtime", boolean]>(["title", false])
+  const [sortBy, setSorting] = useLocalStorage("animlist_sorting")
   const [template, setTemplate] = useState<AnimProject[]>([])
   const [actionState, dispatch] = useReducer(actionReducer, {})
   const actionName: AnimProjectSetterAction = 
@@ -184,31 +184,45 @@ export default function AnimListPage() {
       <thead className="">
         <th>名字</th>
         <th>上次修改</th>
-        <th>预览
+        <th></th>
+        {/* <th>预览
           <Tooltip2 content={"预览模式只展示动画基础外观，无调色效果。"}>
             <Button icon="help" minimal small style={{marginTop: -3, marginBottom: -0}}/>
           </Tooltip2>
-        </th>
+        </th> */}
       </thead>
       <tbody>
         {
           sortedProjectList.map((item, index)=> {
-            return <tr>
+            const {id} = item
+            return <tr key={id}>
               <td>
                 {item.title || "未命名项目"}
               </td>
-              <td>
-                {formatMtime(item.mtime)}
+              <td className={style["mtime"]}>
+                <Mtime mtime={item.mtime}/>
               </td>
               <td>
                 <Popover2 
                   disabled={false}
-                  content={<AnimProjectPreview {...item}/>}
+                  content={<AnimProjectPreview {...item}
+                    // disable={Boolean(actionState.deleting)}
+                    onChangeTitle={(title)=> onChangeTitle({id, title})}
+                    onChangeDescription={(description)=> onChangeDescription({id, description})}
+                    onRequestDuplicating={(project)=> onRequestDuplicating(project)}
+                    onRequestDeleting={()=> onRequestDeleting({id})}
+                  />}
                   interactionKind={PopoverInteractionKind.HOVER}
                   hoverCloseDelay={0}
                 >
-                  <Button minimal icon="eye-open"/>
+                  {/* <Button minimal icon="eye-open"/> */}
+                  <Button icon="info-sign"/>
                 </Popover2>
+                <Button
+                  icon="open-application" 
+                  style={{marginLeft: 8}}
+                  onClick={()=> openAnimSubwindow({id: item.id})}
+                />
               </td>
             </tr>
           })
@@ -289,6 +303,20 @@ function AnimProjectItem(props: AnimProject & AnimProjectItemHandlers & {disable
     </div>
 }
 
+function Mtime(props: {mtime: number}) {
+  const [_, forceUpdate] = useReducer(v=> v + 1, 0)
+  useEffect(()=> {
+    const timer = setInterval(forceUpdate, 60*1000)
+    return ()=> clearInterval(timer)
+  }, [forceUpdate])
+
+  return (
+    <>
+      { formatMtime(props.mtime) }
+    </>
+  )
+}
+
 const formatMtime = (mtime?: number): string=> {
   if (typeof mtime === "number"){
     const current = new Date()
@@ -316,47 +344,53 @@ function AnimProjectPreview(props: AnimProject & AnimProjectItemHandlers) {
     top: -25,
     // backgroundColor: "#a00a",
   }
-  return <div style={{minWidth: 300, minHeight: 300, position: "relative"}}>
-    <div style={backdropStyle}></div>
-    <div className={style["popover-content"]}>
-      <H5>
+  return (
+    <div style={{minWidth: 300, maxWidth: 320, minHeight: 300, position: "relative"}}>
+      <div style={backdropStyle}></div>
+      <div className={style["popover-content"]}>
+        <H5>
+          <EditableText 
+            placeholder="输入项目名字..." 
+            maxLength={100} 
+            defaultValue={title}
+            onEdit={()=> setInputFocus(true)}
+            onConfirm={(value)=> {
+              setInputFocus(false)
+              if (value !== title)
+                props.onChangeTitle?.(value)
+            }}
+          />
+        </H5>
+        <p className={style["mtime"]}>上次修改: <Mtime mtime={props.mtime}/></p>
+        <br/>
+        {/* <H5>预览</H5> */}
+        <AnimCanvas cmds={cmds}/>
+        <div style={{height: 10}}></div>
         <EditableText 
-          placeholder="输入项目名字..." 
-          maxLength={100} 
-          defaultValue={title}
+          multiline={true} 
+          placeholder="输入描述..." 
+          maxLength={1000}
+          maxLines={5}
+          defaultValue={description}
           onEdit={()=> setInputFocus(true)}
           onConfirm={(value)=> {
-            setInputFocus(false)
-            if (value !== title)
-              props.onChangeTitle?.(value)
+            setInputFocus(false) 
+            if (value !== description)
+              props.onChangeDescription?.(value)
           }}
         />
-      </H5>
-      <p className={style["mtime"]}>上次修改: {formatMtime(props.mtime)}</p>
-      <hr/>
-      <AnimCanvas cmds={cmds}/>
-      <div style={{height: 10}}></div>
-      <EditableText 
-        multiline={true} 
-        placeholder="输入描述..." 
-        maxLength={1000}
-        maxLines={5}
-        defaultValue={description}
-        onEdit={()=> setInputFocus(true)}
-        onConfirm={(value)=> {
-          setInputFocus(false) 
-          if (value !== description)
-            props.onChangeDescription?.(value)
-        }}
-      />
-      <div style={{height: 20}}></div>
-      <Button icon="duplicate" intent="none" 
-        onClick={()=>props.onRequestDuplicating?.(props)}>复制</Button>
-      &nbsp;
-      <Button icon="delete" intent="danger" 
-        onClick={()=> props.onRequestDeleting?.()}>删除</Button>
+        <div style={{height: 20}}></div>
+        <Button icon="open-application" intent="none"
+          onClick={()=> openAnimSubwindow({id: props.id})}>打开</Button>
+        &nbsp;
+        <Button icon="duplicate" intent="none" 
+          onClick={()=>props.onRequestDuplicating?.(props)}>复制</Button>
+        &nbsp;
+        <Button icon="delete" intent="danger" 
+          onClick={()=> props.onRequestDeleting?.()}>删除</Button>
+      </div>
     </div>
-  </div>
+  )
 }
 
 function AnimCanvas(props: {cmds: Api[]}){

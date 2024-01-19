@@ -291,7 +291,7 @@ function AnimProjectManager:LoadTemplate()
 		end
 	end
 
-	for _,v in ipairs{"attack", "beefalo", "tree"}do
+	for _,v in ipairs{"attack", "beefalo", "tree", "firesuppressor_placer"}do
 		local source = static_loader:get_source("anim_template." .. v)
 		assert(source ~= "", "Failed to load template source: "..v)
 		local project = AnimProject()

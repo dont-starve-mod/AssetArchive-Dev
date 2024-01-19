@@ -1,6 +1,6 @@
 .box {
   width: 350px;
-  height: 450px;
+  height: 460px;
   padding: 10px;
   overflow: scroll;
   overscroll-behavior: none;
@@ -10,6 +10,28 @@
   margin-top: 5px;
 }
 
+.box :global(.bp4-panel-stack2) {
+  height: 460px;
+}
+
+.box :global(.bp4-panel-stack2) :global(.bp4-panel-stack-view) {
+  overflow-y: auto;
+}
+
+.api-box {
+  /* border: 1px solid var(--primary-color-2);
+  border-radius: 2px; */
+}
+
 .api-group {
   padding: 5px;
+}
+
+.arg-input-list {
+  margin-bottom: 10px;
+}
+
+
+.arg-input-list > div {
+  margin: 4px 0;
 }

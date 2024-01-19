@@ -1202,12 +1202,18 @@ function Provider:BatchDownload(args)
 		assert(data, "Failed to load fev ref: "..tostring(event))
 		local args_data = {}
 		local count = 0
-		for _,v in ipairs(data.file_list)do
-			if args_data[v.fsb_name] == nil then
-				args_data[v.fsb_name] = {}
+		if args.file_index ~= nil then -- single file download using batch api :p
+			local v = assert(data.file_list[args.file_index + 1]) -- convert js index to lua
+			args_data[v.fsb_name] = { v.file_index }
+			count = 1
+		else
+			for _,v in ipairs(data.file_list)do
+				if args_data[v.fsb_name] == nil then
+					args_data[v.fsb_name] = {}
+				end
+				table.insert(args_data[v.fsb_name], v.file_index)
+				count = count + 1
 			end
-			table.insert(args_data[v.fsb_name], v.file_index)
-			count = count + 1
 		end
 		if count > 1 then
 			local output_dir_path = CreateOutputDir((string.gsub(event, "/", "_")))

@@ -140,9 +140,6 @@ function HumanAnnotator:Music(data)
 			path_collction[path] = { source = source }
 		end
 	end
-	for k in pairs(music)do
-		-- print(k)
-	end
 
 	local nightmare_str = "梦魇循环-"
 	local data = {
@@ -242,7 +239,6 @@ function HumanAnnotator:Music(data)
 			end
 		end
 	end
-	-- print(json.encode(path_collction))
 
 	for path, desc in pairs(data)do
 		path_collction[path] = nil

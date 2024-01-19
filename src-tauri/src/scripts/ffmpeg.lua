@@ -19,10 +19,10 @@ local URL_PREFIX = "https://"
     .."/api/file/caches/v5/get?owner=4d2a339e50f7fa6b&type=message_movie&file_key="
 
 local URLS = {
-    -- WINDOWS = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z",
-    WINDOWS = URL_PREFIX.."a486d0296741c3e020080071cb17843beff35d54294344024d894dc15fe7bc42",
-    -- MACOS = "https://evermeet.cx/ffmpeg/get/zip",
-    MACOS =   URL_PREFIX.."d8b362fefb1d772869a678893552a9ceb033c5d08ab84a506e0f46359f7f5278"
+    WINDOWS = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z",
+    -- WINDOWS = URL_PREFIX.."a486d0296741c3e020080071cb17843beff35d54294344024d894dc15fe7bc42",
+    MACOS = "https://evermeet.cx/ffmpeg/get/zip",
+    -- MACOS =   URL_PREFIX.."d8b362fefb1d772869a678893552a9ceb033c5d08ab84a506e0f46359f7f5278"
 }
 
 local DOWNLOADER_ID = "FFMPEG"

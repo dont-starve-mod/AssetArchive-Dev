@@ -78,7 +78,7 @@ function AppMain() {
 			</footer>
 
 			<AppInit/>
-			<AppToaster/>
+			<AppToaster top={40}/>
 			<AppQuickSettings/>
 			<AppFmodHandler/>
 		</div>

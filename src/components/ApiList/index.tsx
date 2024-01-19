@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useReducer, useState, useContext, useMemo, useRef } from 'react'
 import { AnimState, Api, ApiArgType, getDefaultArgs } from '../AnimCore_Canvas/animstate'
 import style from './index.module.css'
-import { MenuItem, Menu, EditableText, Tag, Switch, Checkbox, useHotkeys, Button } from '@blueprintjs/core'
+import { MenuItem, Menu, EditableText, Tag, Switch, Checkbox, useHotkeys, Button, Alert } from '@blueprintjs/core'
 import { useDragData } from '../../hooks'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { appWindow } from '@tauri-apps/api/window'
@@ -46,6 +46,24 @@ export default function ApiList(props: ApiListProps) {
   //   return ()=> document.removeEventListener("dragend", onMouseUp)
   // }, [])
 
+  // alert ui when adding duplicated api
+  const [alertData, setAlertData] = useState<{type: "duplicated", api?: Api, newIndex?: number}>()
+  const onConfirmAlert = useCallback(()=> {
+    const {type, api} = alertData
+    if (type === "duplicated") {
+      insertApi(api["name"], api["args"], alertData.newIndex)
+      appWindow.emit("clear_api_input")
+      setAlertData(undefined)
+    }
+  }, [alertData, insertApi])
+
+  useEffect(()=> {
+    let unlisten = appWindow.listen("api_picker_alert", ({payload})=> {
+      setAlertData(payload as any)
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
+
   return (
     <>
       <div className={style["api-list-container"]}>
@@ -69,7 +87,20 @@ export default function ApiList(props: ApiListProps) {
           }
         </ul>
       </div>
-      <AnimProjectInitFromParam isOpen={initDialog !== "none"} onClose={()=> setInitDialog("none")} onConfirm={onConfirm}/>
+      <AnimProjectInitFromParam 
+        isOpen={initDialog !== "none"} 
+        onClose={()=> setInitDialog("none")} 
+        onConfirm={onConfirm}/>
+      <Alert isOpen={Boolean(alertData)}
+        canEscapeKeyCancel={true}
+        canOutsideClickCancel={false}
+        cancelButtonText='取消'
+        confirmButtonText='确定'
+        intent="warning"
+        onCancel={()=> setAlertData(undefined)}
+        onConfirm={onConfirmAlert}>
+        你正在添加一条<strong>重复</strong>的命令，是否继续？
+      </Alert>
     </>
   )
 }
@@ -151,24 +182,39 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
     onInsertHover(props.index + (calcInsertPosition(e) === "up" ? 0 : 1))
   }, [props])
 
-  const {rearrange, insertApi, disableApi, enableApi, deleteApi, changeApiArg, toggleFoldApi} = useContext(animstateContext)
+  const {rearrange, insertApi, disableApi, enableApi, deleteApi,
+    changeApiArg, toggleFoldApi, getLatestApi} = useContext(animstateContext)
 
   const onDrop = useCallback(async (e: React.DragEvent)=> {
     const source = await dragData.get("source")
     const payload = await dragData.get("payload")
-    const { index, name } = JSON.parse(payload)
+    let { index, name, args } = JSON.parse(payload)
     if (source === null || index === props.index)
       return
     const pos = calcInsertPosition(e)
     const newIndex = props.index + (pos === "up" ? 0 : 1)
     if (source === "API_PICKER") {
-      insertApi(name, getDefaultArgs(name), newIndex)
+      if (typeof args === "undefined")
+        args = getDefaultArgs(name)
+      const last = getLatestApi()
+      if (last !== undefined && last["name"] === name
+        && JSON.stringify(last["args"]) === JSON.stringify(args)){
+        appWindow.emit("api_picker_alert",{
+          type: "duplicated",
+          api: {name, args},
+          newIndex,
+        })
+      }
+      else {
+        insertApi(name, args, newIndex)
+        appWindow.emit("clear_api_input")
+      }
     }
     else if (source === "API") {
       rearrange(index, newIndex)
     }
     onInsertHover(-1)
-  }, [props, onInsertHover])
+  }, [props, onInsertHover, getLatestApi])
 
   const menu = useMemo(()=> 
     <Menu style={{width: 100, maxWidth: 100}}>

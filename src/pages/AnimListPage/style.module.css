@@ -77,7 +77,11 @@
 
 .project-list-table thead th:nth-child(3),
 .project-list-table tbody td:nth-child(3) {
-  width: 80px; /* static width for preview icon */
+  width: 90px; /* static width for preview icon */
+}
+
+.mtime {
+  color: #666;
 }
 
 .project-list-table,
@@ -124,6 +128,11 @@
   font-size: 80%;
   color: #aaa;
   margin-bottom: 0;
+}
+
+.popover-content :global(.bp4-editable-text) {
+  padding: 0;
+  white-space: pre-wrap;
 }
 
 .template-list {

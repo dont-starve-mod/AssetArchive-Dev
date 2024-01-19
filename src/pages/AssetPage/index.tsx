@@ -664,6 +664,7 @@ type FevRefFileList = Array<{
   fsb_name: string,
   lengthms: number,
   path: string,
+  file_index: number,
   file_info: {
     channels: 1 | 2,
     data_size: number,
@@ -797,7 +798,7 @@ function SoundRefList(props: {data: FevRefFileList, path: string}) {
         </thead>
         <tbody>
           {
-            data.map(v=> <tr>
+            data.map((v, i)=> <tr key={i}>
               <td className={style["table-name"]}>{v.file_info.name}</td>
               <td>{formatLength(v.lengthms)}</td>
               {/* <td>{formatFileSize(v.file_info.data_size)}</td> */}
@@ -817,7 +818,7 @@ function SoundRefList(props: {data: FevRefFileList, path: string}) {
                 </Popover2>
               </td>
               <td>
-                <Button icon="download" onClick={()=> window.alert("TODO: unimpl")}/>
+                <BatchDownloadButton type="fev_ref" path={path} text={""} file_index={i}/>
               </td>
             </tr>)
           }

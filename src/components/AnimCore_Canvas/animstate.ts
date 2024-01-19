@@ -61,7 +61,7 @@ export interface SymbolColourApi extends BasicApi {
 export type Api = SingleStringArgApi | SingleHashArgApi | SetBankAndPlayAnimation | SymbolApi | ColourApi | SymbolColourApi | IgnoredApi
 
 enum _DefaultAsString {
-  "SetBank", "SetBuild", "PlayAnimation", "PushAnimation",
+  "SetBank", "SetBuild", "PlayAnimation", "PushAnimation", "SetSkin",
   "AddOverrideBuild", "ClearOverrideBuild",
   "HideSymbol", "ShowSymbol",
   "HideLayer", "ShowLayer",
@@ -84,6 +84,12 @@ export function getDefaultArgs(name: Api["name"]): any[] {
     return ["", "", ""]
   else if (name === "SetBankAndPlayAnimation")
     return ["", ""]
+  else if (name === "SetDeltaTimeMultiplier")
+    return [1]
+  else if (name === "SetPercent")
+    return [0]
+  else if (name == "Pause" || name === "Resume")
+    return [""]
   else 
     throw Error("default args not defined: " + name)
 }

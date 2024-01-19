@@ -5,11 +5,15 @@ import { listen } from "@tauri-apps/api/event"
 import { invoke } from "@tauri-apps/api"
 import { useSelector } from "../../redux/store"
 
+type AppToasterProps = {
+  top?: number
+}
+
 type AppToasterPayload = 
   string |
   ToastProps & { savepath: string }
 
-export default function AppToaster() {
+export default function AppToaster(props: AppToasterProps) {
   const ref = useRef<OverlayToaster>()
   const root = useSelector(({appsettings})=> appsettings.last_dst_root)
 
@@ -84,7 +88,7 @@ export default function AppToaster() {
   }, [root])
 
   return (
-    <div style={{position: "fixed", top: 40, right: 30, zIndex: 30}}>
+    <div style={{position: "fixed", top: props.top || 0, right: 30, zIndex: 30}}>
       <OverlayToaster maxToasts={5} position={Position.TOP_RIGHT} ref={ref} usePortal={false}/>
     </div>
   )

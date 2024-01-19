@@ -1,19 +1,19 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { Button, H6, InputGroup, Intent, Slider, Tag } from '@blueprintjs/core'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { InputGroup, Intent, Slider, Tag } from '@blueprintjs/core'
 import style from './index.module.css'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { AnimState, Api, BasicApi } from '../AnimCore_Canvas/animstate'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
-import { useBasicPredicter, useGlobalAnimState, useHashPredicter, usePredicterFormatter } from "./predicthooks"
-import { FuseResult } from '../../searchengine'
+import { useBasicPredicter, useGlobalAnimState, useHashPredicter, usePredicterFormatter, useValidFlags } from "./predicthooks"
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import { useSelector } from '../../redux/store'
 
 type Color = [number, number, number, number]
 
-interface IProps {
+type ArgInputProps = {
   api: Api,
   onChange: (value: any, index: number)=> void,
+  onValidChange?: (value: boolean)=> void,
   onEnter?: ()=> void,
   editing?: number,
   onEdit?: (index: number)=> void,
@@ -24,42 +24,55 @@ interface IProps {
 
 // TODO: 目前还没必要，但是以后应该要实现对hash输入的支持
 
-export default function ArgInput(props: IProps) {
-  const {api, onChange, onEnter, editing, onEdit} = props
+export default function ArgInput(props: ArgInputProps) {
+  const {api, onChange, onEnter, editing, onEdit, onValidChange} = props
   const {name, args} = api || {}
+
+  // valid flag hook
+  const numFlags = 
+  (name === "SetBankAndPlayAnimation" ||
+    name === "SetSymbolAddColour" ||
+    name === "SetSymbolMultColour" ) ? 2 : 0
+  const [valid, setFlagOnIndex] = useValidFlags(numFlags)
+
+  useEffect(()=> {
+    if (numFlags !== 0 && typeof onValidChange === "function")
+      onValidChange(valid)
+  }, [numFlags, valid])
+
   if (name === "SetBank")
-    return <BankSetter value={args[0] as string /* <-- a temp assert */} onChange={(v: string)=> onChange([v], -1)}/>
+    return <BankSetter value={args[0] as string /* <-- a temp assert */} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange}/>
   else if (name === "SetBuild" || name === "SetSkin")
-    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)}/>
+    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange}/>
   else if (name === "SetBankAndPlayAnimation")
     return <>
-      <BankSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)}/>
-      <AnimSetter name={name} value={args[1]} onChange={(v: string)=> onChange(v, 1)}/>
+      <BankSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)}/>
+      <AnimSetter currentBank={args[0] as string} name={name} value={args[1]} onChange={(v: string)=> onChange(v, 1)} onValidChange={v=> setFlagOnIndex(v, 1)}/>
     </>
   else if (name === "SetAddColour" || name === "SetMultColour"){
-    return <ColorSetter value={args} onChange={(v: Color)=> onChange(v, -1)} />
+    return <ColorSetter value={args} onChange={(v: Color)=> onChange(v, -1)} onValidChange={onValidChange}/>
   }
   else if (name === "SetSymbolAddColour" || name === "SetSymbolMultColour"){
     return <>
-      <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)}/>
-      <ColorSetter value={args.slice(1) as any} onChange={(v: Color)=> onChange([args[0], ...v], -1)}/>
+      <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)}/>
+      <ColorSetter value={args.slice(1) as any} onChange={(v: Color)=> onChange([args[0], ...v], -1)} onValidChange={v=> setFlagOnIndex(v, 1)}/>
     </>
   }
   else if (name === "Show" || name === "Hide" || name === "ShowLayer" || name === "HideLayer") {
-    return <LayerSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)}/>
+    return <LayerSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange}/>
   }
   else if (name === "ShowSymbol" || name === "HideSymbol" || name === "ClearOverrideSymbol") {
-    return <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)}/>
+    return <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange}/>
   }
   else if (name === "PlayAnimation" || name === "PushAnimation" || name === "SetPercent") {
-    return <AnimSetter name={name} value={args[0]} onChange={(v: string)=> onChange(v, 0)} />
+    return <AnimSetter name={name} value={args[0]} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange}/>
     // TODO: 非标准警告 额外参数
   }
   else if (name === "OverrideSymbol" || name === "OverrideSkinSymbol") {
-    return <OverrideSymbolSetter args={args as string[]} onChange={onChange}/>
+    return <OverrideSymbolSetter args={args as string[]} onChange={onChange} onValidChange={onValidChange}/>
   }
   else if (name === "AddOverrideBuild" || name === "ClearOverrideBuild") {
-    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)}/>
+    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange}/>
   }
   else if (name === "Pause" || name === "Resume") {
     return <IgnoredSetter/>
@@ -67,6 +80,7 @@ export default function ArgInput(props: IProps) {
   else if (name === "SetDeltaTimeMultiplier") {
     return <IgnoredSetter/>
   }
+  return <>还没做：p</>
   // const [value, setValue] = useState<[number, number, number, number]>([0,0,0,0])
   // return <ColorSetter value={value} onChange={setValue}/>
 }
@@ -85,18 +99,26 @@ const rgb2value = (s: string): number[] => {
   return ([0,1,2]).map(i=> parseInt(s.substring(i*2, i*2+2), 16) / 255)
 }
 
-interface ColorSetterProps {
+type ValidChangeCb = (valid: boolean)=> void
+
+type ColorSetterProps = {
   value: [number, number, number, number],
   onChange: (value: ColorSetterProps["value"])=> void,
+  onValidChange?: ValidChangeCb,
 }
 
 function ColorSetter(props: ColorSetterProps) {
-  const {value, onChange} = props
+  const {value, onChange, onValidChange} = props
   const rgbCode = value2rgb(value)
   const alpha = value[3]
 
   const [invalidInputValue, setInvalidValue] = useState<string>(undefined)
   const invalid = typeof invalidInputValue === "string"
+
+  useEffect(()=> {
+    if (typeof onValidChange === "function")
+      onValidChange(!invalid) 
+  }, [onValidChange, invalid])
 
   const handleColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>)=> {
     onChange([...rgb2value(e.target.value), value[3]] as ColorSetterProps["value"])
@@ -161,7 +183,6 @@ function ColorSetter(props: ColorSetterProps) {
   )
 }
 
-
 function BankSetter(props: StringInputProps) {
   const predict = useBasicPredicter("bank", props.value)
   return <StringInput {...props} label="库名" predict={predict}/>
@@ -172,10 +193,10 @@ function BuildSetter(props: StringInputProps) {
   return <StringInput {...props} label="材质" predict={predict}/>
 }
 
-function AnimSetter(props: { name: string, value: string, onChange: (animation: string)=> void}) {
-  const {value} = props
+function AnimSetter(props: { currentBank?: string, name: string, value: string, onChange: (animation: string)=> void, onValidChange?: ValidChangeCb}) {
+  const {value, onValidChange} = props
   const animstate = useGlobalAnimState()
-  const bank = animstate.getActualBank()
+  const bank = props.currentBank !== undefined ? props.currentBank : animstate.getActualBank()
   // TODO: 也许可以改为获取这一个api的上一个有效bank, 但真的有必要吗？
 
   const payload = useMemo(()=> ({
@@ -183,33 +204,42 @@ function AnimSetter(props: { name: string, value: string, onChange: (animation: 
   }), [bank, value])
   const predict = useBasicPredicter("animation", payload,
     (match, query)=> match === query.animation)
+
+  useEffect(()=> {
+    if (typeof onValidChange === "function")
+      onValidChange(predict.isvalid)
+  }, [onValidChange, predict])
+
   return <>
     <StringInput value={value} label="动画" predict={predict} onChange={props.onChange}/>
   </>
 }
 
-function SymbolSetter(props: { value: string, onChange: (symbol: string)=> void }) {
-  const {value, onChange} = props
+function SymbolSetter(props: { value: string, onChange: (symbol: string)=> void, onValidChange?: ValidChangeCb }) {
+  const {value, onChange, onValidChange} = props
   const animstate = useGlobalAnimState()
   const symbolList = useMemo(()=> {
     return [...animstate.symbolCollection.values()].filter(v=> typeof v === "string")
   }, [animstate.symbolCollection])
   const predict = useHashPredicter(value, symbolList)
-  return <StringInput label="符号" value={value} onChange={onChange} predict={predict} errorStyle="symbol"/>
+  return <StringInput 
+    label="符号" value={value} onChange={onChange} 
+    predict={predict} errorStyle="symbol"
+    onValidChange={onValidChange}/>
 }
 
-function LayerSetter(props: { value: string, onChange: (layer: string)=> void }) {
-  const {value, onChange} = props
+function LayerSetter(props: { value: string, onChange: (layer: string)=> void, onValidChange?: ValidChangeCb }) {
+  const {value, onChange, onValidChange} = props
   const animstate = useGlobalAnimState()
   const layerList = useMemo(()=> {
     return [...animstate.layerCollection.values()].filter(v=> typeof v === "string")
   }, [animstate.layerCollection])
   const predict = useHashPredicter(value, layerList)
-  return <StringInput label="图层" value={value} onChange={onChange} predict={predict} errorStyle="symbol"/>
+  return <StringInput label="图层" value={value} onChange={onChange} predict={predict} errorStyle="symbol" onValidChange={onValidChange}/>
 }
 
-function OverrideSymbolSetter(props: { args: string[], onChange: (value: string, index: number)=> void }){
-  const {args, onChange} = props
+function OverrideSymbolSetter(props: { args: string[], onChange: (value: string, index: number)=> void, onValidChange?: ValidChangeCb }){
+  const {args, onChange, onValidChange} = props
   const [symbolNames, setSymbolNames] = useState<string[]>([])
   const predict_ready = useSelector(({appstates})=> appstates.predict_init_flag)
 
@@ -227,10 +257,17 @@ function OverrideSymbolSetter(props: { args: string[], onChange: (value: string,
 
   const predict = useHashPredicter(args[2], symbolNames)
 
+  const [valid, setFlagOnIndex] = useValidFlags(3)
+  useEffect(()=> {
+    if (typeof onValidChange === "function") {
+      onValidChange(valid)
+    }
+  }, [valid, onValidChange])
+
   return <>
-    <SymbolSetter value={args[0]} onChange={v=> onChange(v, 0)}/>
-    <BuildSetter value={args[1]} onChange={v=> onChange(v, 1)}/>
-    <StringInput label="符号" value={args[2]} onChange={v=> onChange(v, 2)} predict={predict}/>
+    <SymbolSetter value={args[0]} onChange={v=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)}/>
+    <BuildSetter value={args[1]} onChange={v=> onChange(v, 1)} onValidChange={v=> setFlagOnIndex(v, 1)}/>
+    <StringInput label="符号" value={args[2]} onChange={v=> onChange(v, 2)} predict={predict} onValidChange={v=> setFlagOnIndex(v, 2)}/>
   </>
 }
 
@@ -238,6 +275,7 @@ type StringInputProps = {
   label?: string,
   value: string, // TODO: support number type (bankhash)
   onChange?: (value: string)=> void,
+  onValidChange?: ValidChangeCb,
   predict?: ReturnType<typeof useBasicPredicter>,
   errorStyle?: "symbol"
 }
@@ -249,6 +287,13 @@ function StringInput(props: StringInputProps) {
   const getHint = usePredicterFormatter(props.errorStyle || "default")
   const showError = hasPredicted && !isvalid
   const errorIntent = props.errorStyle === "symbol" ? "warning" : "danger"
+
+  const onValidChange = props.onValidChange
+  useEffect(()=> {
+    if (typeof onValidChange === "function")
+      onValidChange(isvalid)
+  }, [onValidChange, isvalid])
+
   return (
     <>
       <div>
@@ -282,6 +327,14 @@ function ArgType(props: {text: string, tooltip?: JSX.Element | string, intent?: 
           {props.text}
         </Tag>
       </Tooltip2>
+    </div>
+  )
+}
+
+function IgnoredSetter() {
+  return (
+    <div>
+      这个还木有写
     </div>
   )
 }
