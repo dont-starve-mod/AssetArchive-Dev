@@ -209,7 +209,9 @@ export function ErrorHandler(){
         }),
         await globalListen<string>("lua_call_error", ({payload})=> {
           console.error(payload)
-          setLuaError(payload)
+          if (payload !== "IPC_INTERRUPTED"){
+            setLuaError(payload)
+          }
         }),
         await globalListen<string>("fmod_call_error", ({payload})=> {
           console.error(payload)

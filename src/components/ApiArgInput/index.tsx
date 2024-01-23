@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InputGroup, Intent, Slider, Tag } from '@blueprintjs/core'
 import style from './index.module.css'
 import { Tooltip2 } from '@blueprintjs/popover2'
@@ -15,7 +15,9 @@ type ArgInputProps = {
   onChange: (value: any, index: number)=> void,
   onValidChange?: (value: boolean)=> void,
   onEnter?: ()=> void,
-  editing?: number,
+  autoFocusIndex?: number,
+  autoFocusDelay?: number,
+  autoFocusType?: "select" | "focus",
   onEdit?: (index: number)=> void,
   inputRef?: (input: HTMLInputElement | null)=> void,
 }
@@ -25,7 +27,7 @@ type ArgInputProps = {
 // TODO: 目前还没必要，但是以后应该要实现对hash输入的支持
 
 export default function ArgInput(props: ArgInputProps) {
-  const {api, onChange, onEnter, editing, onEdit, onValidChange} = props
+  const {api, onChange, onEnter, onEdit, onValidChange} = props
   const {name, args} = api || {}
 
   // valid flag hook
@@ -40,42 +42,60 @@ export default function ArgInput(props: ArgInputProps) {
       onValidChange(valid)
   }, [numFlags, valid])
 
+  const {autoFocusIndex, autoFocusDelay = 500, autoFocusType = "focus"} = props
+  const childRef = useRef<{[index: number]: HTMLInputElement}>({}).current
+
+  useEffect(()=> {
+    let timer = -1
+    timer = setTimeout(()=> {
+      if (typeof autoFocusIndex === "number" && childRef[autoFocusIndex]){
+        if (autoFocusType === "focus") {
+          childRef[autoFocusIndex].focus()
+        }
+        else if (autoFocusType === "select") {
+          childRef[autoFocusIndex].select()
+        }
+      }
+    }, autoFocusDelay) as any
+    return ()=> clearTimeout(timer)
+  }, [autoFocusIndex, autoFocusDelay, autoFocusType])
+
   if (name === "SetBank")
-    return <BankSetter value={args[0] as string /* <-- a temp assert */} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange}/>
+    return <BankSetter value={args[0] as string /* <-- a temp assert */} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
   else if (name === "SetBuild" || name === "SetSkin")
-    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange}/>
+    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
   else if (name === "SetBankAndPlayAnimation")
     return <>
-      <BankSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)}/>
-      <AnimSetter currentBank={args[0] as string} name={name} value={args[1]} onChange={(v: string)=> onChange(v, 1)} onValidChange={v=> setFlagOnIndex(v, 1)}/>
+      <BankSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)} inputRef={ref=> childRef[0] = ref}/>
+      <AnimSetter currentBank={args[0] as string} name={name} value={args[1]} onChange={(v: string)=> onChange(v, 1)} onValidChange={v=> setFlagOnIndex(v, 1)} inputRef={ref=> childRef[1] = ref}/>
     </>
   else if (name === "SetAddColour" || name === "SetMultColour"){
     return <ColorSetter value={args} onChange={(v: Color)=> onChange(v, -1)} onValidChange={onValidChange}/>
   }
   else if (name === "SetSymbolAddColour" || name === "SetSymbolMultColour"){
     return <>
-      <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)}/>
+      <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)} inputRef={ref=> childRef[0] = ref}/>
       <ColorSetter value={args.slice(1) as any} onChange={(v: Color)=> onChange([args[0], ...v], -1)} onValidChange={v=> setFlagOnIndex(v, 1)}/>
     </>
   }
   else if (name === "Show" || name === "Hide" || name === "ShowLayer" || name === "HideLayer") {
-    return <LayerSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange}/>
+    return <LayerSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
   }
   else if (name === "ShowSymbol" || name === "HideSymbol" || name === "ClearOverrideSymbol") {
-    return <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange}/>
+    return <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
   }
   else if (name === "PlayAnimation" || name === "PushAnimation" || name === "SetPercent") {
-    return <AnimSetter name={name} value={args[0]} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange}/>
+    return <AnimSetter name={name} value={args[0]} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
     // TODO: 非标准警告 额外参数
   }
   else if (name === "OverrideSymbol" || name === "OverrideSkinSymbol") {
-    return <OverrideSymbolSetter args={args as string[]} onChange={onChange} onValidChange={onValidChange}/>
+    return <OverrideSymbolSetter args={args as string[]} onChange={onChange} onValidChange={onValidChange} inputRefIndexCb={(ref: HTMLInputElement, index)=> childRef[index] = ref}/>
   }
   else if (name === "AddOverrideBuild" || name === "ClearOverrideBuild") {
-    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange}/>
+    return <BuildSetter value={args[0]} onChange={(v: string)=> onChange([v], -1)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
   }
   else if (name === "Pause" || name === "Resume") {
-    return <IgnoredSetter/>
+    return <NothingSetter/>
   }
   else if (name === "SetDeltaTimeMultiplier") {
     return <IgnoredSetter/>
@@ -184,7 +204,9 @@ function ColorSetter(props: ColorSetterProps) {
 }
 
 function BankSetter(props: StringInputProps) {
-  const predict = useBasicPredicter("bank", props.value)
+  const predict = useBasicPredicter("bank", props.value, (match, query)=> {
+    return typeof match === "string" && (match.toLowerCase() === query.toLowerCase())
+  })
   return <StringInput {...props} label="库名" predict={predict}/>
 }
 
@@ -193,7 +215,14 @@ function BuildSetter(props: StringInputProps) {
   return <StringInput {...props} label="材质" predict={predict}/>
 }
 
-function AnimSetter(props: { currentBank?: string, name: string, value: string, onChange: (animation: string)=> void, onValidChange?: ValidChangeCb}) {
+function AnimSetter(props: { 
+  currentBank?: string, 
+  name: string, 
+  value: string, 
+  onChange: (animation: string)=> void, 
+  onValidChange?: ValidChangeCb,
+  inputRef?: React.Ref<HTMLInputElement>,
+}) {
   const {value, onValidChange} = props
   const animstate = useGlobalAnimState()
   const bank = props.currentBank !== undefined ? props.currentBank : animstate.getActualBank()
@@ -211,11 +240,11 @@ function AnimSetter(props: { currentBank?: string, name: string, value: string, 
   }, [onValidChange, predict])
 
   return <>
-    <StringInput value={value} label="动画" predict={predict} onChange={props.onChange}/>
+    <StringInput value={value} label="动画" predict={predict} onChange={props.onChange} inputRef={props.inputRef}/>
   </>
 }
 
-function SymbolSetter(props: { value: string, onChange: (symbol: string)=> void, onValidChange?: ValidChangeCb }) {
+function SymbolSetter(props: { value: string, onChange: (symbol: string)=> void, onValidChange?: ValidChangeCb, inputRef?: React.Ref<HTMLInputElement> }) {
   const {value, onChange, onValidChange} = props
   const animstate = useGlobalAnimState()
   const symbolList = useMemo(()=> {
@@ -225,21 +254,29 @@ function SymbolSetter(props: { value: string, onChange: (symbol: string)=> void,
   return <StringInput 
     label="符号" value={value} onChange={onChange} 
     predict={predict} errorStyle="symbol"
-    onValidChange={onValidChange}/>
+    onValidChange={onValidChange}
+    inputRef={props.inputRef}/>
 }
 
-function LayerSetter(props: { value: string, onChange: (layer: string)=> void, onValidChange?: ValidChangeCb }) {
+function LayerSetter(props: { value: string, onChange: (layer: string)=> void, onValidChange?: ValidChangeCb, inputRef?: React.Ref<HTMLInputElement> }) {
   const {value, onChange, onValidChange} = props
   const animstate = useGlobalAnimState()
   const layerList = useMemo(()=> {
     return [...animstate.layerCollection.values()].filter(v=> typeof v === "string")
   }, [animstate.layerCollection])
   const predict = useHashPredicter(value, layerList)
-  return <StringInput label="图层" value={value} onChange={onChange} predict={predict} errorStyle="symbol" onValidChange={onValidChange}/>
+  return <StringInput label="图层" value={value} onChange={onChange} 
+    predict={predict} errorStyle="symbol" 
+    onValidChange={onValidChange} inputRef={props.inputRef}/>
 }
 
-function OverrideSymbolSetter(props: { args: string[], onChange: (value: string, index: number)=> void, onValidChange?: ValidChangeCb }){
-  const {args, onChange, onValidChange} = props
+function OverrideSymbolSetter(props: { 
+  args: string[], 
+  onChange: (value: string, index: number)=> void, 
+  onValidChange?: ValidChangeCb,
+  inputRefIndexCb?: (ref: HTMLInputElement, index: number)=> void,
+}){
+  const {args, onChange, onValidChange, inputRefIndexCb} = props
   const [symbolNames, setSymbolNames] = useState<string[]>([])
   const predict_ready = useSelector(({appstates})=> appstates.predict_init_flag)
 
@@ -264,10 +301,19 @@ function OverrideSymbolSetter(props: { args: string[], onChange: (value: string,
     }
   }, [valid, onValidChange])
 
+  // cache ValidChangeCb to avoid child component updating
+  const validChangeCbs = useMemo<Array<(v: boolean)=> void>>(()=> {
+    return [
+      v=> setFlagOnIndex(v, 0),
+      v=> setFlagOnIndex(v, 1),
+      v=> setFlagOnIndex(v, 2),
+    ]
+  }, [setFlagOnIndex])
+
   return <>
-    <SymbolSetter value={args[0]} onChange={v=> onChange(v, 0)} onValidChange={v=> setFlagOnIndex(v, 0)}/>
-    <BuildSetter value={args[1]} onChange={v=> onChange(v, 1)} onValidChange={v=> setFlagOnIndex(v, 1)}/>
-    <StringInput label="符号" value={args[2]} onChange={v=> onChange(v, 2)} predict={predict} onValidChange={v=> setFlagOnIndex(v, 2)}/>
+    <SymbolSetter value={args[0]} onChange={v=> onChange(v, 0)} onValidChange={validChangeCbs[0]} inputRef={ref=> inputRefIndexCb?.(ref, 0)}/>
+    <BuildSetter value={args[1]} onChange={v=> onChange(v, 1)} onValidChange={validChangeCbs[1]} inputRef={ref=> inputRefIndexCb?.(ref, 1)}/>
+    <StringInput label="符号" value={args[2]} onChange={v=> onChange(v, 2)} predict={predict} onValidChange={validChangeCbs[2]} inputRef={ref=> inputRefIndexCb?.(ref, 2)}/>
   </>
 }
 
@@ -277,7 +323,8 @@ type StringInputProps = {
   onChange?: (value: string)=> void,
   onValidChange?: ValidChangeCb,
   predict?: ReturnType<typeof useBasicPredicter>,
-  errorStyle?: "symbol"
+  errorStyle?: "symbol",
+  inputRef?: React.Ref<HTMLInputElement>,
 }
 
 function StringInput(props: StringInputProps) {
@@ -289,6 +336,7 @@ function StringInput(props: StringInputProps) {
   const errorIntent = props.errorStyle === "symbol" ? "warning" : "danger"
 
   const onValidChange = props.onValidChange
+
   useEffect(()=> {
     if (typeof onValidChange === "function")
       onValidChange(isvalid)
@@ -303,10 +351,11 @@ function StringInput(props: StringInputProps) {
           tooltip={showError ? getHint({value, bestMatch}) : undefined }
           onClick={bestMatch ? ()=> onChange(bestMatch) : undefined}/>
         <InputGroup
+          inputRef={props.inputRef}
           value={value}
           onChange={e=> onChange(e.target.value)}
           spellCheck={false}
-          autoComplete={"none"}
+          autoComplete={"off"}
           className={style["arg-input-string"]}/>
       </div>
     </>
@@ -319,14 +368,22 @@ function ArgType(props: {text: string, tooltip?: JSX.Element | string, intent?: 
   return (
     <div style={{display: "inline-block", minWidth: 30, cursor: cursorStyle}}>
       <Tooltip2 
-        disabled={tooltip === undefined} 
-        content={<span style={{whiteSpace: "pre-wrap"}}>{tooltip}</span>} 
-        intent={intent} 
+        disabled={tooltip === undefined}
+        content={<span style={{whiteSpace: "pre-wrap"}}>{tooltip}</span>}
+        intent={intent}
         placement="bottom-start">
         <Tag intent={intent} minimal onClick={props.onClick}>
           {props.text}
         </Tag>
       </Tooltip2>
+    </div>
+  )
+}
+
+function NothingSetter() {
+  return (
+    <div>
+      <ArgType text="无参数" intent="none"/>
     </div>
   )
 }

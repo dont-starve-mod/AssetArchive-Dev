@@ -257,6 +257,7 @@ end
 
 function Render:Run()
 	IpcEmitEvent("render_event", json.encode_compliant{
+		session_id = self.session_id,
 		state = "start",
 	})
 	local path = assert(self.path, "export path not provided")
@@ -281,6 +282,7 @@ function Render:Run()
 	else
 		if not FFmpegManager:IsAvailable() then
 			IpcEmitEvent("render_event", json.encode_compliant{
+				session_id = self.session_id,
 				state = "error",
 				message = "FFmpeg not installed"
 			})
@@ -359,6 +361,7 @@ function Render:Run()
 
 	-- loop 2: render elements
 	IpcEmitEvent("render_event", json.encode_compliant({
+		session_id = self.session_id,
 		state = "render_element",
 		progress = 0,
 	}))
@@ -408,6 +411,7 @@ function Render:Run()
 			end
 		end
 		IpcEmitEvent("render_event", json.encode_compliant({
+			session_id = self.session_id,
 			state = "render_element",
 			progress = index / #anim.frame
 		}))
@@ -453,6 +457,7 @@ function Render:Run()
 		}
 	end
 	IpcEmitEvent("render_event", json.encode_compliant({
+		session_id = self.session_id,
 		state = "render_canvas",
 		progress = 0,
 	}))
@@ -515,6 +520,7 @@ function Render:Run()
 		end
 		bar:set_position(index)
 		IpcEmitEvent("render_event", json.encode_compliant({
+			session_id = self.session_id,
 			state = "render_canvas",
 			progress = index/#framebuffer,
 		}))
@@ -528,6 +534,7 @@ function Render:Run()
 	bar:done()
 
 	IpcEmitEvent("render_event", json.encode_compliant({
+		session_id = self.session_id,
 		state = "finish",
 		path = png_path or self.path,
 	}))

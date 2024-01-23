@@ -36,8 +36,9 @@ export function useAnimStateHook(animstate: AnimState) {
   }, [])
 
   const toggleFoldApi = useCallback((index: number)=> {
-    animstate.toggleFoldApi(index)
+    const unfold = animstate.toggleFoldApi(index)
     forceUpdate()
+    return unfold
   }, [])
 
   useEffect(()=> {

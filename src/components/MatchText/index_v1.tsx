@@ -24,7 +24,6 @@ export default function MatchText(props: IProps){
   }
 
   const result: JSX.Element[] = []
-  // TODO: impl of `numMismatchChars`
   let index = 0
   if (bestMatch !== false) {
     match = [...match].sort((a, b)=> -(a[1]-a[0])+(b[1]-b[0]))

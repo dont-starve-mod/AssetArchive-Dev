@@ -1,22 +1,18 @@
 import React, { useCallback, useEffect, useReducer, useState, useContext, useMemo, useRef } from 'react'
-import { AnimState, Api, ApiArgType, getDefaultArgs } from '../AnimCore_Canvas/animstate'
+import { AnimState, Api, ApiArgType, getDefaultArgs, isUnstandardApi } from '../AnimCore_Canvas/animstate'
 import style from './index.module.css'
-import { MenuItem, Menu, EditableText, Tag, Switch, Checkbox, useHotkeys, Button, Alert } from '@blueprintjs/core'
+import { MenuItem, Menu, Alert } from '@blueprintjs/core'
 import { useDragData } from '../../hooks'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { appWindow } from '@tauri-apps/api/window'
-import { v4 as uuidv4 } from 'uuid'
 import ApiArgInput from '../ApiArgInput'
 import AnimProjectInitFromParam from '../AnimProjectInitFromParam'
 import { ContextMenu2, ContextMenu2Popover, Popover2 } from '@blueprintjs/popover2'
 import { showContextMenu, hideContextMenu } from '@blueprintjs/popover2'
-interface ApiListProps {
 
-}
-
-export default function ApiList(props: ApiListProps) {
+export default function ApiList() {
   const {animstate, 
-    insertApi, 
+    insertApi,
     enableApi, 
     disableApi, 
     rearrange} = useContext(animstateContext)
@@ -25,10 +21,9 @@ export default function ApiList(props: ApiListProps) {
   const [insertPosition, setInsertPosition] = useState(-1)
 
   const onConfirm = useCallback(({bank, build, animation}: {[K: string]: string})=> {
-    console.log("Init", build, bank, animation)
-    // TODO: need some warning if param is valid?
     insertApi("SetBuild", [build])
-    insertApi("SetBankAndPlayAnimation", [bank, animation])
+    insertApi("SetBank", [bank])
+    insertApi("PlayAnimation", [animation])
     setInitDialog("none")
   }, [])
 
@@ -47,10 +42,10 @@ export default function ApiList(props: ApiListProps) {
   // }, [])
 
   // alert ui when adding duplicated api
-  const [alertData, setAlertData] = useState<{type: "duplicated", api?: Api, newIndex?: number}>()
+  const [alertData, setAlertData] = useState<{type: "duplicated" | "unstandard", api?: Api, newIndex?: number}>()
   const onConfirmAlert = useCallback(()=> {
     const {type, api} = alertData
-    if (type === "duplicated") {
+    if (type === "duplicated" || type === "unstandard") {
       insertApi(api["name"], api["args"], alertData.newIndex)
       appWindow.emit("clear_api_input")
       setAlertData(undefined)
@@ -89,17 +84,23 @@ export default function ApiList(props: ApiListProps) {
       </div>
       <AnimProjectInitFromParam 
         isOpen={initDialog !== "none"} 
-        onClose={()=> setInitDialog("none")} 
+        onClose={()=> setInitDialog("none")}
         onConfirm={onConfirm}/>
       <Alert isOpen={Boolean(alertData)}
         canEscapeKeyCancel={true}
         canOutsideClickCancel={false}
-        cancelButtonText='取消'
-        confirmButtonText='确定'
+        cancelButtonText="取消"
+        confirmButtonText="确定"
         intent="warning"
         onCancel={()=> setAlertData(undefined)}
         onConfirm={onConfirmAlert}>
-        你正在添加一条<strong>重复</strong>的命令，是否继续？
+        {
+          Boolean(alertData) && <>
+            正在添加一条<strong>
+              {alertData.type === "duplicated" ? "重复" : "非标准"}
+            </strong>的指令，是否继续？
+          </>
+        }
       </Alert>
     </>
   )
@@ -121,7 +122,7 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
   const {onInsertHover} = props
   const apiNameStyle: React.CSSProperties = {fontWeight: 600}
   const apiArgStyle: React.CSSProperties = {color: "#666"}
-  const [editing, setEditing] = useState(-1)
+  const autoFocusIndexRef = useRef(-1)
   const fmt = (value: any)=> typeof value === "string" ? JSON.stringify(value) :
     typeof value === "boolean" ? (value ? "true" : "false") :
     typeof value === "number" ? value.toFixed(2) :
@@ -134,7 +135,7 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
     const result = []
     result.push(<span style={apiNameStyle}>{name+"("}</span>)
     args.forEach((arg, index)=> {
-      result.push(<span onClick={()=> setEditing(index)} 
+      result.push(<span onClick={()=> autoFocusIndexRef.current = index}
         style={apiArgStyle}
         className={`bp4-monospace-text ${style["arg-hover"]}`}>
           {fmt(arg)}
@@ -197,7 +198,15 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
       if (typeof args === "undefined")
         args = getDefaultArgs(name)
       const last = getLatestApi()
-      if (last !== undefined && last["name"] === name
+    
+      if (isUnstandardApi(name)){
+        appWindow.emit("api_picker_alert",{
+          type: "unstandard",
+          api: {name, args},
+          newIndex,
+        })
+      }
+      else if (last !== undefined && last["name"] === name
         && JSON.stringify(last["args"]) === JSON.stringify(args)){
         appWindow.emit("api_picker_alert",{
           type: "duplicated",
@@ -260,7 +269,12 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
           text={text} 
           intent="primary"
           style={{padding: "2px 4px", color: disabled ? "#aaa" : undefined}}
-          onClick={()=> toggleFoldApi(props.index)}
+          onClick={()=> {
+            if (!toggleFoldApi(props.index)){
+              // reset index when folding ui
+              autoFocusIndexRef.current = -1
+            }
+          }}
         />
       </div>
       {
@@ -283,9 +297,10 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
                 changeApiArg(props.index, args.map((v, i)=> i === index ? value : v)) // change one
               }
             }}
-
-            onEdit={setEditing}
-            editing={editing}
+            autoFocusIndex={autoFocusIndexRef.current}
+            autoFocusDelay={100}
+            autoFocusType={"select"}
+            onValidChange={()=> {}}
           />
         </div>
       }

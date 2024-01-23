@@ -178,7 +178,7 @@ function Custom({setStep, state, forceUpdate}) {
       <InputGroup
         inputRef={e=> {if (e) { ref.current = e; e.focus() }}}
         fill
-        autoComplete="none"
+        autoComplete="off"
         autoCorrect="none"
         spellCheck={false}
         maxLength={200}

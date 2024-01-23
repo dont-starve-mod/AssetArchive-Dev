@@ -823,7 +823,12 @@ function Provider:GetSymbolElement(args)
 			if symbol ~= nil then
 				local i, j = BinSearch(symbol.imglist, function(img) return img.index - args.index end, nil, args.index + 1)
 				if i == nil then
-					return
+					-- some element[0] has index > 0
+					if symbol.imglist[1] and symbol.imglist[1].index > args.index then
+						i = 1
+					else
+						return
+					end
 				end
 				if j ~= nil and args.fill_gap ~= true then -- if fill gap, then redirect xxxx-1 to xxxx-0 (0, 2, 4, ...)
 					return

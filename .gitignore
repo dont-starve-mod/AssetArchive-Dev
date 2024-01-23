@@ -25,3 +25,6 @@ dist-ssr
 
 # Rust
 src-tauri/target
+
+# py scripts
+publish.py

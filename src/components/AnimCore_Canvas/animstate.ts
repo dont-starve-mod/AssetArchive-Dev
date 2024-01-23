@@ -89,9 +89,19 @@ export function getDefaultArgs(name: Api["name"]): any[] {
   else if (name === "SetPercent")
     return [0]
   else if (name == "Pause" || name === "Resume")
-    return [""]
+    return []
   else 
     throw Error("default args not defined: " + name)
+}
+
+export function isUnstandardApi(name: Api["name"]): boolean {
+  return ["PushAnimation",
+  "SetSkin",
+  "OverrideSkinSymbol",
+  "SetPercent",
+  "Pause",
+  "Resume",
+  "SetDeltaTimeMultiplier"].indexOf(name) !== -1
 }
 
 // group I
@@ -277,10 +287,11 @@ export class AnimState {
     return this
   }
 
-  toggleFoldApi(index: number): this {
+  toggleFoldApi(index: number): boolean {
     const api = this.api_list[index]
     api.fold = !api.fold
-    return this
+    // return current unfold state
+    return !api.fold
   }
 
   changeApiArg(index: number, args: any): this {

@@ -96,18 +96,23 @@ end
 -- BinSearch(t, function(v) return v - 3 end) --> 3, nil
 -- BinSearch(t, function(v) return v - 4 end) --> 3, 4
 -- BinSearch(t, function(v) return v - 9 end) --> nil (not found)
+-- BinSearch(t, function(v) return v - 0 end) --> nil (not found)
 function BinSearch(t, fn, i, j)
+	-- print("Start BinSearch")
+	-- print("  t: ", json.encode(t))
+	-- print("  i, j: ", i, j)
+
 	i = i or 1 -- start index
 	j = j and math.min(#t, j) or #t -- end index
 	local left = fn(t[i])
 	local right = fn(t[j])
-	while true do
+	for _ = 1, 100000 do
 		if left == 0 then
 			return i
 		elseif right == 0 then
 			return j
 		end
-		if i + 1 == j then
+		if i + 1 == j or i == j then
 			if left < 0 and right > 0 then
 				return i, j
 			else
@@ -125,8 +130,8 @@ function BinSearch(t, fn, i, j)
 			j = k
 			right = mid
 		end
-		print(i, j, k)
 	end
+	error("Inf loop in binsearch")
 end
 
 function NameOf(path)

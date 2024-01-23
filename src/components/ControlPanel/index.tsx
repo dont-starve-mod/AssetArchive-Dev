@@ -10,6 +10,7 @@ import { save, open } from '@tauri-apps/api/dialog'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { useLuaCall } from '../../hooks'
 import NumericInputGroup from '../NumericInputGroup'
+import { v4 } from 'uuid'
 
 interface ActionProps {
   icon: IconName,
@@ -89,7 +90,8 @@ function ApiPanel() {
             <ApiPicker style={{display: open ? undefined : "none"}}/>
           } 
             // keep popover always mounted
-            isOpen onInteraction={onPopoverInteraction}>
+            isOpen onInteraction={onPopoverInteraction}
+            autoFocus={false} enforceFocus={false}>
             <SmallButton icon="plus"/>
           </Popover2>
         </div>,
@@ -131,7 +133,10 @@ function Export() {
   const requestExportTo = useCallback((path: string)=> {
     animstate.pause()
     if (!animstate.hasFrameList) return
+    const session_id = v4()
+    appWindow.emit("set_session_id", session_id)
     call({
+      session_id,
       path,
       api_list: animstate.getValidApiList(),
       render_param: {

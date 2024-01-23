@@ -14,15 +14,11 @@ local FFmpeg = Class(function(self)
     end
 end)
 
-local URL_PREFIX = "https://"
-    ..string.char(118,107,119,51,104,103,107,55,57,100,56,46,114,117,55,113,52,120,113,111,48,49,50,46,99,111,109)
-    .."/api/file/caches/v5/get?owner=4d2a339e50f7fa6b&type=message_movie&file_key="
-
 local URLS = {
     WINDOWS = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z",
-    -- WINDOWS = URL_PREFIX.."a486d0296741c3e020080071cb17843beff35d54294344024d894dc15fe7bc42",
+    WINDOWS = "https://i-320.wwentua.com:446/01211900159317473bb/2024/01/21/5f82b419cb852d3f5f99f550b5e5d426.7z?st=Crye9Gkel6pyD0ftsOsz0w&e=1705840151&b=BzMAZgJvViNZaV9uB3oENglyXDAFKQppUnIBf1Q2AGwFIwBpVDVUPVVzAwoBM1UkBzsOPlM2Vn4GYl0q&fi=159317473&pid=111-205-233-231&up=2&mp=0&co=0",
     MACOS = "https://evermeet.cx/ffmpeg/get/zip",
-    -- MACOS =   URL_PREFIX.."d8b362fefb1d772869a678893552a9ceb033c5d08ab84a506e0f46359f7f5278"
+    MACOS = "https://i-440.wwentua.com:446/01212000159319374bb/2024/01/21/a164970a19e324477a1244bc981efe84.zip?st=2XQbfBHhMAG19dOx4o09AQ&e=1705840550&b=UWUAZghlVyJQYFJjB3oGMwRgDmFUZgMxUjUMLAZmAmIGMV1pAmQEYlFiVTMHZVJhADcIelcsBmlWdQ_c_c&fi=159319374&pid=111-205-233-231&up=2&mp=0&co=0",
 }
 
 local DOWNLOADER_ID = "FFMPEG"

@@ -1,7 +1,7 @@
 import { InputGroup, InputGroupProps2 } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useState } from 'react'
 
-interface IProps extends InputGroupProps2 {
+interface NumericInputGroupProps extends InputGroupProps2 {
   min: number,
   max: number,
   /** default value when input string is not a valid number */
@@ -10,7 +10,7 @@ interface IProps extends InputGroupProps2 {
   onChangeNumericValue: (v: number)=> void,
 }
 
-export default function NumericInputGroup(props: IProps) {
+export default function NumericInputGroup(props: NumericInputGroupProps) {
   const [invalidInputValue, setInvalidValue] = useState<string>(undefined)
   const invalid = typeof invalidInputValue === "string"
   const {numericValue, onChangeNumericValue} = props
@@ -45,9 +45,10 @@ export default function NumericInputGroup(props: IProps) {
   return (
     <InputGroup 
       spellCheck={false}
-      autoComplete="none"
+      autoComplete="off"
       value={invalid ? invalidInputValue : numericValue + ""}
       onChange={e=> onChange(e.currentTarget.value)}
-      {...props}/>
+      min={min}
+      max={max}/>
   )
 }

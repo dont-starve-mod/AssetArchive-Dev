@@ -54,6 +54,9 @@ export default function AppRendererInit() {
         if (error.message === "window.__TAURI_IPC__ is not a function") {
           return
         }
+        else if (error.message === "IPC_INTERRUPTED"){
+          return
+        }
         else {
           appWindow.emit("lua_init_error", error)
         }

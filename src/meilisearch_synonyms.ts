@@ -7,6 +7,7 @@ const SYNONYMS = [
   "沃特  鱼人",
   "薇洛  火女",
   "韦伯  蜘蛛人",
+  // ""
 ]
 
 export const SYNONYMS_MAP = {}

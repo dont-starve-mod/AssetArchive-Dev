@@ -46,13 +46,15 @@ export default function AnimProjectInitFromParam(props: {
   // const inputClass = [Classes.INPUT, style["input"]].join(" ")
   const [initData, dispatch] = useReducer(initDataReducer, 
     {build: ["", false], bank: ["", false], animation: ["", false]})
+  const {onConfirm} = props
   const onClick = useCallback(()=> {
-    props.onConfirm({
+    // TODO: 当参数无效时，弹出警告
+    onConfirm({
       build: initData.build[0],
       bank: initData.bank[0],
       animation: initData.animation[0],
     })
-  }, [props.onConfirm])
+  }, [onConfirm])
   return (
     <Dialog title="初始化" 
       style={{width: 400}}

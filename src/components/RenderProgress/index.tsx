@@ -9,6 +9,7 @@ import aris_working from './aris-working.gif'
 import aris_failed from './aris-failed.png'
 // @ts-ignore
 import aris_finish from './aris-finish.gif'
+import { appWindow } from '@tauri-apps/api/window'
 
 type RenderEvent = {
   state: "start",
@@ -34,6 +35,7 @@ export default function RenderProgress() {
   const [percent, setPercent] = useState(0)
   const [error, setError] = useState("")
   const [path, setPath] = useState("")
+  const [currentSessionId, setCurrentSessionId] = useState("")
 
   const inProgress = percent >= 0 && percent < 1
   const handleClose = useCallback(()=> {
@@ -46,7 +48,10 @@ export default function RenderProgress() {
   useEffect(()=> {
     const handlers = [
       listen<string>("render_event", ({payload})=> {
-        const data: RenderEvent = JSON.parse(payload)
+        const data: RenderEvent & {session_id: string} = JSON.parse(payload)
+        console.log("data.session_id", data.session_id)
+        if (data.session_id !== currentSessionId)
+          return
         if (data.state === "start"){
           setOpen(true)
           setPath("")
@@ -69,7 +74,15 @@ export default function RenderProgress() {
     ]
 
     return () => { handlers.forEach(v=> v.then(f=> f())) }
-  }, [])
+  }, [currentSessionId])
+
+  useEffect(()=> {
+    let unlisten = appWindow.listen<string>("set_session_id", ({payload})=> {
+      console.log("Current session id is:", payload)
+      setCurrentSessionId(payload)
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [setCurrentSessionId])
 
   return (
     <Dialog title="" isOpen={open} onClose={handleClose}

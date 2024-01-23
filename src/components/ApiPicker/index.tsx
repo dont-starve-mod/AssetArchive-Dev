@@ -1,14 +1,11 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { Popover2 } from '@blueprintjs/popover2'
 import style from './index.module.css'
-import { H5, H6, InputGroup, Tag, Button, PanelStack2, PanelProps, H4, Dialog, DialogBody, DialogFooter, Alert } from '@blueprintjs/core'
-import { Api, getDefaultArgs} from '../AnimCore_Canvas/animstate'
+import { H5, H6, InputGroup, Tag, Button, PanelStack2, PanelProps, H4, Dialog, DialogBody, DialogFooter, Alert, useHotkeys } from '@blueprintjs/core'
+import { Api, getDefaultArgs, isUnstandardApi} from '../AnimCore_Canvas/animstate'
 import { useDragData } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { API_DOC } from './api_doc'
 import ArgInput from '../ApiArgInput'
-import { useGlobalAnimState } from '../ApiArgInput/predicthooks'
-import { useAnimStateHook } from '../AnimCore_Canvas/animhook'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 
 const buttonStyle: React.CSSProperties = {
@@ -49,7 +46,13 @@ function ApiDetailPanel(props: PanelProps<{api: Api["name"]}>) {
     }
     else {
       const last = getLatestApi()
-      if (last !== undefined && last["name"] === apiObj["name"]
+      if (isUnstandardApi(apiObj["name"])){
+        appWindow.emit("api_picker_alert",{
+          type: "unstandard",
+          api: apiObj,
+        })
+      }
+      else if (last !== undefined && last["name"] === apiObj["name"]
         && JSON.stringify(last["args"]) === JSON.stringify(apiObj["args"])){
         appWindow.emit("api_picker_alert",{
           type: "duplicated",
@@ -59,20 +62,28 @@ function ApiDetailPanel(props: PanelProps<{api: Api["name"]}>) {
       else {
         insertApi(apiObj["name"], apiObj["args"])
         reset()
-        appWindow.emit("toast", {message: "命令添加成功", intent: "success", icon: "endorsed"})
+        appWindow.emit("toast", {message: "添加成功", intent: "success", icon: "endorsed"})
       }
     }
   }, [valid, apiObj, insertApi, getLatestApi, reset])
 
-  useEffect(()=> {
-    const onKey = (event: KeyboardEvent)=> {
-      if (event.key === "Escape") {
-        // closePanel()
-      }
+  const canClose = useRef(true)
+  useHotkeys([
+    {
+      // onKeyDown: console.log,
+      onKeyUp: ()=> {
+        if (canClose.current){
+          canClose.current = false
+          closePanel()
+        }
+      },
+      allowInInput: true,
+      preventDefault: false,
+      combo: "esc",
+      label: "Go back",
+      global: true,
     }
-    document.addEventListener("keydown", onKey)
-    return ()=> document.removeEventListener("keydown", onKey)
-  }, [])
+  ])
 
   const dragData = useDragData()
 
@@ -88,8 +99,8 @@ function ApiDetailPanel(props: PanelProps<{api: Api["name"]}>) {
   }, [])
 
   return (
-    <div>
-      <div>
+    <div className={style["subpanel"]}>
+      <div className={style["back-button"]}>
         <Button icon="chevron-left" minimal small onClick={()=> props.closePanel()}>返回</Button>
       </div>
       <div className={style["api-box"]}>
@@ -109,7 +120,7 @@ function ApiDetailPanel(props: PanelProps<{api: Api["name"]}>) {
             }}
             // onEdit={setEditing}
             onValidChange={setValid}
-            editing={0}
+            autoFocusIndex={0}
           />
         </div>
         <Button 
@@ -122,8 +133,28 @@ function ApiDetailPanel(props: PanelProps<{api: Api["name"]}>) {
       </div>
       {
         Boolean(doc) && 
-        <div style={{marginTop: 10, paddingTop: 10, borderTop: "1px solid #eee"}} className='bp4-running-text'>
+        <div style={{marginTop: 10, paddingTop: 0, borderTop: "1px solid #eee"}} className='bp4-running-text'>
+          {
+            doc.title && <H5 style={{marginTop: 10}}>{doc.title}</H5>
+          }
           {doc.desc}
+          {/* // TODO: add example */}
+          {/* {
+            doc.example && <>
+              <H5>示例</H5>
+              {
+                doc.example
+              }
+            </>
+          } */}
+          {
+            doc.desc_detail && <>
+              <H5>备注</H5>
+              {
+                doc.desc_detail
+              }
+            </>
+          }
         </div>
       }
     </div>
@@ -137,9 +168,6 @@ function ApiBasicPanel(props: PanelProps<{parentRef: ()=> HTMLDivElement}>) {
       props: {api},
       renderPanel: ApiDetailPanel,
     })
-    if (parentRef()) {
-      parentRef().scrollTo(0, 0)
-    }
   }, [openPanel, parentRef])
   return (
     <>
@@ -154,9 +182,9 @@ function ApiBasicPanel(props: PanelProps<{parentRef: ()=> HTMLDivElement}>) {
       <H6>基础</H6>
       <div className={style["api-group"]}>
         <ApiButton name="SetBuild" onClick={()=> open("SetBuild")}/>
-        <ApiButton name="SetBankAndPlayAnimation" onClick={()=> open("SetBankAndPlayAnimation")}/>
         <ApiButton name="SetBank" onClick={()=> open("SetBank")}/>
         <ApiButton name="PlayAnimation" onClick={()=> open("PlayAnimation")}/>
+        <ApiButton name="SetBankAndPlayAnimation" onClick={()=> open("SetBankAndPlayAnimation")}/>
       </div>
       <H6>修饰</H6>
       <div className={style["api-group"]}>
@@ -164,10 +192,10 @@ function ApiBasicPanel(props: PanelProps<{parentRef: ()=> HTMLDivElement}>) {
         <ApiButton name="ClearOverrideSymbol" onClick={()=> open("ClearOverrideSymbol")}/>
         <ApiButton name="AddOverrideBuild" onClick={()=> open("AddOverrideBuild")}/>
         <ApiButton name="ClearOverrideBuild" onClick={()=> open("ClearOverrideBuild")}/>
-        <ApiButton name="Show" onClick={()=> open("Show")}/>
         <ApiButton name="Hide" onClick={()=> open("Hide")}/>
-        <ApiButton name="ShowSymbol" onClick={()=> open("ShowSymbol")}/>
+        <ApiButton name="Show" onClick={()=> open("Show")}/>
         <ApiButton name="HideSymbol" onClick={()=> open("HideSymbol")}/>
+        <ApiButton name="ShowSymbol" onClick={()=> open("ShowSymbol")}/>
       </div>
       <H6>调色</H6>
       <div className={style["api-group"]}>
@@ -186,6 +214,17 @@ function ApiBasicPanel(props: PanelProps<{parentRef: ()=> HTMLDivElement}>) {
         <ApiButton name="Resume" onClick={()=> open("Resume")}/>
         <ApiButton name="SetDeltaTimeMultiplier" onClick={()=> open("SetDeltaTimeMultiplier")}/>
       </div>
+
+      <hr/>
+      <H5>删除/禁用指令</H5>
+      <p>右键点击名字，可删除或禁用一条指令。</p>
+      <H6>批量操作</H6>
+      <Button icon="eye-off" style={buttonStyle}>禁用所有的错误指令</Button>
+      <Button icon="eye-off" style={buttonStyle}>禁用所有的调色指令</Button>
+      <Button icon="eye-open" style={buttonStyle}>启用所有的调色指令</Button>
+      <Button icon="eye-open" style={buttonStyle}>启用所有的指令</Button>
+      <Button icon="duplicate" style={buttonStyle} intent="danger">删除所有的重复指令</Button>
+      <Button icon="warning-sign" style={buttonStyle} intent="danger">删除所有的错误指令</Button>   
     </>
   )
 }
@@ -199,16 +238,6 @@ export default function ApiPicker(props: {style: React.CSSProperties}) {
         showPanelHeader={false}
         initialPanel={{renderPanel: ApiBasicPanel, props: {parentRef: ()=> boxRef.current}}}
       />
-      <hr/>
-      <H5>删除/禁用指令</H5>
-      <p>右键点击名字，可删除或禁用一条指令。</p>
-      <H6>批量操作</H6>
-      <Button icon="eye-off" style={buttonStyle}>禁用所有的错误指令</Button>
-      <Button icon="eye-off" style={buttonStyle}>禁用所有的调色指令</Button>
-      <Button icon="eye-open" style={buttonStyle}>启用所有的调色指令</Button>
-      <Button icon="eye-open" style={buttonStyle}>启用所有的指令</Button>
-      <Button icon="duplicate" style={buttonStyle} intent="danger">删除所有的重复指令</Button>
-      <Button icon="warning-sign" style={buttonStyle} intent="danger">删除所有的错误指令</Button>   
     </div>
   )
 }

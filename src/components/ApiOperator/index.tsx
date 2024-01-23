@@ -19,7 +19,6 @@ export default function ApiOperator() {
       <Button icon="eye-open" style={buttonStyle}>启用所有的调色指令</Button>
       <Button icon="eye-open" style={buttonStyle}>启用所有的指令</Button>
       <Button icon="trash" style={buttonStyle} intent="danger">删除所有的错误指令</Button>
-      
     </div>
   )
 }

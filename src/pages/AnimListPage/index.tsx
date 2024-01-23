@@ -230,22 +230,6 @@ export default function AnimListPage() {
       </tbody>
 
     </table>
-    {/* <div className={style["recent-project-list"]}>
-      {
-        sortedProjectList.map((item, index)=> {
-          const {id} = item
-          return <div key={index}>
-            <AnimProjectItem {...item}
-              disable={Boolean(actionState.deleting)}
-              onChangeTitle={(title)=> onChangeTitle({id, title})}
-              onChangeDescription={(description)=> onChangeDescription({id, description})}
-              onRequestDuplicating={(project)=> onRequestDuplicating(project)}
-              onRequestDeleting={()=> onRequestDeleting({id})}
-            />
-          </div>
-        })
-      }
-    </div> */}
     <div style={{height: 20}}></div>
     <H5>新建项目</H5>
     <div className={style["template-list"]}>
@@ -266,15 +250,15 @@ export default function AnimListPage() {
       onUseTemplate={onUseTemplate}
     />
     <Alert isOpen={Boolean(actionState.deleting)} intent="danger" icon="trash"
-      style={{zIndex: 100}}
+      style={{zIndex: 100, position: "absolute"}}
       confirmButtonText="确定"
       cancelButtonText="还是算了"
       // @ts-ignore deleting id is guaranteed here
       onConfirm={()=> onDelete({id: actionState.deleting.id})}
       onCancel={()=> dispatch({type: "deleting", payload: {id: "/", cancel: true}})}
       >
-      <p>你真的要删除项目吗？该操作<strong>无法撤销</strong>。</p>
-      <p style={{color: "#aaa", fontStyle: "oblique"}}>回档也救不了你。</p>
+      <p>真的要删除项目吗？</p>
+      <p>该操作<strong>无法撤销</strong>。</p>
     </Alert>
   </div>
   )
