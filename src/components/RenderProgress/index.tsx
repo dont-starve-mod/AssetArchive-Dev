@@ -49,7 +49,6 @@ export default function RenderProgress() {
     const handlers = [
       listen<string>("render_event", ({payload})=> {
         const data: RenderEvent & {session_id: string} = JSON.parse(payload)
-        console.log("data.session_id", data.session_id)
         if (data.session_id !== currentSessionId)
           return
         if (data.state === "start"){
@@ -112,7 +111,7 @@ export default function RenderProgress() {
             {
               path && <>
                 <H5>导出成功！</H5>
-                <p>文件在: <a onClick={()=> invoke("select_file_in_folder", {path})}>{path}</a></p>
+                <p>文件在: <a style={{wordWrap: "break-word"}} onClick={()=> invoke("select_file_in_folder", {path})}>{path}</a></p>
               </>
             }
           </div>

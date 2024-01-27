@@ -1,31 +1,31 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { AnimProject, NewAnimProject } from '../../animproject'
 import { Dialog, DialogBody, DialogFooter, Button, H5, IconName } from '@blueprintjs/core'
 import { InputGroup, TextArea } from '@blueprintjs/core'
 
-interface IIdleProps {
+type IdleProps = {
   action: "none"
 }
 
-interface ICreateProps {
+type CreateProps = {
   action: "create",
   onCreate: (param: NewAnimProject)=> unknown
 }
 
-interface IUseTemplateProps {
+type UseTemplateProps = {
   action: "use_template",
   project: AnimProject,
   onUseTemplate: (param: NewAnimProject & { from_id: string })=> unknown
 }
 
-interface IDuplicateProps {
+type DuplicateProps = {
   action: "duplicate",
   project: AnimProject,
   onDuplicate: (param: NewAnimProject & { from_id: string })=> unknown
 }
 
-export type AnimProjectSetterAction = (IIdleProps | ICreateProps | IDuplicateProps | IUseTemplateProps)["action"]
-type IProps = (IIdleProps | ICreateProps | IDuplicateProps | IUseTemplateProps) & {onClose: Function}
+export type AnimProjectSetterAction = (IdleProps | CreateProps | DuplicateProps | UseTemplateProps)["action"]
+type IProps = (IdleProps | CreateProps | DuplicateProps | UseTemplateProps) & {onClose: Function}
 export default function AnimProjectSetter(props: IProps) {
   const {action} = props
   const title = 

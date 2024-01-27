@@ -4,6 +4,7 @@ import { appWindow } from "@tauri-apps/api/window"
 import { listen } from "@tauri-apps/api/event"
 import { invoke } from "@tauri-apps/api"
 import { useSelector } from "../../redux/store"
+import { openAnimSubwindow } from "../../pages/AnimListPage/util"
 
 type AppToasterProps = {
   top?: number
@@ -11,7 +12,7 @@ type AppToasterProps = {
 
 type AppToasterPayload = 
   string |
-  ToastProps & { savepath: string }
+  ToastProps & { savepath?: string, anim_subwindow_id?: string }
 
 export default function AppToaster(props: AppToasterProps) {
   const ref = useRef<OverlayToaster>()
@@ -30,6 +31,13 @@ export default function AppToaster(props: AppToasterProps) {
             onClick: ()=> invoke("select_file_in_folder", {path: payload.savepath})
           }
           payload.timeout = 10*1000
+        }
+        else if (payload.anim_subwindow_id) {
+          payload.action = {
+            text: "",
+            icon: "document-open",
+            onClick: ()=> openAnimSubwindow({id: payload.anim_subwindow_id})
+          }
         }
         ref.current.show(payload)
       }

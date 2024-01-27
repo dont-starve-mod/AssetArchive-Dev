@@ -80,7 +80,7 @@ impl IncludeLua {
                 // files.insert(#module.to_string(), (include_str!(#real_path).to_string(), #virtual_path.to_string()))
                 files.insert(#module.to_string(), 
                     (String::from_utf8(include_crypt_bytes::include_bytes_obfuscate!(#real_path).expect("Failed to decrypt lua script"))
-                        .expect(format!("Not valid utf8: {}", #module.to_string()).as_str()), 
+                        .unwrap_or(format!("print(\"Warning: not valid utf8: {}\")", #module.to_string())), 
                     #virtual_path.to_string()))
             }
         });

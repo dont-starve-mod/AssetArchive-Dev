@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useReducer, useMemo } from 'react'
 import { Alert, Button, H3, H5, Icon, PopoverInteractionKind, ToastProps } from '@blueprintjs/core'
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
-import { useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
+import { useLocalStorage, useLuaCall, useLuaCallOnce, useMouseDragClick } from '../../hooks'
 import style from './style.module.css'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { EditableText } from '@blueprintjs/core'
@@ -74,20 +74,13 @@ export default function AnimListPage() {
     actionState.templating !== undefined ? actionState.templating :
     null
   
-  const openProject = useCallback((id: string)=> {
-    openAnimSubwindow({id})
-  }, [])
-  
   const setOpenId = useCallback((id: string)=> {
     // appWindow.emit("request_opening_project", { id })
     const payload: ToastProps = {
       intent: "success",
       message: "项目创建成功。是否打开？",
-      action: {
-        icon: "document-open",
-        // text: "打开"
-        onClick: ()=> openProject(id),
-      }
+      // @ts-ignore
+      anim_subwindow_id: id,
     }
     appWindow.emit("toast", payload)
   }, [])
@@ -102,7 +95,7 @@ export default function AnimListPage() {
     const {new_id, project} = data as {new_id: string, project: AnimProject[]}
     setRecent(project)
     setOpenId(new_id)
-  }, {type: "create"}, [])
+  }, {type: "create"}, [setOpenId])
   const change = useLuaCall("animproject", (result: string)=> {
     const data = JSON.parse(result)
     const {project} = data as {project: AnimProject[]}
@@ -114,7 +107,7 @@ export default function AnimListPage() {
     const {new_id, project} = data as {new_id: string, project: AnimProject[]}
     setRecent(project)
     setOpenId(new_id)
-  }, {type: "duplicate"}, [])
+  }, {type: "duplicate"}, [setOpenId])
 
   useLuaCallOnce<string>("animproject", result=> {
     const data = JSON.parse(result)
@@ -146,12 +139,12 @@ export default function AnimListPage() {
   const onCreate = useCallback(({title, description}: NewAnimProject)=> {
     dispatch({type: "reset"})
     create({title, description})
-  }, [])
+  }, [create])
 
   const onDelete = useCallback(({id}: {id: string})=> {
     dispatch({type: "deleted", payload: {id}})
     delete_call({id})
-  }, [])
+  }, [delete_call])
 
   const onRequestDeleting = useCallback(({id})=> {
     dispatch({type: "deleting", payload: {id}})
@@ -160,12 +153,12 @@ export default function AnimListPage() {
   const onDuplicate = useCallback(({title, description, from_id}: NewAnimProject & { from_id: string })=> {
     dispatch({type: "duplicated", payload: {id: "/"}})
     duplicate({title, description, from_id})
-  }, [])
+  }, [duplicate])
 
   const onUseTemplate = useCallback(({title, description, from_id}: NewAnimProject & { from_id: string })=> {
-    dispatch({type: "templating", payload: {id: "/"}})
+    dispatch({type: "duplicated", payload: {id: "/"}})
     duplicate({title, description, from_id, type: "use_template"})
-  }, [])
+  }, [duplicate])
 
   const onRequestDuplicating = useCallback((project: AnimProject)=> {
     dispatch({type: "duplicating", payload: project})
@@ -243,13 +236,17 @@ export default function AnimListPage() {
         })
       }
     </div>
-    <AnimProjectSetter action={actionName} project={actionProject as AnimProject}
+    <AnimProjectSetter 
+      action={actionName} 
+      project={actionProject as AnimProject}
       onClose={()=> dispatch({type: "reset"})}
       onCreate={onCreate}
       onDuplicate={onDuplicate}
       onUseTemplate={onUseTemplate}
     />
-    <Alert isOpen={Boolean(actionState.deleting)} intent="danger" icon="trash"
+    <Alert 
+      isOpen={Boolean(actionState.deleting)} 
+      intent="danger" icon="trash"
       style={{zIndex: 100, position: "absolute"}}
       confirmButtonText="确定"
       cancelButtonText="还是算了"
@@ -423,10 +420,19 @@ function Template(props: AnimProject & {onClick: Function}){
     animstate.pause()
   }, [cmds])
 
+  const [onMouseDown, onMouseUp, isDragClick] = useMouseDragClick()
+  const onClick = useCallback(()=> {
+    if (!isDragClick()){
+      props.onClick()
+    }
+  }, [props.onClick, isDragClick])
+  
   return <div className={style["template-card"]} 
     onMouseEnter={()=> animstate.resume()}
     onMouseLeave={()=> animstate.pause()}
-    onClick={()=> props.onClick()}
+    onMouseDown={onMouseDown}
+    onMouseUp={onMouseUp}
+    onClick={onClick}
     >
       <AnimCore width={100} height={100} 
         animstate={animstate} 

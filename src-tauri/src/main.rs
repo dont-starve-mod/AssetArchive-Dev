@@ -110,6 +110,7 @@ fn main() {
             lua_console, 
             lua_call, 
             lua_interrupt,
+            open_url,
             fmod_send_message,
             fmod_update,
             fmod_get_data,
@@ -167,6 +168,11 @@ fn select_file_in_folder(path: String) -> bool {
 #[tauri::command]
 fn select_file_in_folder(path: String) -> bool {
     windows_select_file_in_folder(path)
+}
+
+#[tauri::command]
+fn open_url(url: String) -> bool {
+    webbrowser::open(url.as_str()).is_ok()
 }
 
 #[tauri::command]

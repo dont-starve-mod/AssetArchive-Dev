@@ -28,3 +28,7 @@ src-tauri/target
 
 # py scripts
 publish.py
+
+# release
+windows
+macos

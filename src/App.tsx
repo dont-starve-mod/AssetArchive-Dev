@@ -18,6 +18,8 @@ import MyTest from './components/MyTest'
 import AppFmodHandler from './components/AppFmodHandler'
 FocusStyleManager.onlyShowFocusOnTabs()
 
+// https://zhuanlan.zhihu.com/p/573735645
+
 declare global {
 	interface Window {
 		app_init?: boolean,

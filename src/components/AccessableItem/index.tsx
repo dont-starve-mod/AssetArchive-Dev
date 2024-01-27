@@ -73,6 +73,8 @@ export function AccessableItem(props: Result){
             <Preview.Sfx {...props} {...PREIVEW_SIZE}/> :
           type === "shader" ? 
             <Preview.SimpleIcon icon="code"/> :
+          type === "fmodproject" ?
+            <Preview.SimpleIcon icon="box"/> :
           <></>
         }
       </div>

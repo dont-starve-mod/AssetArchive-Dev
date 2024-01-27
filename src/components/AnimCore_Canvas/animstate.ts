@@ -249,6 +249,7 @@ export class AnimState {
 
   setApiList(list: Api[]) {
     this.api_list = list
+    this.rebuildTint()
   }
 
   getValidApiList() {

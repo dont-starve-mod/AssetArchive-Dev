@@ -135,8 +135,7 @@ end
 -- a project file to define how to render your DS/DST animation
 AnimProject = Class(function(self)
 	self.cmds = {}
-	self.ignored_cmds = {}
-	self.invalid_cmds = {}
+	self.unknown_cmds = {}
 end)
 
 function AnimProject:CreateEnv()
@@ -148,7 +147,8 @@ function AnimProject:CreateEnv()
 	}
 	for _, def in ipairs(API_DEF)do
 		env[def.name] = function(...)
-			local api = {name = def.name, args = {...}}
+			local line = debug.getinfo(2).currentline
+			local api = {name = def.name, args = {...}, line = line}
 			table.insert(self.cmds, api)
 			return { Disable = function() api.disabled = true end }
 		end
@@ -156,19 +156,20 @@ function AnimProject:CreateEnv()
 	for name in ipairs(API_IGNORED)do
 		env[name] = function(...)
 			local line = debug.getinfo(2).currentline
-			table.insert(self.ignored_cmds, {name = name, line = line})
-			return { Disable = function() end }
+			local api = {name = name, args = {...}, line = line, ignored = true}
+			table.insert(self.cmds, api)
+			return { Disable = function() api.disabled = true end }
 		end
 	end
 	local index = function(_, k)
 		return function(...)
 			local line = debug.getinfo(2).currentline
 			print("Warning: API `"..k.."` is invalid (line "..line..")")
-			table.insert(self.invalid_cmds, {name = k, line = line})
+			table.insert(self.unknown_cmds, {name = k, line = line})
 			return { Disable = function() end }
 		end
 	end
-	-- anim:xxxxx() sugar
+	-- TODO: anim:xxxxx() sugar
 	env.anim = setmetatable({}, {__index = function(_, k)
 		return function()
 			print(k)
@@ -194,6 +195,7 @@ function AnimProject:LoadSource(content)
 	end
 
 	self.env = setmetatable(env, nil)
+	self.env.math = nil -- delete math.huge
 	self.title = env.title
 	self.description = env.description
 	self.facing = env.facing
@@ -207,7 +209,9 @@ function AnimProject:LoadFile(path)
 	if f == nil then
 		error("Failed to open anim project file: "..path)
 	end
-	return self:LoadSource(f:read_to_end())
+	local s = f:read_to_end()
+	f:close()
+	return self:LoadSource(s)
 end
 
 function AnimProject:__tostring()
@@ -218,13 +222,18 @@ function AnimProject:__tostring()
 	end
 end
 
+function AnimProject:Update(data)
+	for k,v in pairs(data)do
+		self[k] = v
+	end
+	return self
+end
+
 function AnimProject:Serialize(opts)
 	local data = opts or {}
 	data.title = self.title
 	data.description = self.description
 	data.cmds = self.cmds
-	data.ignored_cmds = self.ignored_cmds
-	data.invalid_cmds = self.invalid_cmds
 	data.facing = self.facing
 	data.preview_scale = self.preview_scale
 	return data
@@ -276,11 +285,11 @@ local AnimProjectManager = Class(function(self, basedir)
 	assert(basedir:create_dir(), "Failed to create animproject dir")
 
 	self.basedir = basedir
-	self:LoadTemplate()
-	self:LoadProject()
+	self:LoadTemplateList()
+	self:LoadProjectList()
 end)
 
-function AnimProjectManager:LoadTemplate()
+function AnimProjectManager:LoadTemplateList()
 	self.template_list = {}
 
 	local static_loader = nil
@@ -296,11 +305,11 @@ function AnimProjectManager:LoadTemplate()
 		assert(source ~= "", "Failed to load template source: "..v)
 		local project = AnimProject()
 		assert(project:LoadSource(source), project.error)
-		table.insert(self.template_list, project:Serialize({id = v, readonly = true}))
+		table.insert(self.template_list, project:Update({id = v, is_template = true}))
 	end
 end
 
-function AnimProjectManager:LoadProject()
+function AnimProjectManager:LoadProjectList()
 	self.project_list = {}
 	for _,v in ipairs(self.basedir:iter_file_with_extension(".lua"))do
 		local name = v:name()
@@ -309,7 +318,7 @@ function AnimProjectManager:LoadProject()
 		if success and #content > 0 then
 			local project = AnimProject()
 			if project:LoadSource(content) then
-				table.insert(self.project_list, project:Serialize({id = name, mtime = mtime}))
+				table.insert(self.project_list, project:Update({id = name, mtime = mtime}))
 			else
 				print(project.error)
 			end
@@ -327,7 +336,7 @@ function AnimProjectManager:ReloadProjectById(id, project)
 			if not project:LoadSource(content) then
 				error("Failed to reload project: "..id)
 			end
-			project = project:Serialize({id = id, mtime = mtime})
+			project:Update({id = id, mtime = mtime})
 		else
 			error("Failed to read project file content: "..id)
 		end
@@ -338,6 +347,7 @@ function AnimProjectManager:ReloadProjectById(id, project)
 			return project
 		end
 	end
+	print("Insert-->", id)
 	table.insert(self.project_list, project)
 	return project
 end
@@ -398,11 +408,14 @@ function AnimProjectManager:OnIpc(param)
 		local id, path = self:NewUid(title)
 		local project = AnimProject()
 		new_id = id
-		project.title = title
-		project.description = description
-		local data = project:Serialize{id = new_id, mtime = math.floor(now_s())}
-		self:ReloadProjectById(id, data)
-		path:write(AnimProject.Static_ToFile(data))
+		project:Update({
+			title = title,
+			description = description,
+			id = new_id, 
+			mtime = math.floor(now_s())
+		})
+		self:ReloadProjectById(new_id, project)
+		path:write(project:ToFile())
 	elseif param.type == "duplicate" then
 		assert(type(from_id) == "string", "Duplicate project: from_id not provided")
 		local id, path = self:NewUid(title)
@@ -413,9 +426,9 @@ function AnimProjectManager:OnIpc(param)
 			if project:LoadSource(content) then
 				project.title = title
 				project.description = description
-				local data = project:Serialize({id = new_id, mtime = math.floor(now_s())})
-				table.insert(self.project_list, data)
-				path:write(AnimProject.Static_ToFile(data))
+				project:Update({id = new_id, mtime = math.floor(now_s())})
+				self:ReloadProjectById(new_id, project)
+				path:write(project:ToFile())
 			else
 				error("Failed to load project: "..id.."\n"..project.error)
 			end
@@ -434,11 +447,13 @@ function AnimProjectManager:OnIpc(param)
 			error("Invalid template id: "..from_id)
 		end
 		local data = template
+		data.id = new_id
 		data.title = title
 		data.description = description
 		data.mtime = math.floor(now_s())
-		table.insert(self.project_list, data)
-		path:write(AnimProject.Static_ToFile(data))
+		local project = AnimProject():Update(data)
+		self:ReloadProjectById(new_id, project)
+		path:write(project:ToFile())
 	elseif param.type == "change" then
 		assert(type(id) == "string", "Change project: id not provided")
 		for i,v in ipairs(self.project_list)do
@@ -449,7 +464,7 @@ function AnimProjectManager:OnIpc(param)
 				-- v.preview_scale = param.preview_scale or v.preview_scale
 				v.mtime = math.floor(now_s())
 				local path = self.basedir/id
-				path:write(AnimProject.Static_ToFile(v))
+				path:write(v:ToFile())
 			end
 
 			-- TODO: title will change id
@@ -471,7 +486,6 @@ function AnimProjectManager:OnIpc(param)
 
 	-- debug check data type
 	for _,v in ipairs(self.project_list)do
-		assert(getmetatable(v) == nil)
 		assert(v.id, "Field `id` is required")
 		assert(v.mtime, "Field `mtime` is required")
 	end

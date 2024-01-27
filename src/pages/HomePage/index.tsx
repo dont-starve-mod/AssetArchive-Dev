@@ -1,4 +1,4 @@
-import { Icon } from '@blueprintjs/core'
+import { Button, Icon } from '@blueprintjs/core'
 import React from 'react'
 import { useOS } from '../../hooks'
 
@@ -33,9 +33,11 @@ export default function HomePage() {
                 </span>
               </td>
             </tr>
-            <tr>
-              {/* <td>第二行</td>
-              <td>233</td> */}
+            <tr style={{display: "none"}}>
+              <td>任意门</td>
+              <td>
+                <Button small icon="blank"></Button>
+              </td>
             </tr>
           </tbody>
         </table>
