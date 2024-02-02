@@ -262,8 +262,8 @@ pub mod lua_filesystem {
             }
         }
 
-        fn read_f32_matrix(&mut self) -> Option<Vec<f32>> {
-            match self.read_exact(24) {
+        fn read_f32_matrix(&mut self, num: usize) -> Option<Vec<f32>> {
+            match self.read_exact(num* 4) {
                 Ok(bytes)=> {
                     Some(bytes.chunks_exact(4)
                         .map(|v| f32::from_le_bytes(v.try_into().unwrap())) // only for anim.bin loader
@@ -324,8 +324,8 @@ pub mod lua_filesystem {
             _methods.add_method_mut("read_f32", |_, fs: &mut Self, ()|{
                 Ok(fs.read_f32())
             });
-            _methods.add_method_mut("read_f32_matrix", |_, fs: &mut Self, ()|{
-                Ok(fs.read_f32_matrix())
+            _methods.add_method_mut("read_f32_matrix", |_, fs: &mut Self, num: usize|{
+                Ok(fs.read_f32_matrix(num))
             });
             _methods.add_method_mut("read_u64", |_, fs: &mut Self, ()|{
                 Ok(fs.read_u64())

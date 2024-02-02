@@ -86,6 +86,8 @@ API_DOC["PlayAnimation"] = {
   desc_detail: (
     <>
       <p>动画名对大小写敏感。</p>
+      <p>在游戏中，<code>PlayAnimation</code>还有第二个可选参数，代表动画是否循环播放（默认为不循环）。
+      不循环的动画在播放完毕时会触发<code>animover</code>事件。</p>
     </>
   )
 }
@@ -95,9 +97,59 @@ API_DOC["PushAnimation"] = {
   desc: (
     <>
       <p>向动画队列末端添加一个新的动画。</p>
+      <p>在动画渲染器中，该指令的效果和<code>PlayAnimation</code>一致。</p>
       <p></p>
     </>
+  ),
+  desc_detail: (
+    <>
+      <p>动画名对大小写敏感。</p>
+      <p>在游戏中，<code>PushAnimation</code>还有第二个可选参数，代表动画是否循环播放（默认为循环）。
+      若指定为不循环，则添加队列的操作可重复执行。动画队列中的所有动画播放完毕后，
+      触发<code>animqueueover</code>事件。</p>
+      <p>执行<code>PlayAnimation</code>会清空动画队列。</p>
+    </>
   )
+}
+
+API_DOC["AddOverrideBuild"] = {
+  title: "添加覆盖材质",
+  desc: (
+    <>
+      <p>将另一个材质的所有符号覆盖在当前动画上。</p>
+    </>
+  ),
+  desc_detail: (
+    <> 
+      <p>该指令和<code>OverrideSymbol</code>的底层原理一致，且覆盖效果会被
+      <code>ClearOverrideSymbol</code>清除。</p>
+      <p>以材质“sparks”为例，该材质包含了“sprk_1”、“sprk_2”两个符号，
+        所以调用<code>AddOverrideBuild("sparks")</code>等价于同时调用了
+        <code>OverrideSymbol("sprk_1", "sparks", "sprk_1")</code>和
+        <code>OverrideSymbol("sprk_2", "sparks", "sprk_2")</code>。
+      </p>
+    </>
+  )
+}
+
+API_DOC["ClearOverrideBuild"] = {
+  title: "清除覆盖材质",
+  desc: (
+    <>
+      <p>清除当前动画在另一个材质中存在的所有符号的覆盖操作。</p>
+    </>
+  ),
+  desc_detail: (
+    <>
+      <p>该指令一般用于<code>AddOverrideBuild</code>的逆向操作，但同时也会清除
+      <code>OverrideSymbol</code>的覆盖效果。</p>
+      <p>以材质“sparks”为例，该材质包含了“sprk_1”、“sprk_2”两个符号，
+        所以调用<code>ClearOverrideBuild("sparks")</code>等价于同时调用了
+        <code>ClearOverrideSymbol("sprk_1", "sparks", "sprk_1")</code>和
+        <code>ClearOverrideSymbol("sprk_2", "sparks", "sprk_2")</code>。
+      </p>
+    </>
+  ),
 }
 
 API_DOC["SetBankAndPlayAnimation"] = {
@@ -116,6 +168,8 @@ API_DOC["OverrideSymbol"] = {
     <>
       <p>使用某个材质的符号（Symbol）对当前动画符号进行替换，</p>
       <p>第一个参数是被替换的符号名，第二和第三个参数分别是用于替换的材质名和符号名。</p>
+      <p>多次调用该指令时，若第一个参数不同，替换效果会同时存在，否则会发生覆盖。</p>
+      <p>在游戏中，该指令通常用于对动画的局部替换，如武器、帽子、护甲、背包的材质替换。</p>
     </>
   )
 }
@@ -127,6 +181,15 @@ API_DOC["OverrideSkinSymbol"] = {
       <p>覆盖符号，但使用皮肤材质，和<code>OverrideSymbol</code>的功能一致。</p>
     </>
   ),
+}
+
+API_DOC["ClearOverrideSymbol"] = {
+  title: "清除覆盖符号",
+  desc: (
+    <>
+      <p>恢复某个已被覆盖的符号（Symbol），是<code>OverrideSymbol</code>的逆向指令。</p>
+    </>
+  )
 }
 
 API_DOC["Hide"] = {
@@ -237,7 +300,7 @@ API_DOC["SetSymbolMultColour"] = {
   )
 }
 
-const ANIM_CONTROL_HINT = "该指令在动画渲染器中没有任何效果，因为可以直接用下方的控制面板进行相关操作。"
+const ANIM_CONTROL_HINT = "该指令在动画渲染器中没有任何效果，请直接用下方的控制面板进行相关操作。"
 
 API_DOC["Pause"] = {
   title: "暂停",
@@ -264,7 +327,7 @@ API_DOC["SetPercent"] = {
   title: "设置百分比",
   desc: (
     <>
-      <p>将动画进度冻结在某个位置，参数范围0–1（动画开始–动画结束）。</p>
+      <p>将动画进度冻结在某个位置，参数范围0–1。</p>
       <p>{ANIM_CONTROL_HINT}</p>
     </>
   ),

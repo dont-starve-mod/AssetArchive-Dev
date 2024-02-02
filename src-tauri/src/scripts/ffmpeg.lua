@@ -16,9 +16,9 @@ end)
 
 local URLS = {
     WINDOWS = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z",
-    WINDOWS = "https://i-320.wwentua.com:446/01271600159317473bb/2024/01/21/5f82b419cb852d3f5f99f550b5e5d426.7z?st=o80kOar2wEP9RwBQsQ72mQ&e=1706347244&b=AzdZP1M_bVyIDMwMyB3oAMlUuCWVRfQRnUnILdVU3Am4FIwFoUDFSOwIkVVxSYAZ3Um4BMVE0AipWMg94&fi=159317473&pid=112-10-208-16&up=2&mp=0&co=0",
+    WINDOWS = "https://fs-im-kefu.7moor-fs1.com/29397395/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1706414482389/ffmpeg-6.0-essentials_build.7z",
     MACOS = "https://evermeet.cx/ffmpeg/get/zip",
-    MACOS   = "https://i-440.wwentua.com:446/01271600159319374bb/2024/01/21/a164970a19e324477a1244bc981efe84.zip?st=5oqvjZPm8hK7u8Ao7VRC-Q&e=1706347206&b=BjJZPwlkA3ZWZlFgBnsEMQNnDWJWZAo4VDMBIVc3VTVWYQw4A2VSNAIxB2FSMAc0VmEAclArUzwBIg_c_c&fi=159319374&pid=112-10-208-16&up=2&mp=0&co=0",
+    MACOS   = "https://fs-im-kefu.7moor-fs1.com/29397395/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1706414482230/ffmpeg-113344-gbe4fcf027b.zip",
 }
 
 local DOWNLOADER_ID = "FFMPEG"

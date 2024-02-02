@@ -172,7 +172,7 @@ export default function AnimationPanel(props: IProps) {
         style={{
           left, 
           width: `calc(100vw - ${left}px)`, 
-          height: `calc(100vh - 120px)`,
+          height: `calc(100vh - 100px)`,
           backgroundColor: colorType === "solid" ? colorValue : "#ccc",
           ...gridStyle,
       }}>
@@ -206,7 +206,7 @@ export default function AnimationPanel(props: IProps) {
         </div>
         <div 
           className={style["player"]}
-          style={{height: 120}}
+          style={{height: 100}}
         >
           <AnimPlayerWidget animstate={animstate}/>
 

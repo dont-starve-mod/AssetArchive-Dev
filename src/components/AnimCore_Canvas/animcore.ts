@@ -38,12 +38,21 @@ export interface Element {
 
 export type Frame = Element[]
 export type FrameList = Frame[]
+export type Rect = {
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+  width?: number,
+  height?: number,
+}
 
 export interface AnimationData {
   name: string,
   bankhash: number,
   facing: number
   frame: FrameList,
+  rect: Rect,
 }
 
 async function get<T>(param: {[K:string]: string | number | boolean}): Promise<T> {
@@ -241,20 +250,28 @@ function onUpdate(time: number){
         if (!animList || animList.length === 0) return
         const animData = anim.getActualAnimData(animList)
         if (!animData) return
+        anim.setRect(animData.rect)
         anim.setFrameList(animData.frame)
         anim.update(dt)
         const frame = anim.frameList[anim.currentFrame]
         if (!frame) return
         /* render frame */
         ctx.save()
-        ctx.transform(
-          window.devicePixelRatio, 0, 0, window.devicePixelRatio, /* fix scale */
-          canvas.logicalSize.width/2* window.devicePixelRatio,  /* move to center */
-          (canvas.logicalSize.height/2 + (
-            canvas.render.centerStyle === "center" ? 0 :
-            canvas.render.centerStyle === "ground" ? 0.25* canvas.logicalSize.height:
-            0.45* canvas.logicalSize.height))* window.devicePixelRatio, 
-        )
+        if (canvas.render.centerStyle === "origin") {
+          // react component will handle xy offset, so just scale it
+          ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+        }
+        else {
+          // if not calculate offset here
+          ctx.transform(
+            window.devicePixelRatio, 0, 0, window.devicePixelRatio, /* fix scale */
+            canvas.logicalSize.width/2* window.devicePixelRatio,  /* move to center */
+            (canvas.logicalSize.height/2 + (
+              canvas.render.centerStyle === "center" ? 0 :
+              canvas.render.centerStyle === "ground" ? 0.25* canvas.logicalSize.height:
+              0.45* canvas.logicalSize.height))* window.devicePixelRatio, 
+          )
+        }
         const renderAxis = ()=> {
           ctx.save()
           ctx.translate(...canvas.render.axisOrigin())
@@ -278,7 +295,7 @@ function onUpdate(time: number){
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
           if (anim.DEV_usingElementLoader && anim.elementLoader){
-            const element = anim.elementLoader({build: sourceBuild.name, imghash, index})
+            const element = anim.elementLoader({build: sourceBuild.name, imghash: symbol, index})
             if (!element) return
             const {width: WIDTH, height: HEIGHT} = element
             // const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
@@ -371,9 +388,10 @@ function addAnimState(
 /** bisearch the actual image index to render */
 const getImgIndex = (imgList: ImageData[], index: number): number=> {
   if (imgList.length === 1) return 0
-  let i = 0, j = index
+  let i = 0, j = Math.min(index, imgList.length - 1)
   if (imgList[j].index < index) return j
-  while (1){
+  if (imgList[0].index > 0 && imgList[0].index >= index) return 0
+  for (let n = 0; n < 1000; ++n){
     if (imgList[i].index === index) return i
     if (imgList[j].index === index) return j
     let k = Math.floor((i+j)/2)

@@ -626,7 +626,7 @@ function Provider:GetAnimBin(args)
 	if type(args.file) == "string" then
 		local anim = self:LoadAnim(args.file)
 		if not anim then
-			return false
+			return {}
 		else
 			local result = {}
 			for _,v in ipairs(anim.animlist)do
@@ -634,7 +634,6 @@ function Provider:GetAnimBin(args)
 				table.insert(result, v)
 			end
 
-			print(json.encode(result))
 			return result
 		end
 	end

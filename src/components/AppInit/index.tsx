@@ -102,6 +102,12 @@ export default function AppInit() {
   useEffect(()=> {
     async function init() {
       const handlers = [
+        await globalListen("tauri://update-status", ({payload})=> {
+          console.log("UPDATE STATUS EVENT:", payload)
+        }),
+        await globalListen("tauri://update", ({payload})=> {
+          console.log("UPDATE EVENT:", payload)
+        }),
         await globalListen<string>("settings", ({payload})=> {
           const settings: AppSettings = JSON.parse(payload)
           dispatch(initSettings(settings))

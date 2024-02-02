@@ -1,6 +1,6 @@
 import { byte2facing, facing2byte } from "../../facing"
 import smallhash from "../../smallhash"
-import { FrameList, AnimationData, BuildData } from "./animcore"
+import { FrameList, AnimationData, BuildData, Rect } from "./animcore"
 import { v4 as uuidv4 } from "uuid"
 
 // TODO: 需要写一个指令覆盖/依赖关系的缓存表
@@ -87,7 +87,7 @@ export function getDefaultArgs(name: Api["name"]): any[] {
   else if (name === "SetDeltaTimeMultiplier")
     return [1]
   else if (name === "SetPercent")
-    return [0]
+    return ["", 0]
   else if (name == "Pause" || name === "Resume")
     return []
   else 
@@ -167,6 +167,8 @@ const getApiGroup = (name: string) => {
     return "UNKNOWN"
 }
 
+type AnimStateEvent = "rebuildsymbolsource" | "changeframelist" | "changerect"
+
 interface IData {
   bank?: hash,
   build?: string,
@@ -189,6 +191,7 @@ export class AnimState {
   elementLoader?: (param: {build: string, imghash: number, index: number})=> ImageBitmap = dummy as any
 
   frameList: FrameList
+  rect: Rect
   symbolCollection: Map<number, string | number>
   layerCollection:  Map<number, string | number>
   symbolSource: {[K: number]: [BuildData | null, number]}
@@ -200,6 +203,7 @@ export class AnimState {
   constructor(data?: IData){
     this.api_list = []
     this.frameList = []
+    this.rect = {left: -1, right: 1, top: -1, bottom: 1}
     this.symbolSource = {}
     this.symbolCollection = new Map()
     this.layerCollection = new Map()
@@ -250,6 +254,7 @@ export class AnimState {
   setApiList(list: Api[]) {
     this.api_list = list
     this.rebuildTint()
+    this.rebuildSymbolSource()
   }
 
   getValidApiList() {
@@ -383,6 +388,15 @@ export class AnimState {
     if (this.frameList !== frameList){
       this.frameList = frameList
       this.rebuildSymbolSource()
+      this._event.dispatchEvent(new Event("changeframelist"))
+    }
+  }
+
+  setRect(rect: Rect) {
+    const {left, right, top, bottom} = this.rect
+    if (rect.left !== left || rect.right !== right || rect.top !== top || rect.bottom !== bottom){
+      this.rect = rect
+      this._event.dispatchEvent(new Event("changerect"))
     }
   }
 
@@ -602,13 +616,11 @@ export class AnimState {
   }
 
   // event
-  addEventListener(type: "rebuildsymbolsource", 
-    callback: EventListenerOrEventListenerObject) {
+  addEventListener(type: AnimStateEvent, callback: EventListenerOrEventListenerObject) {
     this._event.addEventListener(type, callback)
   }
 
-  removeEventListener(type: "rebuildsymbolsource",
-    callback: EventListenerOrEventListenerObject) {
+  removeEventListener(type: AnimStateEvent, callback: EventListenerOrEventListenerObject) {
     this._event.removeEventListener(type, callback)
   }
 
@@ -710,7 +722,20 @@ class AnimPlayer {
       return (this.currentFrame + 1 - percentInFrame) / this.totalFrame 
   }
 
-  setPercent(percent: number){
-    const frame = percent * (this.totalFrame)
+  setPercent(percent: number, autoStop?: false){
+    if (autoStop !== false)
+      this.paused = true
+    
+    if (this.totalFrame > 0){
+      const frame = percent * (this.totalFrame)
+      if (!this.reversed){
+        this.currentFrame = Math.min(Math.floor(frame), this.totalFrame - 1)
+        this.time = (frame - this.currentFrame)* this.frameInterval
+      }
+      else{
+        this.currentFrame = Math.min(Math.ceil(frame), this.totalFrame - 1)
+        this.time = (1 + this.currentFrame - frame)* this.frameInterval
+      }
+    }
   }
 }

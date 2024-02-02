@@ -1,10 +1,18 @@
 type affine_matrix = [number, number, number, number, number, number]
 
+type Placement = {
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  scale: number,
+}
+
 export interface IRenderParams {
   globalScale?: number,
   defaultScale?: number,
   axis?: "none" | "front" | "back",
-  centerStyle?: "center" | "ground" | "bottom",
+  centerStyle?: "center" | "ground" | "bottom" | "origin",
   bgcType?: "solid" | "transparent",
   bgc?: string,
 }
@@ -108,6 +116,13 @@ export class RenderParams implements IRenderParams{
     const scale = this.scale * Math.pow(.99, y*0.5) // TODO: 根据系统类型决定滚动方向
     this.scale = Math.min(this.MAX_SCALE, Math.max(this.MIN_SCALE, scale))
     // console.log("scaleTo", this.scale)
+  }
+
+  applyPlacement(placement: Placement) {
+    this.reset()
+    this.x = placement.x
+    this.y = placement.y
+    this.globalScale = placement.scale * 0.9
   }
 
   serialize() {

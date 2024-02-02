@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event"
 import { invoke } from "@tauri-apps/api"
 import { useSelector } from "../../redux/store"
 import { openAnimSubwindow } from "../../pages/AnimListPage/util"
+import { useLocalStorage } from "../../hooks"
 
 type AppToasterProps = {
   top?: number
@@ -17,11 +18,15 @@ type AppToasterPayload =
 export default function AppToaster(props: AppToasterProps) {
   const ref = useRef<OverlayToaster>()
   const root = useSelector(({appsettings})=> appsettings.last_dst_root)
+  const [numToast] = useLocalStorage("toast_max_num")
+  const [aliveTime] = useLocalStorage("toast_alive_time")
+
+  const aliveTimeMs = aliveTime * 1000
 
   useEffect(()=> {
     let unlisten = appWindow.listen<AppToasterPayload>("toast", ({payload})=> {
       if (typeof payload === "string") {
-        ref.current.show({message: payload})
+        ref.current.show({message: payload, timeout: aliveTimeMs})
       }
       else {
         if (payload.savepath) {
@@ -30,7 +35,7 @@ export default function AppToaster(props: AppToasterProps) {
             text: "查看", 
             onClick: ()=> invoke("select_file_in_folder", {path: payload.savepath})
           }
-          payload.timeout = 10*1000
+          payload.timeout = aliveTimeMs
         }
         else if (payload.anim_subwindow_id) {
           payload.action = {
@@ -38,12 +43,20 @@ export default function AppToaster(props: AppToasterProps) {
             icon: "document-open",
             onClick: ()=> openAnimSubwindow({id: payload.anim_subwindow_id})
           }
+          payload.timeout = aliveTimeMs
+        }
+        else if (typeof payload.timeout !== "number"){
+          payload.timeout = aliveTimeMs
         }
         ref.current.show(payload)
       }
     })
     return ()=> { unlisten.then(f=> f()) }
-  }, [])
+  }, [aliveTimeMs])
+
+  useEffect(()=> {
+    ref.current.clear()
+  }, [aliveTime, numToast])
 
   const progressKey = useRef<string>("")
 
@@ -90,14 +103,14 @@ export default function AppToaster(props: AppToasterProps) {
     return ()=> {
       unlisten.then(f=> f())
       clearTimeout(timer)
-      ref.current.dismiss(progressKey.current, true)
+      ref.current?.dismiss(progressKey.current, true)
       progressKey.current = ""
     }
   }, [root])
 
   return (
     <div style={{position: "fixed", top: props.top || 0, right: 30, zIndex: 30}}>
-      <OverlayToaster maxToasts={5} position={Position.TOP_RIGHT} ref={ref} usePortal={false}/>
+      <OverlayToaster maxToasts={numToast} position={Position.TOP_RIGHT} ref={ref} usePortal={false}/>
     </div>
   )
 }

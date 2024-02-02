@@ -43,6 +43,7 @@ IpcHandlers.Register("appinit", function()
 	IpcEmitEvent("settings", Persistant.Config:Dumps()) -- get settings first
 
 	GLOBAL.root = DST_DataRoot()
+	GLOBAL.projectmanager = AnimProjectManager(APP_DATA_DIR/"animproject")
 	if not GLOBAL.root:IsValid() then
 		IpcEmitEvent("update_setting", json.encode_compliant({
 			key = "last_dst_root", 
@@ -53,8 +54,6 @@ IpcHandlers.Register("appinit", function()
 	GLOBAL.prov = Provider(GLOBAL.root)
 	GLOBAL.prov:DoIndex(false)
 	GLOBAL.prov:ListAsset()
-
-	GLOBAL.projectmanager = AnimProjectManager(APP_DATA_DIR/"animproject")
 
 	return {
 		success = true,

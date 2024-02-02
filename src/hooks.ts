@@ -45,6 +45,7 @@ export function useMouseDrag(onMoveCb: (x: number, y: number, px: number, py: nu
   const onMouseUp = useCallback(()=> {
     down.current = false
   }, [])
+
   useEffect(()=> {
     document.addEventListener<"mousemove">("mousemove", onMouseMove)
     document.addEventListener<"mouseup">("mouseup", onMouseUp)
@@ -52,7 +53,8 @@ export function useMouseDrag(onMoveCb: (x: number, y: number, px: number, py: nu
       document.removeEventListener<"mousemove">("mousemove", onMouseMove)
       document.removeEventListener<"mouseup">("mouseup", onMouseUp)
     }
-  },[])
+  },[onMouseMove, onMouseUp])
+  
   const onMouseDown = ()=> {
     down.current = true
   }

@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import style from './index.module.css'
 import { Button, InputGroup, useHotkeys } from '@blueprintjs/core'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import { appWindow } from '@tauri-apps/api/window'
 import TinySlider from '../TinySlider'
 import { Tooltip2 } from '@blueprintjs/popover2'
+import { useMouseDrag } from '../../hooks'
 
 interface IProps {
   animstate: AnimState
@@ -131,9 +132,37 @@ export default function AnimPlayerWidget(props: IProps) {
     return ()=> cancelAnimationFrame(timer)
   }, [player])
 
+  const barRef = useRef<HTMLDivElement>()
+  const updateBarPercent = useCallback((px: number, _py: number)=> {
+    if (barRef.current) {
+      const rect = barRef.current.getBoundingClientRect()
+      const percent = px < rect.left ? 0 : px > rect.right ? 1 :
+        (px - rect.left) / rect.width
+      player.setPercent(percent)
+      forceUpdate()
+    }
+  }, [player])
+
+  const onMoveCb = useCallback((_x: number, _y:  number, px: number, py: number)=> {
+    if (barRef.current){
+      updateBarPercent(px, py)
+    }
+  }, [updateBarPercent])
+
+  const [onMouseDown] = useMouseDrag(onMoveCb)
+  const onMouseDown2 = useCallback((e: React.MouseEvent<HTMLDivElement>)=> {
+    if (barRef.current){
+      updateBarPercent(e.clientX, e.clientY)
+    }
+    onMouseDown()
+  }, [onMouseDown, updateBarPercent])
+
   return (
     <div className={style["container"]}>
-      <div className={style["bar"]}>
+      <div className={style["bar"]}
+        ref={barRef}
+        onMouseDown={onMouseDown2}
+      >
         <div style={{width: 2, height: "100%", position: "absolute", backgroundColor: "#7562d4",
           left: `${smoothPercent* 100}%`}} />
       </div>

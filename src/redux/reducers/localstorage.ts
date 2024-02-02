@@ -3,13 +3,15 @@ import { createSlice } from "@reduxjs/toolkit"
 import type { PayloadAction, SliceCaseReducers } from "@reduxjs/toolkit"
 
 export interface LocalStorage {
-  volume: number,
   num_search_results_per_page: number,
   atlas_view_show_border: boolean,
   atlas_view_show_uvbox: boolean,
   tex_maximized: boolean,
   tex_use_grid_background: boolean,
   animlist_sorting: ["mtime"|"title", boolean],
+  quicklook_presets: {[K: string]: boolean},
+  toast_max_num: number,
+  toast_alive_time: number,
 }
 
 type Key = keyof LocalStorage
@@ -40,6 +42,9 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     tex_maximized: false,
     tex_use_grid_background: false,
     animlist_sorting: ["mtime", true],
+    quicklook_presets: {spear: true},
+    toast_max_num: 5,
+    toast_alive_time: 7,
     ...loadPersistant()
   }),
   reducers: {

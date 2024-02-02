@@ -3,17 +3,18 @@ import { addAnimState, removeCanvas, CanvasRenderer } from './animcore'
 import { useMouseDrag, useMouseScroll } from '../../hooks'
 import { IRenderParams } from './renderparams'
 
-interface IProps {
+type AnimCoreProps = {
   width?: number,
   height?: number,
   bgc?: string,
   animstate: any,
   customLoaders?: object,
+  renderRef?: (render: any)=> void
 }
 
-export default function AnimCore(props: IProps & IRenderParams) {
+export default function AnimCore(props: AnimCoreProps & IRenderParams) {
   const {width = 540, height = 300, bgc = "#aaa", animstate, customLoaders} = props
-  const canvas = useRef<CanvasRenderer | null>(null)
+  const canvas = useRef<CanvasRenderer>()
   const onMouseMove = useCallback((x: number, y: number)=> {
     canvas.current?.render.offset(x, y)
   }, [])
@@ -22,17 +23,19 @@ export default function AnimCore(props: IProps & IRenderParams) {
   }, [])
   const [onMouseDown] = useMouseDrag(onMouseMove)
   const [onWheel, onMouseEnter, onMouseLeave] = useMouseScroll(onMouseScroll)
-
+  const {renderRef} = props
   const onRef = useCallback((ref: CanvasRenderer)=> {
     if (ref){
       addAnimState(ref, animstate, customLoaders, props)
       ref.logicalSize = { width, height }
       canvas.current = ref
+      if (renderRef) renderRef(ref.render)
     }
     else{
       removeCanvas(ref)
+      if (renderRef) renderRef(null)
     }
-  }, [])
+  }, [renderRef])
 
   const canvasStyle = {
     width, height,

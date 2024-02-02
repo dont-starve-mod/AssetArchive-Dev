@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox, Menu, MenuItem, Callout, InputGroup, Tag, Pre } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
-import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useSaveFileDialog, useBatchDownloadDialog, useLocalStorage } from '../../hooks'
+import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
 import style from './index.module.css'
@@ -23,6 +23,7 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import Code from '../../components/Code'
 import AssetDesc from '../../components/AssetDesc'
 import { search } from '../../global_meilisearch'
+import AnimQuickLook from '../../components/AnimQuickLook'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -446,7 +447,7 @@ function ZipPage({type, file, id}) {
   const [swap_icon, setSwapIconData] = useState<any>()
 
   useLuaCallOnce<string>("load", result=> {
-    if (result == "nil") {
+    if (result == "false") {
       // `build.bin` not exists
       setBuildData(false)
     }
@@ -461,12 +462,11 @@ function ZipPage({type, file, id}) {
   }, {type: "build", file}, [file])
 
   useLuaCallOnce<string>("load", result=> {
-    if (result == "nil") {
+    if (result === "[]") {
       // `anim.bin` not exists
       setAnimList(false)
     }
     else {
-      console.log(result)
       setAnimList(JSON.parse(result))
     }
   }, {type: "animbin", file}, [file])
@@ -481,6 +481,8 @@ function ZipPage({type, file, id}) {
   }, "image", "image.png", [file])
 
   const onSuccess = useCopySuccess()
+
+  const buildName = build && build.name
 
   return <div>
     <H3>{file} <AssetType type={type}/></H3>
@@ -501,7 +503,7 @@ function ZipPage({type, file, id}) {
             <div>
               <p><strong>皮肤图标</strong></p>
               <div style={{marginBottom: 10, display: "flex"}}>
-                <Preview.SymbolElement atlas={atlas} data={swap_icon} width={50} height={50}/>
+                <Preview.FastSymbolElement atlas={atlas} data={swap_icon} width={50} height={50}/>
                 <div style={{width: 10}}/>
                 <Button icon="duplicate" style={{margin: "auto 2px"}} 
                   onClick={()=> copyElement({imghash: SWAP_ICON, index: 0})}/>
@@ -577,7 +579,7 @@ function ZipPage({type, file, id}) {
                             </Button>
                           </div>}>
                           <div className={style["element"]} key={`${imghash}-${element.index}`}>
-                            <Preview.SymbolElement atlas={atlas} data={element} width={40} height={40}/>
+                            <Preview.FastSymbolElement atlas={atlas} data={element} width={40} height={40}/>
                           </div>
                         </Popover2>)
                       }
@@ -597,7 +599,7 @@ function ZipPage({type, file, id}) {
                                 {formatElementSize(element, atlas)}
                               </td>
                               <td>
-                                <Preview.SymbolElement atlas={atlas} data={element} width={40} height={40}/>
+                                <Preview.FastSymbolElement atlas={atlas} data={element} width={40} height={40}/>
                               </td>
                               <td>
                                 <Button icon="duplicate" style={{marginRight: 8}} onClick={()=> copyElement({imghash, index: element.index})}/>
@@ -633,11 +635,16 @@ function ZipPage({type, file, id}) {
                     style={{marginTop: -4, marginBottom: -2}} />
                 </Tooltip2>
               </th>
+              <th>预览
+                {/* <Button icon="cog" minimal small
+                    style={{marginTop: -4, marginBottom: -2}} /> */}
+              </th>
             </thead>
             <tbody>
             {
-              animList.map(({name, facing, bankhash, numframes})=> 
-              <tr>
+              animList.map(({name, facing, bankhash, numframes})=> {
+              const reposition = {} as any
+              return <tr>
                 <td className='bp4-monospace-text'>
                   <Hash hash={bankhash}/>
                 </td>
@@ -648,7 +655,23 @@ function ZipPage({type, file, id}) {
                   <FacingString facing={facing}/>
                 </td>
                 <td>{numframes}</td>
-              </tr>
+                <td>
+                  <Popover2 interactionKind="hover"
+                    placement="right"
+                    ref={v=> reposition.fn = ()=> { v?.reposition() }}
+                    content={<div style={{padding: 5}}>
+                      <AnimQuickLook 
+                        bankhash={bankhash} 
+                        animation={name} 
+                        build={buildName} 
+                        facing={facing}
+                        onResize={()=> reposition.fn?.()}
+                      />
+                    </div>}>
+                    <Button icon="eye-open" />
+                  </Popover2>
+                </td>
+              </tr>}
               )
             }
             </tbody>

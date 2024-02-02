@@ -22,7 +22,7 @@ export default function About() {
         </Tag>
       </H3>
       <p>一站式饥荒游戏资源检索工具——只需轻点几下，即可快速导出图片、动画、音效、滤镜等游戏资源。</p>
-      <SimpleLink url="https://lw-0x4eb1a.github.io/AssetArchivePage/">网站首页</SimpleLink>
+      {/* <SimpleLink url="https://lw-0x4eb1a.github.io/AssetArchivePage/">网站首页</SimpleLink> */}
       <H5>使用声明</H5>
       <p>本软件仅提供对饥荒游戏资源文件的读取和导出功能，软件本体不携带游戏资源文件，您在使用前应先在设备上安装正版饥荒游戏，并确保游戏文件的完整性。
         因安装盗版游戏或修改游戏资源导致软件运行的任何问题，本软件概不负责。
@@ -43,7 +43,7 @@ export default function About() {
         （官方提供的模组制作和发布工具包）
       </p>
       <p>
-        <SimpleLink url="">textool</SimpleLink>
+        <SimpleLink url="https://forums.kleientertainment.com/files/file/73-handsome-matts-tools/">textool</SimpleLink>
         （dxt贴图文件查看器）
       </p>
       <p>
@@ -51,7 +51,7 @@ export default function About() {
         （饥荒动画和贴图反编译工具）
       </p>
       <p>
-        <SimpleLink url="">dsanimtool</SimpleLink>
+        <SimpleLink url="https://steamcommunity.com/sharedfiles/filedetails/?id=2910584141">dsanimtool</SimpleLink>
         （Spine到饥荒动画转换器）
       </p>
       {/* <p>B站关注<a onClick={()=> open("https://space.bilibili.com/209631439")}>@老王天天写bug</a>，获取最新更新动态。</p> */}

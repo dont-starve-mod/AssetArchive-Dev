@@ -10,7 +10,7 @@ end)
 
 function Entry:SetKey(key)
 	assert(type(key) == "string")
-	assert(key:match("[a-zA-Z0-9%_%-]+"), "Invalid key content, must use a-z, A-Z, 0-9, - & _")
+	assert(key:match("[a-zA-Z0-9%_%-]+"), "Invalid key content, must use a-z, A-Z, 0-9, - and _")
 	assert(self.key == nil)
 	self.key = key
 end

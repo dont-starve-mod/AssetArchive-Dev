@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [resolution, setResolution] = useAppSetting("resolution")
   const [numResults, setNumResults] = useLocalStorage("num_search_results_per_page")
   const [showDesc, setShowDesc] = useAppSetting("quick_search_desc")
+  const [numToast, setNumToast] = useLocalStorage("toast_max_num")
+  const [aliveTime, setAliveTime] = useLocalStorage("toast_alive_time")
   const [ffmpegState, setFState] = useState<FFmpeg>({
     installed: false,
     custom_installed: false,
@@ -111,6 +113,37 @@ export default function SettingsPage() {
       onRelease={value=> setVolume(value)}/>
       </div>
     {/* 索引文件管理 */}
+    <hr/>
+    <H4>快捷消息</H4>
+    <p>设置右上角弹出信息的显示方式。
+      <Button icon="rocket-slant" onClick={
+        ()=> appWindow.emit("toast", {
+          message: "测试信息",
+          icon: "emoji", 
+          intent: "success",
+        })}>测试</Button>
+    </p>
+    <RadioGroup
+      label="最大数量"
+      inline
+      selectedValue={numToast}
+      onChange={e=> setNumToast(Number(e.currentTarget.value))}
+    >
+      <Radio label="1" value={1}/>
+      <Radio label="5" value={5}/>
+      <Radio label="10" value={10}/>
+    </RadioGroup>
+    <RadioGroup
+      label="消失速度"
+      inline
+      selectedValue={aliveTime}
+      onChange={(e)=> setAliveTime(Number(e.currentTarget.value))}
+    >
+      <Radio label="默认" value={7}/>
+      <Radio label="更快" value={3}/>
+      <Radio label="更慢" value={15}/>
+      <Radio label="不消失" value={1e10}/>
+    </RadioGroup>
     <hr/>
     <H4>视频编码器
       <Tag style={{marginLeft: 4}} intent={installed ? "success" : "warning"}>

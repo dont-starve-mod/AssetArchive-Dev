@@ -1,7 +1,7 @@
 .container {
   width: 450px;
   /* height: 50px; */
-  background-color: pink;
+  background-color: rgb(220, 204, 240);
   margin: 0 auto;
   border: 1px solid #aaa;
 }
@@ -15,6 +15,7 @@
   border-radius: 2px;
   margin-top: 10px;
   margin-bottom: 10px;
+  cursor: pointer;
 }
 
 .control {

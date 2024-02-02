@@ -229,6 +229,8 @@ function BuildLoader:GetSwapIcon()
     end
 end
 
+local Min = Algorithm.Min
+local Max = Algorithm.Max
 -- loader for <anim.bin>
 AnimLoader = Class(function(self, f)
     local function error(e)
@@ -266,9 +268,16 @@ AnimLoader = Class(function(self, f)
             numframes = numframes,
         }
         local frame = {}
+        local x_values = {}
+        local y_values = {}
 
         for j = 1, numframes do
-            f:seek_forward(16) -- rect (f32*4)
+            local x, y, w, h = unpack(f:read_f32_matrix(4))
+            table.insert(x_values, x + w / 2)
+            table.insert(x_values, x - w / 2)
+            table.insert(y_values, y + h / 2)
+            table.insert(y_values, y - h / 2)
+
             local numevents = f:read_u32()
             if numevents == nil then
                 return error(ERROR.UNEXPECTED_EOF)
@@ -285,6 +294,19 @@ AnimLoader = Class(function(self, f)
             table.insert(frame, element)
         end
 
+        if numframes > 0 then
+            anim.rect = {
+                left = math.floor(Min(x_values)),
+                right = math.ceil(Max(x_values)),
+                top = math.floor(Min(y_values)),
+                bottom = math.ceil(Max(y_values)),
+            }
+        else
+            anim.rect = {left = -1, right = 1, top = -1, bottom = 1}
+        end
+
+        anim.rect.width = anim.rect.right - anim.rect.left
+        anim.rect.height = anim.rect.bottom - anim.rect.top
         anim.frame = frame
         table.insert(animlist, anim)
     end
@@ -306,7 +328,7 @@ function AnimLoader:ParseFrames(anim)
                     imghash = f:read_u32(),
                     imgindex = f:read_u32(),
                     layerhash = f:read_u32(),
-                    matrix = f:read_f32_matrix(),
+                    matrix = f:read_f32_matrix(6),
                     z_index = (f:read_f32() + 5)* num / 10 + 0.5
                 }
                 v[i] = e

@@ -2,7 +2,7 @@
  * a simple preview widget that rendered only when into view
  * need a static width and height
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppSetting, useIntersectionObserver, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Button, Dialog, Icon, IconName, Spinner, Tag } from '@blueprintjs/core'
 import { appWindow } from '@tauri-apps/api/window'
@@ -125,6 +125,37 @@ function Image(props: ImageProps) {
     }
   </div>
 }
+
+/** image displayer with *.tex and list of possible *.xml, useful for inventoryimages */
+function AutoImage(props: ImageProps & {xmlList: string[]}) {
+  const {tex, xmlList} = props
+  const xml = useMemo(()=> {
+    console.log(tex, xmlList)
+    for (let v of window.assets.alltexelement){
+      if (v.tex === tex){
+        if (xmlList.indexOf(v.xml) !== -1){
+          return v.xml
+        }
+      }
+    }
+    return ""
+  }, [tex, xmlList])
+  return <Image {...props} xml={xml}/>
+}
+
+AutoImage.INVENTORYIMAGES = [
+  "images/inventoryimages1.xml",
+  "images/inventoryimages2.xml",
+  "images/inventoryimages3.xml",
+  "images/inventoryimages4.xml",
+]
+
+AutoImage.SCRAPBOOK = [
+  "images/scrapbook_icons1.xml",
+  "images/scrapbook_icons2.xml",
+  "images/scrapbook_icons3.xml",
+  "images/scrapbook_icons4.xml",
+]
 
 interface TextureProps extends PreviewProps {
   file: string,
@@ -328,12 +359,12 @@ function Atlas(props: AtlasProps) {
 
 const int = (v: number)=> Math.max(Math.round(v), 0) 
 
-interface SymbolElementProps extends PreviewProps {
+interface FastSymbolElementProps extends PreviewProps {
   atlas: any,
   data: any,
 }
 
-function SymbolElement(props: SymbolElementProps) {
+function FastSymbolElement(props: FastSymbolElementProps) {
   const {ref, canvas, /*appeared,*/ renderWidth, renderHeight} = useCanvasPreviewSetup(props, [50, 50])
   const {atlas, data} = props
   const {width, height} = props
@@ -373,6 +404,44 @@ function SymbolElement(props: SymbolElementProps) {
       {width, height}
     }/>
   </div>
+}
+
+type SymbolElementProps = {
+  build: string,
+  symbol: string,
+  index: number,
+} & PreviewProps
+
+function SymbolElement(props: SymbolElementProps){
+  const {ref, canvas, appeared, renderWidth, renderHeight} = useCanvasPreviewSetup(props, [50, 50])
+  const {build, symbol, index} = props
+  const {width, height} = props
+  
+  useLuaCallOnce<number[]>("load", result=> {
+    async function load(){
+      try {
+        const array = Uint8Array.from(result)
+        const blob = new Blob([array])
+        const bitmap = await createImageBitmap(blob)
+        drawOnCenter(canvas.current, [renderWidth, renderHeight], bitmap)
+        // setState(LoadingState.Success)
+      }
+      catch(e){
+        // setState(LoadingState.Failed)
+        console.error(e)
+      }
+    }
+    load()
+  }, {type: "symbol_element", build, imgname: symbol, index, format: "png"},
+  [build, symbol, index], [appeared])
+
+  return (
+    <div ref={ref} style={{minWidth: 1, minHeight: 1}}>
+      <canvas ref={canvas} width={renderWidth} height={renderHeight} style={
+        {width, height}
+      }/>
+    </div>
+  )
 }
 
 function Zip(props: {file: string} & PreviewProps) {
@@ -523,11 +592,13 @@ export function SimpleIcon({icon}: {icon: IconName}) {
 
 export default {
   Image,
+  AutoImage,
   Texture,
   CC,
   XmlMap,
   Atlas,
   Zip,
+  FastSymbolElement,
   SymbolElement,
   SimpleIcon,
   Sfx,
