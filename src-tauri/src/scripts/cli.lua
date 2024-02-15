@@ -58,8 +58,10 @@ local function compile()
 	env.prov = prov
 
 	-- TODO: --force-reindex
-	
-	-- require("compiler.amain").main(env)
+	print(Args.skip_analyzing)
+	if not Args.skip_analyzing then
+		require("compiler.amain").main(env)
+	end
 	require("compiler.cmain").main(env)
 end
 

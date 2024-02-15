@@ -9,6 +9,7 @@ import HomePage from "./pages/HomePage"
 import PostProcessProjectList from "./pages/PostProcessProjectList"
 
 import { Routes, Route } from "react-router-dom"
+import AppFirstLaunch from "./components/AppFirstLaunch"
 
 export default function MainRoutes() {
   return <Routes>
@@ -16,6 +17,7 @@ export default function MainRoutes() {
     <Route path="/about" element={<AboutPage/>} />
     <Route path="/asset" element={<AssetPage/>}/>
     <Route path="/asset-group" element={<HomePage/>}/> 
+    <Route path="/welcome" element={<AppFirstLaunch/>}/>
     {/* // TODO: add group data */}
     <Route path="/report-bug" element={<ReportBugPage/>} />
     <Route path="/anim-list" element={<AnimListPage/>} />

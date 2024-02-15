@@ -34,6 +34,7 @@ export default function GameRootSetter(props: IProps) {
   const onSelectGameType = ({target})=> {
     setGameType(target.value)
   }
+  return (<></>) // disabled in new version
   return <MultistepDialog 
     isOpen={isOpen}
     onClose={onClose}

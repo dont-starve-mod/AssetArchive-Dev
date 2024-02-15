@@ -65,6 +65,8 @@ export default function AppToaster(props: AppToasterProps) {
   useEffect(()=> {
     let timer = 0
     let unlisten = listen<string>("index_progress", ({payload})=> {
+      if (location.pathname.indexOf("/welcome") !== -1)
+        return
       const progress = Number(payload)
       const props: ToastProps = {
         icon: "git-repo",

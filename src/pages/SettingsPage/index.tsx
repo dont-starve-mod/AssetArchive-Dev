@@ -1,5 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react'
-import { Dialog, DialogBody, DialogFooter, H4, Icon, Tag } from '@blueprintjs/core'
+import { Callout, Dialog, DialogBody, DialogFooter, H4, Icon, Tag } from '@blueprintjs/core'
 import { RadioGroup, Radio, Button, Slider } from '@blueprintjs/core'
 import { useAppSetting, useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Tooltip2 } from '@blueprintjs/popover2'
@@ -8,14 +8,16 @@ import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
 import { openInstaller } from '../FFmpegInstaller'
 import { listen } from '@tauri-apps/api/event'
+import { useNavigate } from 'react-router-dom'
 
 type FFmpeg = {
   installed: boolean,
   custom_installed: boolean,
   custom_path: string,
 }
+
 export default function SettingsPage() {
-  const [root, setRoot] = useAppSetting("last_dst_root")
+  const [root, _] = useAppSetting("last_dst_root")
   const [isEditingRoot, setEditingRoot] = useState(false)
   const [theme, setTheme] = useAppSetting("theme")
   const [volume, setVolume] = useAppSetting("volume")
@@ -43,18 +45,29 @@ export default function SettingsPage() {
   useLuaCallOnce<string>("ffmpeg_getstate", response=> {
     setFState(JSON.parse(response))
   }, {}, [flag])
+
+  const navigate = useNavigate()
   
   return <div className='no-select'>
     <H4>游戏目录</H4>
+    {
+      !root && <Callout intent="warning">
+        <p>尚未设置饥荒游戏目录，现在去设置？
+          <Button small intent="primary" icon="cog" onClick={()=> navigate("/welcome")}/>
+        </p>
+      </Callout>
+    }
     <div 
       className='bp4-monospace-text'
       style={{userSelect: "auto", WebkitUserSelect: "auto", margin: "10px 0", cursor: "text"}}>
       {root}
     </div>
-    <Button text="打开文件夹" onClick={()=> root !== null && showRoot()}/>
-    &nbsp;&nbsp;
-    <Button text="修改" intent="primary" rightIcon="edit" onClick={()=> setEditingRoot(true)}/>
-
+    {
+      root && <>
+        <Button text="打开文件夹" onClick={()=> root !== null && showRoot()} style={{marginRight: 10}}/>
+        <Button text="修改" intent="primary" rightIcon="edit" onClick={()=> setEditingRoot(true)}/>
+      </>
+    }
     <hr/>
     <H4>界面</H4>
     <RadioGroup

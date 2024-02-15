@@ -1,9 +1,20 @@
 import { Button, Icon } from '@blueprintjs/core'
-import React from 'react'
-import { useOS } from '../../hooks'
+import React, { useEffect } from 'react'
+import { useAppSetting, useOS } from '../../hooks'
+import { useNavigate } from 'react-router-dom'
 
 export default function HomePage() {
   const {isMacOS} = useOS()
+  const [root] = useAppSetting("last_dst_root")
+  const navigate = useNavigate()
+
+  useEffect(()=> {
+    let token = requestAnimationFrame(()=> {
+      if (!root) navigate("/welcome")
+    })
+    return ()=> cancelAnimationFrame(token)
+  }, [root])
+
   return (
     <div>
       <div style={{

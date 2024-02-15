@@ -16,6 +16,7 @@ import type { AllAssetTypes, Shader } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import MyTest from './components/MyTest'
 import AppFmodHandler from './components/AppFmodHandler'
+import AppFirstLaunch from './components/AppFirstLaunch'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 // https://zhuanlan.zhihu.com/p/573735645
@@ -41,6 +42,7 @@ declare global {
 window.assets_map = {}
 
 export default function App() {
+	// return <AppFirstLaunch/>
 	const isSubwindow = getCurrent().label !== "main"
 	// const isSubwindow = true
 	return !isSubwindow ? <AppMain/> : <AppSub/>

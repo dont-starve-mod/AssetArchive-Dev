@@ -302,7 +302,7 @@ AnimLoader = Class(function(self, f)
                 bottom = math.ceil(Max(y_values)),
             }
         else
-            anim.rect = {left = -1, right = 1, top = -1, bottom = 1}
+            anim.rect = {left = -100, right = 100, top = -100, bottom = 100}
         end
 
         anim.rect.width = anim.rect.right - anim.rect.left

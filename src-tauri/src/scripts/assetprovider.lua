@@ -156,6 +156,10 @@ function DST_DataRoot:SearchGame()
 	end
 end
 
+function DST_DataRoot:SearchGame()
+	return false
+end
+
 function DST_DataRoot:Open(path, bundled)
 	if self.root then
 		if bundled ~= false then
@@ -443,6 +447,7 @@ function Provider:ListAsset()
 if not Args then
 	IpcEmitEvent("assets", json.encode_compliant(self.assets))
 	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
+	IpcEmitEvent("entry", require "compiler.output.entry")
 end
 
 	print("Finish")
