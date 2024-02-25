@@ -30,7 +30,8 @@ type RenderEvent = {
 const STEP_1_WIDTH = 0.4
 const STEP_2_WIDTH = 0.6
 
-export default function RenderProgress() {
+export default function RenderProgress(props: {isMain?: boolean}) {
+  const {isMain} = props
   const [open, setOpen] = useState(false)
   const [percent, setPercent] = useState(0)
   const [error, setError] = useState("")
@@ -44,6 +45,10 @@ export default function RenderProgress() {
       invoke("lua_interrupt", {})
     }
   }, [inProgress])
+
+  useEffect(()=> {
+    if (isMain) setCurrentSessionId("quicklook_export")
+  }, [isMain])
 
   useEffect(()=> {
     const handlers = [

@@ -7,6 +7,7 @@ local AssetIndex = Class(function(self, root)
 	self.root = root
 	self.animinfo = {}  -- [hash] = {idle_loop = {files, facings}}
 	self.buildinfo = {} -- swap_pitchfork = {file, icon, numatlases}
+	self.zipinfo = {} -- anim/log.zip = {has_build, has_anim}
 	self.indexcache = Persistant.IndexCache 
 end)
 
@@ -145,6 +146,11 @@ function AssetIndex:AddBuild(name, info)
 			swap_icon_0 = build.swap_icon_0,
 			numatlases = build.numatlases
 		}
+		-- this file contains build.bin
+		if self.zipinfo[name] == nil then
+			self.zipinfo[name] = {}
+		end
+		self.zipinfo[name].has_build = true
 	end
 end
 
@@ -158,6 +164,12 @@ function AssetIndex:AddAnim(name, info)
 		local data = self.animinfo[anim.bankhash][anim.name]
 		data.facings[anim.facing] = true
 		data.files[name] = true
+		-- this file contains anim.bin
+		if self.zipinfo[name] == nil then
+			self.zipinfo[name] = {}
+		end
+		self.zipinfo[name].has_anim = true
+
 	end
 end
 
@@ -179,6 +191,10 @@ function AssetIndex:GetAnimFileList(bankhash, animname)
 	if data ~= nil then
 		return data.files
 	end
+end
+
+function AssetIndex:GetZipFileAbstract(name)
+	return self.zipinfo[name]
 end
 
 function AssetIndex:ListBuildNames()

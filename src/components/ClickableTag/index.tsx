@@ -1,10 +1,10 @@
 import { Icon, Tag } from "@blueprintjs/core"
 import { ASSET_TYPE } from "../../strings"
-import { AllAssetTypes } from "../../searchengine"
+import { ArchiveItem } from "../../searchengine"
 import React from "react"
 
 interface IProps {
-  type?: AllAssetTypes["type"] & "cc",
+  type?: ArchiveItem["type"] & "cc",
   term?: string,
 }
 

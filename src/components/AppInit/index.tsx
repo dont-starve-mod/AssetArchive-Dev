@@ -9,10 +9,12 @@ import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
 import { AppSettings, init as initSettings, update as updateSetting } from '../../redux/reducers/appsettings'
 import { MeiliSearch } from 'meilisearch'
-import type { AllAssetTypes } from '../../searchengine'
+import type { AllAssetTypes, Entry } from '../../searchengine'
 import type { AssetDesc } from '../../assetdesc'
 import { setAddr, addDocuments, search } from '../../global_meilisearch'
 import { useOS } from '../../hooks'
+import { formatAlias } from '../AliasTitle'
+import RenderProgress from '../RenderProgress'
 
 // shutdown app if main window is closed. (so that all sub windows will be closed, too)
 globalListen("tauri://destroyed", (e)=> {
@@ -91,8 +93,23 @@ export default function AppInit() {
     let unlisten = appWindow.listen<never>("update_assets_desc", ()=> {
       const doc = []
       Object.entries(window.assets_map).forEach(([id, v])=> {
-        if (typeof v.plain_desc === "string")
+        if (v.type !== "entry" && typeof v.plain_desc === "string")
           doc.push({ id, plain_desc: v.plain_desc })
+      })
+      addDocuments("assets_update", doc)
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
+
+  useEffect(()=> {
+    let unlisten = appWindow.listen<never>("update_entry", ()=> {
+      const doc = []
+      Object.values(window.entry_map).forEach(v=> {
+        doc.push({
+          id: v.id,
+          plain_alias: v.plain_alias,
+          plain_desc: "TODO: fix this",
+        })
       })
       addDocuments("assets_update", doc)
     })
@@ -159,6 +176,33 @@ export default function AppInit() {
           })
           appWindow.emit("update_assets_desc")
         }),
+        await globalListen<string>("entry", async ({payload})=> {
+          try {
+            let host = await invoke("dev_host")
+            if (host !== ""){
+              console.log("Load entry from " + host)
+              let response = await fetch(host + "/entry.lua")
+              payload = await response.text()
+              payload = JSON.parse(payload.substring(7))
+              console.log("Success")
+            }
+          }
+          catch(e) {
+
+          }
+          const data: {items: any} = JSON.parse(payload)
+          // window.entry = data.items
+          window.entry_map = data.items
+          window.assets["entry"] = {}
+          Object.values(window.entry_map).forEach(v=> {
+            v.id = "e-" + v.key
+            v.type = "entry"
+            v.plain_alias = formatAlias(v.alias)
+            // for easy access
+            window.assets_map[v.id] = v
+          })
+          appWindow.emit("update_entry")
+        }),
         await globalListen<string>("anim_predictable_data", ({payload})=> {
           const data = JSON.parse(payload)
           const {hashmap} = data
@@ -194,6 +238,7 @@ export default function AppInit() {
     <GameRootSetter isOpen={requestRoot} onClose={()=> {}}/>
     <ThemeHandler/>
     <GlobalHotKey/>
+    <RenderProgress isMain/>
   </>
 }
 

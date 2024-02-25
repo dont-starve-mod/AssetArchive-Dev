@@ -520,10 +520,10 @@ pub mod lua_filesystem {
             result
         }
         
-        #[inline]
-        pub fn to_string(&self) -> String {
-            self.inner.to_string_lossy().to_string()
-        }
+        // #[inline]
+        // pub fn to_string(&self) -> String {
+        //     self.inner.to_string_lossy().to_string()
+        // }
 
         fn open_and_write(&self, content: Option<LuaString>) -> Result<(), ()> {
             match content {
@@ -534,6 +534,12 @@ pub mod lua_filesystem {
 
         fn open_and_read(&self) -> Result<Vec<u8>, ()> {
             fs::read(&self.inner).map_err(|_|())
+        }
+    }
+
+    impl std::fmt::Display for Path {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.inner.to_string_lossy().to_string())
         }
     }
 

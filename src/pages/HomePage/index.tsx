@@ -8,12 +8,12 @@ export default function HomePage() {
   const [root] = useAppSetting("last_dst_root")
   const navigate = useNavigate()
 
-  useEffect(()=> {
-    let token = requestAnimationFrame(()=> {
-      if (!root) navigate("/welcome")
-    })
-    return ()=> cancelAnimationFrame(token)
-  }, [root])
+  // useEffect(()=> {
+  //   let timer = setTimeout(()=> {
+  //     if (!root) navigate("/welcome")
+  //   }, 1000)
+  //   return ()=> clearTimeout(timer)
+  // }, [root])
 
   return (
     <div>

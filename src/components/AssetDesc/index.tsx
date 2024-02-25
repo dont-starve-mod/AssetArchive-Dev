@@ -17,11 +17,12 @@ function addPunc(s: string) {
 export default function AssetDesc(props: AssetDescProps) {
   const asset = window.assets_map[props.id || ""]
   const desc = asset && asset.desc
+  const isEntry = asset && asset.type === "entry"
 
   return (
     <div className={style["box"]}>
       {
-        Array.isArray(desc) && Boolean(desc) ? desc.map(v=> {
+        Array.isArray(desc) && desc.length > 0 ? desc.map(v=> {
           if (typeof v === "string")
             return <p style={{wordWrap: "break-word", whiteSpace: "pre-line"}}>
               {addPunc(v)}
@@ -29,7 +30,12 @@ export default function AssetDesc(props: AssetDescProps) {
           else
             return <RichTextFormatter desc={v as RichText}/>
         }) :
-        <p style={{color: "#999"}}>这个资源还没有任何描述。</p>
+        <p style={{color: "#999"}}>
+          {
+            isEntry ? "这个词条还没有任何描述。" :
+            "这个资源还没有任何描述。"
+          }
+        </p>
       }
     </div>
   )

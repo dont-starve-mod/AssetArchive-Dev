@@ -79,6 +79,25 @@ export type AllAssetTypes = Asset
 export type Matches = Array<{indices: Array<[number, number]>, key: string}>
 export type Result = AllAssetTypes & FuseResult<AllAssetTypes> & { matches: Matches }
 
+export type Entry = {
+  id: string,
+  key: string,
+  type: "entry",
+  alias: string[],
+  plain_alias: string,
+  desc: string[], // TODO: 应该是RichText
+  plain_desc: string,
+  source: string[],
+  deps: string[],
+  assets: Array<{
+    id: string,
+    type: Asset["type"],
+    file?: string,
+  }>
+}
+
+export type ArchiveItem = Asset | Entry
+/*
 export class SearchEngine {
   data: {
     allxmlfile: Xml[],
@@ -199,3 +218,4 @@ export class SearchEngine {
 
   }
 }
+*/

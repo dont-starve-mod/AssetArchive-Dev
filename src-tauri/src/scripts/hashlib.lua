@@ -20,7 +20,8 @@ HashLib = Class(function(self)
 
     for k,v in pairs(Persistant.Hash.data)do
         if type(k) == "string" then
-            self:String2Hash(k)
+            local h = self:String2Hash(k)
+            self.map_number[h] = k:lower()
         end
     end
 end)

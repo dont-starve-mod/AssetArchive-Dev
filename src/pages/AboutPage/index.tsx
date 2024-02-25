@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { 
+  useEffect, useState } from 'react'
 import { H3, H5, Icon, Tag } from "@blueprintjs/core"
 import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api'
+import MiniAnimPlayerWidget from '../../components/MiniAnimPlayerWidget'
 
 function openURL(url: string) {
   invoke("open_url", { url })

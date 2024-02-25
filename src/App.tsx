@@ -12,11 +12,10 @@ import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
-import type { AllAssetTypes, Shader } from './searchengine'
+import type { AllAssetTypes, ArchiveItem, Entry, Shader } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import MyTest from './components/MyTest'
 import AppFmodHandler from './components/AppFmodHandler'
-import AppFirstLaunch from './components/AppFirstLaunch'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 // https://zhuanlan.zhihu.com/p/573735645
@@ -34,15 +33,18 @@ declare global {
 			allfmodevent: FmodEvent[],
 			allfmodproject: FmodProject[],
 		}
-		assets_map: {[K: string]: AllAssetTypes},
+		assets_map: {[K: string]: ArchiveItem},
+		entry: Entry[],
+		entry_map: {[K: string]: Entry},
 		hash: Map<number, string>,
 	}
 }
 
 window.assets_map = {}
+window.entry = []
+window.entry_map = {}
 
 export default function App() {
-	// return <AppFirstLaunch/>
 	const isSubwindow = getCurrent().label !== "main"
 	// const isSubwindow = true
 	return !isSubwindow ? <AppMain/> : <AppSub/>

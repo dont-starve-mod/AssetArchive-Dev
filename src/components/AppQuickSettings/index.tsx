@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { appWindow } from '@tauri-apps/api/window'
-import { Button, Dialog, DialogBody, DialogFooter, H5, H6, Radio, RadioGroup } from '@blueprintjs/core'
+import { Button, Dialog, DialogBody, DialogFooter, H3, H5, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Event } from '@tauri-apps/api/event'
 import AnimQuickLook from '../AnimQuickLook'
-import { useQuickLookPresets, Preset, ALL_PRESETS } from '../AnimQuickLook/util'
+import { useQuickLookPresets, Preset, ALL_PRESETS, useQuickLookExport } from '../AnimQuickLook/util'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import Preview from '../Preview'
 import { useDispatch, useSelector } from '../../redux/store'
 import { useLocalStorage } from '../../hooks'
+import { AnimState } from '../AnimCore_Canvas/animstate'
 
 type QuickSettingsKey = "XmlMap.dot" | "AnimQuickLook"
 
@@ -43,24 +44,35 @@ export default function AppQuickSettings() {
           </>
         }/> */}
       </Dialog>
-      <Dialog title="预览配置" isOpen={keys["AnimQuickLook"]} onClose={()=> setKeys({})} style={{width: 540, height: 380}}>
+      <Dialog title="预览" isOpen={keys["AnimQuickLook"]} onClose={()=> setKeys({})} style={{width: 540, height: 380}}>
         <DialogBody>
-          <p style={{borderBottom: "0 solid #ccc"}}>当你预览武器、材质、动画的时候，想要如何穿搭？</p>
-          <AnimQuickLookSettings data={data}/>
+          {/* <p style={{borderBottom: "0 solid #ccc"}}>当你预览武器、材质、动画的时候，想要如何穿搭？</p> */}
+          <AnimQuickLookSettings data={data} closeDialog={()=> setKeys({})}/>
         </DialogBody>
       </Dialog>
     </>
   )
 }
 
-function AnimQuickLookSettings(props: {data: any}) {
-  const {data} = props
+function AnimQuickLookSettings(props: {data: any, closeDialog: ()=> void}) {
+  const {data, closeDialog} = props
   const presets = useQuickLookPresets(data)
+  const numActivatedPresets = presets.filter(v=> v.activated).length
+  const animstate = useRef<AnimState>()
+  const [_, forceUpdate] = useReducer(v=> v + 1, 0)
+
+  const animstateRef = useCallback((anim: AnimState)=> {
+    animstate.current = anim
+    forceUpdate()
+  }, [forceUpdate])
+  const exportFn = useQuickLookExport(animstate.current)
+
   return (
     <div style={{display: "flex", width: "100%", alignItems: "center"}}>
       <div style={{width: 200, marginRight: 0, flexShrink: 0}}>
         <AnimQuickLook
           noCog
+          animstateRef={animstateRef}
           bankhash={data.bank}
           build={data.build}
           animation={data.animation}
@@ -69,15 +81,28 @@ function AnimQuickLookSettings(props: {data: any}) {
       </div>
       <div style={{backgroundColor: "#0000", width: "100%", paddingLeft: 10}}>
         <div style={{maxHeight: 290, width: 290, paddingBottom: 40, overflowX: "hidden", overflowY: "auto"}}>
+        <H5>预设</H5>
         {
+          numActivatedPresets > 0 ?
           presets.map(v=> 
           v.activated && <PresetSelector 
             key={v.type}
             type={v.type as any} 
             title={v.title} 
             presets={v.presets}/>
-          )
+          ) : 
+          <p>暂无可用的预设。</p>
         }
+        <div style={{height: 10}}/>
+        <H5>快速导出</H5>
+        <Button icon="image-rotate-right" onClick={()=> exportFn("gif").then(()=> closeDialog())}>动图</Button>
+        <Button icon="video" onClick={()=> exportFn("mp4").then(()=> closeDialog())}>视频</Button>
+        <Button icon="widget" onClick={()=> exportFn("snapshot").then(()=> closeDialog())}>当前帧截图</Button>
+        {/* <RadioGroup inline>
+          <Radio label="动图（gif）"/>
+          <Radio label="视频（mp4）"/>
+        </RadioGroup> */}
+        <p style={{marginTop: 10, color: "#aaa"}}>如需更丰富的动画效果和导出选项，请使用「动画渲染器」功能。</p>
         </div>
       </div>
     </div>

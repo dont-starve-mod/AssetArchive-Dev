@@ -48,7 +48,11 @@ function Render:SetRoot(root)
 	end
 
 	self.provider = Provider(root)
-	self.provider:DoIndex(false)
+	if self.skip_index and self.provider.root == GLOBAL.prov.root then
+		self.provider.index = GLOBAL.prov.index
+	else
+		self.provider:DoIndex(false)
+	end
 end
 
 function Render:SetRenderParam(param)
@@ -57,6 +61,9 @@ function Render:SetRenderParam(param)
 	self.rate = param.rate
 	self.format = param.format
 	self.scale = param.scale
+	self.skip_index = param.skip_index
+	self.current_frame = param.current_frame
+
 end
 
 function Render:Refine()
@@ -275,12 +282,16 @@ function Render:Run()
 		end
 	end
 	assert(format ~= "auto", "Failed to infer export format from file path: "..path:as_string())
-	assert(table.contains({"gif", "mp4", "mov", "png"}, format), "Invalid export format: "..format)
+	assert(table.contains({"gif", "mp4", "mov", "png", "snapshot"}, format), "Invalid export format: "..format)
 	
 	if format == "png" then
 		assert(path:is_dir(), "Error: png sequence must export to a directory")
 	else
-		if not FFmpegManager:IsAvailable() then
+		if format == "snapshot" then
+			if self.current_frame == nil then
+				error("self.current_frame not provided")
+			end
+		elseif not FFmpegManager:IsAvailable() then
 			IpcEmitEvent("render_event", json.encode_compliant{
 				session_id = self.session_id,
 				state = "error",
@@ -300,9 +311,18 @@ function Render:Run()
 	local source_map = self:BuildSymbolSource()
 	local skip_render = self:BuildRenderPermission()
 
+	local frame_list = {}
+	for i, v in ipairs(anim.frame)do
+		if format ~= "snapshot" or i == self.current_frame + 1 then
+			table.insert(frame_list, v)
+		end
+	end
+
+	assert(#frame_list > 0, "Frame list is empty")
+
 	-- loop 1: calculate symbol source and render rect
 	local allelements = {}
-	for _,frame in ipairs(anim.frame)do
+	for _,frame in ipairs(frame_list)do
 		self:TryInterrupt()
 		for _,element in ipairs(frame)do
 			table.insert(allelements, element)
@@ -366,7 +386,8 @@ function Render:Run()
 		progress = 0,
 	}))
 	local framebuffer = {}
-	for index, frame in ipairs(anim.frame)do
+	local element_tasks = {}
+	for index, frame in ipairs(frame_list)do
 		self:TryInterrupt()
 		local buffer = {} -- each buffer contains several element render rects
 		table.insert(framebuffer, buffer) 
@@ -397,10 +418,20 @@ function Render:Run()
 				local m = Mult(m3, (Mult(m2, m1)))
 				m[2], m[3] = m[3], m[2] -- TODO: fix mult function
 
-				local small_img = source:affine_transform(render_width, render_height,
-					m, Image.BILINEAR)
+				-- local small_img = source:affine_transform(render_width, render_height,
+				-- 	m, Image.BILINEAR)
+
+				local key = "task-"..getaddr(source).."("..render_width.."x"..render_height..")"..
+					table.concat(m, "+")
+				element_tasks[key] = {
+					render_width = render_width,
+					render_height = render_height,
+					img = source,
+					matrix = m,
+				}
 				table.insert(buffer, {
-					small_img = small_img,
+					-- small_img = small_img,
+					small_img_id = key,
 					pos_int = pos_int,
 					render_width = render_width,
 					render_height = render_height,
@@ -410,12 +441,27 @@ function Render:Run()
 				})
 			end
 		end
+		-- IpcEmitEvent("render_event", json.encode_compliant({
+		-- 	session_id = self.session_id,
+		-- 	state = "render_element",
+		-- 	progress = index / #frame_list
+		-- }))
+	end
+
+	-- loop 2.1: run the multithreaded renderer
+	-- element_tasks["@thread"] = 8
+	Image.MultiThreadedTransform(element_tasks, function(_, _, percent)
 		IpcEmitEvent("render_event", json.encode_compliant({
 			session_id = self.session_id,
 			state = "render_element",
-			progress = index / #anim.frame
+			progress = percent,
 		}))
-	end
+	end)
+	-- for k,v in pairs(element_tasks)do
+	-- 	v.img = v.img:affine_transform(
+	-- 		v.render_width, v.render_height,
+	-- 		v.matrix, Image.BILINEAR)
+	-- end
 
 	-- loop 3: calculate global render region
 	local x_values = {}
@@ -500,6 +546,14 @@ function Render:Run()
 
 				self.index = self.index + 1
 			end,
+			wait = function() end, -- dummy
+		}
+	elseif format == "snapshot" then
+		enc = {
+			encode_frame = function(self, img)
+				img:save(path:as_string())
+			end,
+			wait = function() end, -- dummy
 		}
 	end
 
@@ -512,7 +566,8 @@ function Render:Run()
 		table.sort(buffer, function(a,b) return a.z_index > b.z_index end)
 		local canvas = Image.From_RGBA(background, width, height)
 		for _, data in ipairs(buffer)do
-			local small_img = data.small_img
+			-- local small_img = data.small_img
+			local small_img = element_tasks[data.small_img_id].img
 			local pos_int = data.pos_int
 			local filter = self:GetFilter(data)
 			small_img:apply_filter(filter)
@@ -527,10 +582,7 @@ function Render:Run()
 		enc:encode_frame(canvas)
 	end
 
-	if format ~= "png" then
-		enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
-	end
-
+	enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
 	bar:done()
 
 	IpcEmitEvent("render_event", json.encode_compliant({
@@ -581,8 +633,8 @@ local function test()
 	})
 	local DST_DataRoot = require "assetprovider".DST_DataRoot
 	r:SetRoot(DST_DataRoot())
-	r.path = "/Users/wzh/Downloads/测试"
-	r.format = "png"
+	r.path = "/Users/wzh/Downloads/测试/2.mp4"
+	r.format = "mp4"
 	-- r.path = "/Users/wzh/Downloads/测试/2.gif"
 	-- r.format = "gif"
 	-- r.bgc = "transparent"
@@ -591,6 +643,6 @@ local function test()
 	exit()
 end
 
--- test()
+test()
 
 return Render

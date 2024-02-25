@@ -7,7 +7,7 @@ import { useCopySuccess, useLuaCall } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
 
 type AssetFilePathProps = {
-  type: "xml" | "tex" | "xml_link" | "fev_link" | "fev" | "fsb",
+  type: "xml" | "tex" | "xml_link" | "fev_link" | "fev" | "fsb" | "source",
   path?: string,
   name?: string,
 }
@@ -65,7 +65,9 @@ export default function AssetFilePath(props: AssetFilePathProps) {
         }
         <Popover2 minimal placement="top" content={<Menu>
           <MenuItem text="拷贝路径" icon="duplicate" onClick={()=> writeText(path).then(()=> success())}/>
-          <MenuItem text="打开文件位置" icon="folder-open" onClick={()=> requestOpeningFolder(false)}/>
+          {
+            type !== "source" && <MenuItem text="打开文件位置" icon="folder-open" onClick={()=> requestOpeningFolder(false)}/>
+          }
           {
             type === "xml_link" && <MenuItem text="跳转到图集" icon="link" onClick={toXmlLink}/>
           }
@@ -90,8 +92,9 @@ export default function AssetFilePath(props: AssetFilePathProps) {
           {
             bundleInfo &&
             <DialogBody className="bp4-running-text">
-              <p>资源文件位于压缩包<a onClick={()=> requestOpeningFolder(true)}>{bundleInfo.zippath}</a>内。你可以先解压，然后在里面找到文件{path}。</p>
-
+              <p>资源文件位于压缩包
+                <a onClick={()=> requestOpeningFolder(true)}>{bundleInfo.zippath}</a>
+                内。你可以先解压，然后在里面找到文件{path}。</p>
             </DialogBody>
           }
       </Dialog>

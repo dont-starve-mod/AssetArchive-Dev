@@ -47,10 +47,16 @@ export default function SearchResultPage() {
       result=> {
         setSearchResult({
           ...result,
-          hits: result.hits.map(({id, _matchesPosition})=> ({
-            matches: _matchesPosition,
-            ...window.assets_map[id]
-          }))
+          hits: result.hits.map(({id, _matchesPosition})=> {
+            if (!window.assets_map[id])
+              console.error("Failed to resolve id: " + id)
+              // TODO: should not happen, why...
+            else
+              return {
+                matches: _matchesPosition,
+                ...window.assets_map[id],
+              }
+          }).filter(v=> Boolean(v))
         })
         setLoading(false)
       },

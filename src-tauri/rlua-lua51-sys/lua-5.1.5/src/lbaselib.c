@@ -443,6 +443,20 @@ static int luaB_newproxy (lua_State *L) {
   return 1;
 }
 
+static int luaB_new_getaddr(lua_State *L) {
+  luaL_checkany(L, 1);
+  switch (lua_type(L, 1)) {
+    case LUA_TUSERDATA:
+    case LUA_TTABLE:
+    case LUA_TFUNCTION:
+    case LUA_TTHREAD:
+      lua_pushfstring(L, "%p", lua_topointer(L, 1));
+      return 1;
+    default:
+      lua_pushnil(L);
+      return 1;
+  }
+}
 
 static const luaL_Reg base_funcs[] = {
   {"assert", luaB_assert},
@@ -469,6 +483,8 @@ static const luaL_Reg base_funcs[] = {
   {"type", luaB_type},
   {"unpack", luaB_unpack},
   {"xpcall", luaB_xpcall},
+  // new api
+  {"getaddr", luaB_new_getaddr},
   {NULL, NULL}
 };
 

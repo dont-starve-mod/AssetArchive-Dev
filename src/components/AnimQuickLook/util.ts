@@ -1,9 +1,11 @@
 import { v4 } from "uuid"
 import smallhash from "../../smallhash"
 import { BuildData } from "../AnimCore_Canvas/animcore"
-import { Api } from "../AnimCore_Canvas/animstate"
+import { AnimState, Api } from "../AnimCore_Canvas/animstate"
 import { useSelector } from "../../redux/store"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
+import { save } from "@tauri-apps/api/dialog"
+import { useLuaCall } from "../../hooks"
 
 /** quicklook preset type
  * # Example:
@@ -473,4 +475,38 @@ export function useQuickLookCmds(
     })
     return list
   }, [stored_presets, presets])
+}
+
+type ExportFormat = "gif" | "mp4" | "snapshot"
+
+export function useQuickLookExport(
+  animstate: AnimState, defaultName?: string
+) {
+  defaultName = defaultName || "export"
+  const call = useLuaCall("render_animation_sync", ()=> {}, {}, [])
+  return useCallback(async (format: ExportFormat)=> {
+    animstate.pause()
+    const path = await save({
+      title: "",
+      defaultPath: `${defaultName}.${format === "snapshot" ? "png" : format}`
+    })
+    if (typeof path !== "string") throw Error("path not provided")
+    if (!animstate.hasFrameList) throw Error("animation not valid")
+    
+    const session_id = "quicklook_export"
+    call({
+      session_id,
+      path,
+      api_list: animstate.getValidApiList(),
+      render_param: {
+        scale: 1.0,
+        rate: 30,
+        format,
+        facing: animstate.getActualFacing(),
+        bgc: format === "mp4" ? "#cccccc" : "transparent",
+        current_frame: animstate.currentFrame,
+        skip_index: true,
+      }
+    })
+  }, [animstate, call])
 }

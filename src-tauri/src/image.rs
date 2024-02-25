@@ -1,6 +1,7 @@
 use image::io::Reader as ImageReader;
 use rlua::{Value, FromLua, Context};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
+use std::hash::Hash;
 use std::ops::Index;
 // #[cfg(unix)]
 // use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
@@ -9,7 +10,7 @@ use std::ops::Index;
 
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Resampler {
     Nearest = 0,
     Bilinear = 1,
@@ -28,7 +29,7 @@ impl<'lua> FromLua<'lua> for Resampler {
 
 /// dontstarve affine transform
 /// a, b, c, d, tx, ty
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 struct AffineTransform {
     a: f64,
     b: f64,
@@ -36,6 +37,17 @@ struct AffineTransform {
     d: f64,
     tx: f64,
     ty: f64,
+}
+
+impl Hash for AffineTransform {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write(&f64::to_le_bytes(self.a));
+        state.write(&f64::to_le_bytes(self.b));
+        state.write(&f64::to_le_bytes(self.c));
+        state.write(&f64::to_le_bytes(self.d));
+        state.write(&f64::to_le_bytes(self.tx));
+        state.write(&f64::to_le_bytes(self.ty));
+    }
 }
 
 #[allow(dead_code)]
@@ -116,6 +128,20 @@ impl AffineTransform {
         f64::is_finite(self.tx) &&
         f64::is_finite(self.ty)
     }
+
+    /// convert to unique bytes
+    fn to_bytes(self) -> Vec<u8> {
+        [f64::to_le_bytes(self.a),
+        f64::to_le_bytes(self.b),
+        f64::to_le_bytes(self.c),
+        f64::to_le_bytes(self.d),
+        f64::to_le_bytes(self.tx),
+        f64::to_le_bytes(self.ty)]
+        .iter()
+        .flatten()
+        .copied()
+        .collect()
+    }
 }
 
 impl Index<usize> for AffineTransform {
@@ -138,6 +164,9 @@ pub struct Point {
 }
 
 pub mod lua_image {
+    use std::sync::mpsc::sync_channel;
+    use std::thread::spawn;
+
     use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, GenericImage};
     use image::ColorType;
     use rlua::{Context, AnyUserData};
@@ -186,6 +215,14 @@ pub mod lua_image {
             else {
                 ImageBuffer::<Rgb<u8>, _>::from_raw(width, height, bytes)
                     .map(|buf| Self::from_img(DynamicImage::from(buf)))
+            }
+        }
+
+        fn clone(&self) -> Self {
+            Self {
+                width: self.width,
+                height: self.height,
+                inner: self.inner.clone(),
             }
         }
 
@@ -313,9 +350,8 @@ pub mod lua_image {
             Self::from_img(DynamicImage::from(imgbuf))
         }
 
-        /// 对图片执行仿射变换, 返回新的图片
+        /// apply affine transform on an image, return the new image
         fn affine_transform(&self, width: u32, height: u32, matrix: AffineTransform, resampler: Resampler) -> Result<Self, &'static str> {
-            // TODO: 进行渲染框优化
             let rev_matrix = matrix.reverse();
             if rev_matrix.is_valid() {
                 let transformer = |x, y|rev_matrix.onpointxy(x as f64, y as f64);
@@ -633,6 +669,17 @@ pub mod lua_image {
         }
     }
 
+    struct TaskData {
+        width: u32,
+        height: u32,
+        img: Image,
+        matrix: AffineTransform,
+        resampler: Resampler,
+
+        task_id: String,
+        worker_id: usize,
+    }
+
     pub fn init(lua_ctx: Context) -> LuaResult<()> {
         let table = lua_ctx.create_table()?;
         table.set("Open", lua_ctx.create_function(|_, path: String|{
@@ -651,6 +698,91 @@ pub mod lua_image {
             unreachable!("Rust GifWriter is removed");
             // GifWriter::new(&path).map_err(|e|LuaError::RuntimeError(e.to_string()))
         })?)?;
+        table.set("MultiThreadedTransform", lua_ctx.create_function(|lua, (tasks, onprogress): (Table, Option<Function>)|{
+            // type tasks = {[K:task-id]: task, "@thread": int}
+            // type task = {
+            //   id: string,
+            //   img: Image, width, height, matrix, resampler?
+            // }
+            let num_threads = tasks.get::<_, usize>("@thread")
+                .unwrap_or_else(|_|num_cpus::get());
+            if num_threads == 0 || num_threads > 64 {
+                return Err(LuaError::RuntimeError("num threads not support".into()));
+            }
+            println!("[MultiThreadedTransform] spawn {} threads", num_threads);
+            let mut threads = Vec::with_capacity(num_threads);
+            // TODO: is it valid?
+            let mut keys = tasks.clone().pairs::<String, _>()
+                .map(|pair|pair.unwrap_or(("".to_string(), lua.create_table().unwrap())).0.to_string())
+                .collect::<Vec<String>>();
+            let total = keys.len();
+            let (main_tx, main_rx) = sync_channel::<TaskData>(1);
+            #[allow(unused_variables)]
+            for i in 0..num_threads {
+                let main_tx = main_tx.clone();
+                let (tx, rx) = sync_channel::<TaskData>(1);
+                threads.push((spawn(move ||{
+                    loop {
+                        let mut task = match rx.recv() {
+                            Ok(task)=> task,
+                            Err(_)=> return, // function returned, channel closed
+                        };
+                        // println!("WORKER {} <-", i);
+                        task.img = task.img.affine_transform(task.width, task.height, task.matrix, task.resampler).unwrap();
+                        task.width = 0;
+                        task.height = 0;
+                        // println!("WORKER {} ->", i);
+                        main_tx.send(task).unwrap();
+                    }
+                }), tx, true)) // thread, sender, is_available
+            }
+   
+            loop {
+                for (i, (_, tx, is_available)) in threads.iter_mut().enumerate() {
+                    if *is_available && !keys.is_empty() {
+                        let key = keys.pop().unwrap();
+                        if !key.starts_with("task") {
+                            continue;
+                        }
+                        let task = tasks.get::<_, Table>(key.as_str())?;
+                        *is_available = false; // ?????
+                        if tx.send(TaskData{
+                            width: task.get("render_width")?,
+                            height: task.get("render_height")?,
+                            img: task.get::<_, AnyUserData>("img")?
+                                .borrow::<Image>()?
+                                .clone(),
+                            matrix: AffineTransform::from_vec(task.get("matrix")?),
+                            resampler: Resampler::Bilinear,
+                            task_id: key.clone(),
+                            worker_id: i,
+                        }).is_err() {
+                            return Err(LuaError::RuntimeError("thread panic".into()));
+                        }
+                    }
+                }
+                while let Ok(task) = main_rx.try_recv() {
+                    let v = &mut threads[task.worker_id];
+                    if v.2 {
+                        return Err(LuaError::RuntimeError(format!("received task data from idle worker: {}", task.worker_id)));
+                    }
+                    else {
+                        v.2 = true;
+                        tasks.get::<_, Table>(task.task_id)?
+                            .set("img", task.img)?;
+                    }
+                }
+                if let Some(ref onprogress) = onprogress {
+                    let current = total - keys.len();
+                    onprogress.call((current, total, current as f64 / total as f64))?;
+                }
+                if keys.is_empty() && !threads.iter().any(|v|!v.2) {
+                    break;
+                }
+            }
+            Ok(())
+        })?)?;
+    
         table.set("NEAREST", Resampler::Nearest as u8)?;
         table.set("BILINEAR", Resampler::Bilinear as u8)?;
         table.set("Filter", lua_ctx.create_function(|_, fns: Table|{

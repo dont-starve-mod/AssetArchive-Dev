@@ -3,9 +3,10 @@ import AnimCore from '../AnimCore_Canvas'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
 import { Button, Dialog, DialogBody, Menu, MenuItem } from '@blueprintjs/core'
-import { Popover2 } from '@blueprintjs/popover2'
-import { useQuickLookCmds } from './util'
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
+import { useQuickLookCmds, useQuickLookExport } from './util'
 import { appWindow } from '@tauri-apps/api/window'
+import MiniAnimPlayerWidget from '../MiniAnimPlayerWidget'
 
 type Placement = {
   width: number,
@@ -30,6 +31,7 @@ type AnimQuickLookProps = {
   placementFn?: PlacementCalculator,
   onResize?: ()=> void,
   noCog?: boolean,
+  animstateRef?: (anim: AnimState)=> void,
 }
 
 const defaultPlacement: PlacementCalculator = (rect, options)=> {
@@ -52,12 +54,17 @@ const defaultPlacement: PlacementCalculator = (rect, options)=> {
 }
 
 export default function AnimQuickLook(props: AnimQuickLookProps) {
-  const {bankhash, animation, build, facing} = props
+  const {bankhash, animation, build, facing, animstateRef} = props
   const {placementFn = defaultPlacement, width = 250, maxAspectRatio = 1.6, minAspectRatio = 0.4, onResize} = props
   const [placement, setPlacement] = useState({width: 100, height: 100, x: 0, y: 0})
   const animstate = useRef(new AnimState()).current
   const render = useRef<RenderParams>()
   const data = {bank: bankhash, animation, build, facing}
+
+  useEffect(()=> {
+    if (typeof animstateRef === "function")
+      animstateRef(animstate)
+  }, [animstateRef])
 
   const cmds = useQuickLookCmds(data)
   useEffect(()=> {
@@ -92,8 +99,11 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
     render.current = v
   }, [])
 
+  const [showPlayer, setShowPlayer] = useState(false)
+  const exportFn = useQuickLookExport(animstate)
+
   return (
-    <div style={{position: "relative"}}>
+    <div style={{position: "relative"}} className='no-select'>
       <AnimCore
         width={Math.floor(placement.width)}
         height={Math.floor(placement.height)}
@@ -108,9 +118,32 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
           content={<QuickLookSettings/>}>
           <Button icon="cog"/>
         </Popover2> */}
-        <Button icon="cog" onClick={()=> appWindow.emit("quick_settings",
-          {key: "AnimQuickLook", data})}/>
+        <Tooltip2 content="配置">
+          <Button icon="cog" onClick={()=> appWindow.emit("quick_settings",
+            {key: "AnimQuickLook", data})}/>
+        </Tooltip2>
+        <div style={{height: 4}}/>
+        <Popover2 content={
+          <Menu>
+            <MenuItem icon="image-rotate-right" text="动图" onClick={()=> exportFn("gif")}/>
+            <MenuItem icon="video" text="视频" onClick={()=> exportFn("mp4")}/>
+            <MenuItem icon="widget" text="当前帧截图" onClick={()=> exportFn("snapshot")}/>
+          </Menu>
+        } minimal>
+          <Tooltip2 content="快速导出">
+            <Button icon="export"/>
+          </Tooltip2>
+        </Popover2>
         {/* <Button icon="reset" style={{position: "absolute"}}/> */}
+      </div>
+      <div style={{position: "absolute", display: "flex", justifyContent: "center",
+        left: 0, bottom: 0, width: "100%", paddingTop: 10, paddingBottom: 10,
+        transition: "all .2s",
+        opacity: showPlayer ? 1 : 0}}
+          onMouseEnter={()=> setShowPlayer(true)}
+          onMouseLeave={()=> setShowPlayer(false)}
+          >
+        <MiniAnimPlayerWidget animstate={animstate}/>
       </div>
     </div>
   )

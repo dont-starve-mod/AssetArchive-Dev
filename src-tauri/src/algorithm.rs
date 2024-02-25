@@ -187,7 +187,7 @@ pub mod lua_algorithm {
             const DEFAULT_PIX_SIZE: usize = 4;
             crop_bytes(bytes.as_bytes(), width, height, x, y, cw, ch, pixel_size.unwrap_or(DEFAULT_PIX_SIZE))
                 .map(|r|lua.create_string(r.as_slice()))
-                .map_err(|e|LuaError::RuntimeError(e))
+                .map_err(LuaError::RuntimeError)
         })?)?;
         table.set("FlipBytes", lua_ctx.create_function(|lua: Context,
             (bytes, linewidth): (LuaString, usize)|{

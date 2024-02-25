@@ -16,6 +16,16 @@ function ToIndexTable(table)
 	return t
 end
 
+local insert = table.insert
+
+function ToArray(table)
+	local t = {}
+	for k in pairs(table)do
+		insert(t, k)
+	end
+	return t
+end
+
 function table.extend(t1, t2)
 	for _,v in ipairs(t2) do
 		table.insert(t1, v)
@@ -135,9 +145,41 @@ function BinSearch(t, fn, i, j)
 end
 
 function NameOf(path)
-	return assert(
-		select(3, path:find("([^/.]+)%.?[a-z]*$")),
-		"Failed to get name of "..path)
+	local name = select(3, path:find("([^/.]+)%.?[a-z]*$"))
+	if name ~= nil then
+		return name
+	else
+		error("Failed to get name of "..path)
+	end
+end
+
+function Counter()
+	return setmetatable({_ = {}}, {
+		__index = {
+			Add = function(self, key, value)
+				if self._[key] == nil then
+					self._[key] = 0
+				end
+				self._[key] = self._[key] + (value or 1)
+			end,
+			Get = function(self, key, default)
+				return self._[key] or default
+			end,
+			GetAll = function(self)
+				return self._
+			end,
+			GetMost = function(self)
+				local key, value = nil, 0
+				for k, v in pairs(self._)do
+					if v > value then
+						value = v
+						key = k
+					end
+				end
+				return key, value
+			end,
+		}
+	})
 end
 
 --- debug ---

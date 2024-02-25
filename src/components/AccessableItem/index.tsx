@@ -5,12 +5,13 @@ import Preview from '../../components/Preview'
 import { H3 } from '@blueprintjs/core'
 import style from "./index.module.css"
 import { Hit, SearchParams } from 'meilisearch'
-import { AllAssetTypes } from '../../searchengine'
+import { ArchiveItem } from '../../searchengine'
+import AliasTitle, { formatAlias } from '../AliasTitle'
 
 const PREIVEW_SIZE = { width: 50, height: 50 }
 const MARK_STYLE: React.CSSProperties = { fontWeight: 800 }
 
-type Result = Hit & AllAssetTypes
+type Result = Hit & ArchiveItem
 
 export function AccessableItem(props: Result){
   const {type, id, plain_desc} = props
@@ -43,6 +44,8 @@ export function AccessableItem(props: Result){
               <MatchText text={props.path} match={match["path"]} style={MARK_STYLE}/> :
             type === "fmodproject" ?
               <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "entry" ?
+              <MatchText text={props.plain_alias} match={match["alias"]} style={MARK_STYLE}/> :
             <></>
           }
         </H3>
@@ -75,6 +78,9 @@ export function AccessableItem(props: Result){
             <Preview.SimpleIcon icon="code"/> :
           type === "fmodproject" ?
             <Preview.SimpleIcon icon="box"/> :
+          type === "entry" ? 
+            <></> :
+            // <Preview.Entry/> :
           <></>
         }
       </div>

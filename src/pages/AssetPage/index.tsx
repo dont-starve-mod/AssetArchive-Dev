@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { H3, H4, H5, H6, Icon, NonIdealState, Button, Card, Spinner, Checkbox, Menu, MenuItem, Callout, InputGroup, Tag, Pre } from '@blueprintjs/core'
+import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, InputGroup, Tag } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
 import { ASSET_TYPE } from '../../strings'
 import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage } from '../../hooks'
@@ -16,7 +16,7 @@ import KeepAlivePage, { KeepAlivePageProps } from '../../components/KeepAlive/Ke
 import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
 import AssetFilePath from '../../components/AssetFilepath'
 import BatchDownloadButton from '../../components/BatchDownloadButton'
-import { FmodEvent, FmodProject, Shader } from '../../searchengine'
+import { ArchiveItem, Entry, FmodEvent, FmodProject, Shader } from '../../searchengine'
 import SfxPlayer from '../../components/SfxPlayer'
 import { AccessableItem } from '../../components/AccessableItem'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
@@ -24,6 +24,7 @@ import Code from '../../components/Code'
 import AssetDesc from '../../components/AssetDesc'
 import { search } from '../../global_meilisearch'
 import AnimQuickLook from '../../components/AnimQuickLook'
+import { formatAlias, sortedAlias } from '../../components/AliasTitle'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -38,6 +39,7 @@ function getTypeKeyById(id: string): string {
     case "n": return "alltexture"
     case "r": return "allkshfile"
     case "f": return id.startsWith("fev") ? "allfmodproject" : "allfmodevent"
+    case "e": return "entry"
   }
   throw Error("Failed to get type key: " + id)
 }
@@ -92,6 +94,10 @@ export default function AssetPage() {
     case "fmodproject":
       return <KeepAlive key={id}>
         <FmodProjectPage {...asset} key={id}/>
+      </KeepAlive>
+    case "entry":
+      return <KeepAlive key={id}>
+        <EntryPage {...asset} key={id}/>
       </KeepAlive>
     default:
       return <AssetInvalidPage type="invalid-type" typeName={type}/>
@@ -957,6 +963,60 @@ function ShaderPage(props: Shader) {
         <Button minimal icon="duplicate" onClick={()=> writeText(_ps).then(success)}/>
       </H5>
       <Code src={_ps} language='glsl'/>
+    </div>
+  )
+}
+
+const codeStyle: React.CSSProperties = {
+  color: "#999",
+  fontWeight: 400,
+  fontSize: ".85em",
+}
+
+function EntryPage(props: Entry) {
+  const {assets, id, deps, source} = props
+  const alias = useMemo(()=> {
+    return sortedAlias(props.alias)
+  }, [props.alias])
+
+  return (
+    <div>
+      <H3>
+        {
+          alias.map((v, i)=> 
+          <span key={i} style={{
+            display: "inline-block",
+            marginRight: 4,
+            ...(i > 0 && codeStyle),
+          }}>
+            {v}
+          </span>)
+        }
+      </H3>
+      <H5>描述</H5>
+      <AssetDesc id={id}/>
+      <div style={{height: 10}}></div>
+      <H5>资源文件</H5>
+      {
+        assets.length > 0 ?
+        <div className={style["entry-asset-list"]}>
+        {
+          assets.map(({id})=> 
+            window.assets_map[id] &&
+            <AccessableItem key={id} {...window.assets_map[id]}/>)
+        }
+        </div> :
+        <p>该词条未引用任何文件。</p>
+      }
+      {
+        source.length > 0 &&
+        <>
+          <H5>源代码文件</H5>
+          {
+            source.map(v=> <AssetFilePath key={v} type="source" path={v}/>)
+          }
+        </>
+      }
     </div>
   )
 }

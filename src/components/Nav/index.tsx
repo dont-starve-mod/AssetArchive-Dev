@@ -5,10 +5,11 @@ import { appWindow } from '@tauri-apps/api/window'
 import MatchText from '../MatchText'
 import { useAppSetting, useLocalStorage, useOS } from '../../hooks'
 import style from './style.module.css'
-import { AllAssetTypes } from '../../searchengine'
+import { AllAssetTypes, ArchiveItem } from '../../searchengine'
 import { Popover2 } from '@blueprintjs/popover2'
 import { search } from '../../global_meilisearch'
 import TinySlider from '../TinySlider'
+import { formatAlias } from '../AliasTitle'
 
 export default function Nav() {
   let { isWindows, isMacOS, isLinux } = useOS()
@@ -305,7 +306,7 @@ type Matches = {
   [K: string]: {start: number, length: number}[]
 }
 
-function QuickSearchItem(props: AllAssetTypes & 
+function QuickSearchItem(props: ArchiveItem & 
   { onClickItem: Function, matches: Matches, selected?: boolean, itemRef: any }) {
   const {type, id, matches, selected} = props
   const navigate = useNavigate()
@@ -339,6 +340,8 @@ function QuickSearchItem(props: AllAssetTypes &
           <MatchText text={props.path} match={matches["path"]}/> :
         (type === "fmodproject") ?
           <MatchText text={props.file} match={matches["file"]}/> :
+        (type === "entry") ?
+          <MatchText text={props.plain_alias} match={matches["plain_alias"]}/> :
         <></>
       }
     </div>

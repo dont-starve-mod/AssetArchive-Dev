@@ -63,6 +63,10 @@ local function main(GLOBAL)
 	GLOBAL.prefabdata = prefabdata
 	GLOBAL.po = Po(GLOBAL.root, "chinese_s")
 
+	-- run animation preset
+	local run = require "compiler.animpreset.pmain"
+	run(GLOBAL)
+	exit()
 	-- run asset annotator
 	local run = require "compiler.assetdesc.dmain"
 	run(GLOBAL)
@@ -71,7 +75,7 @@ local function main(GLOBAL)
 	run(GLOBAL)
 
 	-- finally, write static file
-	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output/"
+	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output"
 	local path = output/"assetdesc.lua"
 	path:write(
 		"return "..

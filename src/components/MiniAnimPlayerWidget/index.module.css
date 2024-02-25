@@ -1,0 +1,62 @@
+.box {
+  position: relative;
+  background-color: rgba(0, 0, 0, 0.7);
+  height: 40px;
+  border-radius: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.control-group {
+  position: absolute;
+  width: 100px;
+  height: 30px;
+  left: 50%;
+  top: 0px;
+  transform: translate(-50%, 0);
+  display: flex;
+  justify-content: center;
+}
+
+.control-group-right {
+  position: absolute;
+  height: 30px;
+  right: 4px;
+  top: 0px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.control-group button span, .control-group-right button span{
+  transform: scale(0.8);
+  color: white!important;
+}
+
+.bar {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.4);
+  height: 4px;
+  border-radius: 2px;
+}
+
+.bar-region {
+  position: absolute;
+  height: 10px;
+  z-index: 2;
+  cursor: pointer;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* background-color: pink; */
+}
+
+.handle {
+  position: absolute;
+  z-index: 1;
+  width: 4px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: white;
+}

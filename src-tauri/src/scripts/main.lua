@@ -126,8 +126,8 @@ IpcHandlers.Register("render_animation_sync", function(param)
 	r.path = assert(param.path, "path not provided")
 	r.session_id = assert(param.session_id, "session_id not provided")
 
-	r:SetRoot(GLOBAL.root)
 	r:SetRenderParam(param.render_param)
+	r:SetRoot(GLOBAL.root)
 	r:Run()
 end)
 
