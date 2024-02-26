@@ -442,14 +442,6 @@ function Provider:ListAsset()
 		fev:LinkToFsb(fsb_map)
 	end
 
-	print("Start emitting data to frontend...")
-
-if not Args then
-	IpcEmitEvent("assets", json.encode_compliant(self.assets))
-	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
-	IpcEmitEvent("entry", require "compiler.output.entry")
-end
-
 	print("Finish")
 end
 

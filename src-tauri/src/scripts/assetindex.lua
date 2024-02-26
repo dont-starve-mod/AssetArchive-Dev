@@ -151,6 +151,7 @@ function AssetIndex:AddBuild(name, info)
 			self.zipinfo[name] = {}
 		end
 		self.zipinfo[name].has_build = true
+		self.zipinfo[name].build = build.name
 	end
 end
 

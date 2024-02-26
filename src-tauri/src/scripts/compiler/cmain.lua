@@ -63,6 +63,13 @@ local function main(GLOBAL)
 	GLOBAL.prefabdata = prefabdata
 	GLOBAL.po = Po(GLOBAL.root, "chinese_s")
 
+	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output"
+	GLOBAL.write_json = function(module_name, data)
+		local str = json.encode_compliant(data)
+		local path = (output/(module_name..".lua"))
+		path:write("return "..json.encode(str))
+	end
+
 	-- run animation preset
 	local run = require "compiler.animpreset.pmain"
 	run(GLOBAL)
@@ -75,7 +82,6 @@ local function main(GLOBAL)
 	run(GLOBAL)
 
 	-- finally, write static file
-	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output"
 	local path = output/"assetdesc.lua"
 	path:write(
 		"return "..

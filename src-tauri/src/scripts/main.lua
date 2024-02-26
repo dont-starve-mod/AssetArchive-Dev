@@ -32,13 +32,23 @@ GLOBAL = {
 	prov = nil,
 }
 
+local function SendData()
+	print("Start emitting data to frontend...")
+	
+	IpcEmitEvent("assets", json.encode_compliant(GLOBAL.prov.assets))
+	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
+	IpcEmitEvent("entry", require "compiler.output.entry")
+	IpcEmitEvent("animpreset", require "compiler.output.animpreset")
+
+	print("All data sent")
+end
+
 IpcHandlers.Register("appinit", function()
 	-- Events:
 	--   settings
 	--   root
 	--   index_progress 0..100
 	--   anim_predictable_data
-	--   assets
 	
 	IpcEmitEvent("settings", Persistant.Config:Dumps()) -- get settings first
 
@@ -54,6 +64,7 @@ IpcHandlers.Register("appinit", function()
 	GLOBAL.prov = Provider(GLOBAL.root)
 	GLOBAL.prov:DoIndex(false)
 	GLOBAL.prov:ListAsset()
+	SendData()
 
 	return {
 		success = true,
@@ -71,6 +82,7 @@ IpcHandlers.Register("setroot", function(param)
 		GLOBAL.prov = Provider(GLOBAL.root)
 		GLOBAL.prov:DoIndex(true)
 		GLOBAL.prov:ListAsset()
+		SendData()
 		return true
 	else
 		return false

@@ -14,15 +14,8 @@ local Preset = Class(function(self, data)
 	self.icon = data.icon
 end)
 
-local PresetList = Class(function(self, data)
-	self.key = data.key
-	self.title = data.title
-	self.condition = data.condition
-	self.presets = data.presets
-end)
-
 local ALL_PRESETLIST = {
-	PresetList{
+	{
 		key = "test",
 		condition = {"or",
 			{"BankIs", "wilson"},
@@ -53,7 +46,7 @@ local CONDITION = {
 	IS_PLAYER = { "BankIs", "wilson", "wilsonbeefalo", "wilson_sit", "wilson_sit_nofaced" },
 }
 
-ALL_PRESETLIST.character_base = PresetList{
+ALL_PRESETLIST.character_base = {
 	title = "角色外观",
 	condition = CONDITION.IS_PLAYER,
 	presets = {
@@ -75,7 +68,7 @@ table.foreach(ALL_PRESETLIST.character_base.presets, function(_, v)
 	v.icon = "swap_icon"
 end)
 
-ALL_PRESETLIST.equip_hand = PresetList{
+ALL_PRESETLIST.equip_hand = {
 	title = "工具/武器",
 	condition = CONDITION.IS_PLAYER,
 	presets = {
@@ -151,7 +144,7 @@ local function CreateHat(name, opentop)
 	}
 end
 
-ALL_PRESETLIST.equip_head = PresetList{
+ALL_PRESETLIST.equip_head = {
 	title = "帽子/头盔",
 	condition = {"or",
 		CONDITION.IS_PLAYER,
@@ -177,7 +170,7 @@ ALL_PRESETLIST.equip_head = PresetList{
 	}
 }
 
-ALL_PRESETLIST.equip_body = PresetList{
+ALL_PRESETLIST.equip_body = {
 	title = "背包/护甲",
 	condition = CONDITION.IS_PLAYER,
 	presets = {
@@ -226,7 +219,7 @@ ALL_PRESETLIST.equip_body = PresetList{
 	}
 }
 
-ALL_PRESETLIST.mount = PresetList{
+ALL_PRESETLIST.mount = {
 	title = "坐骑",
 	condition = { "BankIs", "wilsonbeefalo" },
 	presets = {
@@ -248,7 +241,7 @@ ALL_PRESETLIST.mount = PresetList{
 	}
 }
 
-ALL_PRESETLIST.saddle = PresetList{
+ALL_PRESETLIST.saddle = {
 	title = "鞍",
 	condition = { "BankIs", "wilsonbeefalo" },
 	presets = {
@@ -276,7 +269,7 @@ table.foreach(ALL_PRESETLIST.saddle.presets, function(_, v)
 	}
 end)
 
-ALL_PRESETLIST.pig_base = PresetList{
+ALL_PRESETLIST.pig_base = {
 	title = "“猪人”外观",
 	condition = { "BankIs", "pigman" },
 	presets = {
@@ -313,7 +306,7 @@ ALL_PRESETLIST.pig_base = PresetList{
 	}
 }
 
-ALL_PRESETLIST.spider_base = PresetList{
+ALL_PRESETLIST.spider_base = {
 	title = "蜘蛛外观",
 	condition = { "BankIs", "spider" },
 	presets = {
@@ -344,8 +337,36 @@ ALL_PRESETLIST.spider_base = PresetList{
 	}
 }
 
-ALL_PRESETLIST.color = PresetList{
+ALL_PRESETLIST.ghost_base = {
+	title = "鬼魂外观",
+	condition = { "BankIs", "ghost" },
+	presets = {
+		Preset{
+			key = "wilson",
+			cmds = {{name = "SetBuild", args = {"ghost_wilson_build"}}},
+		},
+		Preset{
+			key = "wendy",
+			cmds = {{name = "SetBuild", args = {"ghost_wendy_build"}}},
+		},
+		Preset{
+			key = "wx78",
+			cmds = {{name = "SetBuild", args = {"ghost_wx78_build"}}},
+		},
+		Preset{
+			key = "ghost",
+			cmds = {{name = "SetBuild", args = {"ghost_build"}}},
+		},
+		Preset{
+			key = "abigail",
+			cmds = {{name = "SetBuild", args = {"ghost_abigail_build"}}},
+		},
+	}
+}
+
+ALL_PRESETLIST.color = {
 	condition = { "true" },
+	order = 999,
 	presets = {
 		Preset{
 			key = nil,
@@ -377,6 +398,19 @@ ALL_PRESETLIST.color = PresetList{
 	}
 }
 
+-- public fixer
+table.foreach(ALL_PRESETLIST, function(k, v)
+	v.key = k
+	v.order = v.order or 0
+
+	table.foreach(v, function(_, p)
+		if p.key == nil then
+			p.title = "无"
+			p.cmds = {}
+		end
+	end)
+end)
+
 local CreateReader = FileSystem.CreateReader
 
 local function LinkBuildPresetForAnimation(env)
@@ -392,6 +426,7 @@ local function LinkBuildPresetForAnimation(env)
 		[smallhash("wilson_sit_nofaced")] = true,
 		[smallhash("pigman")] = true,
 		[smallhash("spider")] = true,
+		[smallhash("ghost")] = true,
 
 		-- unused
 		[smallhash("forceexport/float_back")] = true,
@@ -436,6 +471,7 @@ local function LinkBuildPresetForAnimation(env)
 
 	local success = 0
 	local failed = 0
+	local result = {} -- {[bankhash]: build}
 	table.foreach(index.animinfo, function(bankhash, data)
 		if not skip_banks[bankhash] then
 			local bankname = HashLib:Hash2String(bankhash) or tostring(bankhash)
@@ -449,11 +485,13 @@ local function LinkBuildPresetForAnimation(env)
 			assert(#files > 0)
 			if #files == 1 then
 				-- check build existance
-				if index:GetZipFileAbstract(files[1]).has_build then
+				local info = index:GetZipFileAbstract(files[1])
+				if info.has_build then
 					-- simple zip: anim.bin + build.bin + atlas-N.tex
 					-- do nothing for preset
 					print_debug("[PRESET] "..bankname.." ... "..NameOf(files[1]))
 					success = success + 1
+					result[bankhash] = {info.build}
 					return
 				else
 					-- zip only contains anim.bin
@@ -466,28 +504,96 @@ local function LinkBuildPresetForAnimation(env)
 					related_files[k] = nil
 				end
 			end
+			local force_build = nil
 			local num = GetTableSize(related_files)
-			if num == 0 then
-				-- print("Warning: no build", bankname, json.encode(files))
-			elseif num <= 8
+			local function FilterBy(fn)
+				for k in pairs(related_files)do
+					if not fn(k) then related_files[k] = nil end
+				end
+			end
+			if num <= 8
 				or bankname == "oceanfish_small"
-				or bankname == "oceanfish_medium" then
+				or bankname == "oceanfish_medium"
+				or bankname == "hound"
+				or bankname == "beefalo"
+				or bankname == "chesspiece" then
 				-- add all build files to preset
-
-				-- TODO:
-				return
+			elseif bankname == "dumbbell_heat" then
+				FilterBy(function(k) return k:startswith("anim/dumbbell_heat") end)
+			elseif bankname == "kitcoon" then
+				FilterBy(function(k) return k:startswith("anim/kitcoon") end)
+			elseif bankname == "cook_pot" then
+				FilterBy(function(k) return k:find("cook_pot") and not k:find("cook_pot_food") end)
+			elseif bankname == "pumpkin" then
+				FilterBy(function(k) return k:find("pumpkin") end)
+			elseif bankname == "clock01" then
+				FilterBy(function(k) return k:find("clock") end)
+			elseif bankname == "chester" then
+				FilterBy(function(k) return true end) --  TODO: --> fix it
+			elseif bankname == "crow" then
+				force_build = {"crow_build", "robin_build", "robin_winter_build"}
+			elseif bankname == "crow_kids" then
+				force_build = {"crow_kids"}
+			elseif bankname == "werebeaver" or bankname == "weregoose" or bankname == "weremoose" then
+				force_build = {bankname.."_build"}
 			else
 				-- TO MANY items!
-				print(bankname,json.encode(related_files))
-				-- table.foreach(related_files, print)
-
-				-- print("Failed to map:", bankname)
+				print("Warning: too many build files related to bank:")
+				print(bankname, json.encode(related_files))
 				failed = failed + 1
+			end
+
+			if GetTableSize(related_files) == 0 then
+				if bankname:lower():startswith("cloudsfx_ol_") then
+					force_build = {"cloud_build"}
+				elseif bankname == "dst_menu_meta2" then
+					force_build = {"dst_menu_meta2_cotl"}
+				else
+					print("Warning: no build files related: "..bankname)
+				end
+			end
+
+			-- convert to build
+			local builds = {}
+			if force_build ~= nil then
+				-- override
+				for _,v in ipairs(force_build)do
+					assert(index:GetBuildFile(v), "build file not found: "..v)
+				end
+				builds = force_build
+			else
+				for k in pairs(related_files)do
+					local info = index:GetZipFileAbstract(k)
+					local build = info and info.build
+					if build ~= nil then
+						table.insert(builds, build)
+					end
+				end
+			end
+			if #builds > 0 then
+				-- print(table.concat(builds, ", "))
+				table.sort(builds, function(a, b) return a < b end)
+				result[bankhash] = builds
+			else
+				error("Failed to link bankname: ", bankname)
 			end
 		end
 	end)
 
-	print(success, failed)
+	print("Success: "..success.." / Failed: "..failed)
+
+	-- convert to json friendly
+	local data = {}
+	for k,v in pairs(result)do
+		table.insert(data, {bankhash = k, build = v})
+	end
+
+	env.write_json("animpreset", {
+		def = ALL_PRESETLIST,
+		auto = data,
+	})
+
+	return result
 end
 
 local function run(env)

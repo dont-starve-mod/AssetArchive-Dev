@@ -1,7 +1,8 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Menu, MenuDivider, MenuItem, IconName } from '@blueprintjs/core'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAppSetting } from '../../hooks'
+import { invoke } from '@tauri-apps/api'
 
 function MenuNavLink(props: 
   {icon: IconName, text: string, to: string, redirectNoRoot?: boolean}) {
@@ -26,6 +27,11 @@ function MenuNavLink(props:
 }
 
 export default function MainMenu() {
+  const [isDebug, setIsDebug] = useState(false)
+  useEffect(()=> {
+    invoke<boolean>("get_is_debug").then(setIsDebug)
+  }, [])
+
   return <Menu style={{minWidth: "100%", backgroundColor: "transparent"}}>
     <MenuNavLink icon="git-repo" to="/asset-group" text="游戏资源" redirectNoRoot/>
     <MenuNavLink icon="walk" to="/anim-list" text="动画渲染器" redirectNoRoot/>
@@ -33,6 +39,11 @@ export default function MainMenu() {
     {/* <MenuNavLink icon="build" to="/modtools" text="模组工具" /> */}
     {/* <MenuNavLink icon="bug" to="/about#bug" text="反馈bug" /> */}
     <MenuDivider />
+    {
+      isDebug && <MenuItem icon="bug" text="Debug">
+        <MenuItem text="刷新" onClick={()=> location.href = location.href}/>
+      </MenuItem>
+    }
     <MenuNavLink icon="cog" to="/settings" text="设置"/>
     <MenuNavLink icon="heart" to="/about" text="关于"/>
     {/* <MenuItem text="Settings..." icon="cog" intent="primary" >

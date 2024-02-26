@@ -122,6 +122,7 @@ fn main() {
             clear_drag_data,
             get_drag_data_all,
             shutdown,
+            get_is_debug,
         ])
         // .menu(menu())
         .run(tauri::generate_context!())
@@ -162,6 +163,11 @@ fn select_file_in_folder(path: String) -> bool {
         .arg(path)
         .status()
         .is_ok()
+}
+
+#[tauri::command]
+fn get_is_debug() -> bool {
+    cfg!(debug_assertions)
 }
 
 #[cfg(target_os="windows")]

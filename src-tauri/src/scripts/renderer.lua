@@ -9,6 +9,7 @@ local Render = Class(function(self, api_list)
 	self.bgc = "#00FF00"
 
 	self.symbol_element_cache = {}
+	self.filter = {}
 
 	self.path = nil
 	self.format = "auto"
@@ -423,11 +424,19 @@ function Render:Run()
 
 				local key = "task-"..getaddr(source).."("..render_width.."x"..render_height..")"..
 					table.concat(m, "+")
+				local filter, filter_key = self:GetFilter({					
+					mult = {color.mult, color.symbol_mult[element.imghash]},
+					add  = {color.add, color.symbol_add[element.imghash]},
+				})
+				if filter_key ~= nil then
+					key = key .. "filter:" .. filter_key
+				end
 				element_tasks[key] = {
 					render_width = render_width,
 					render_height = render_height,
 					img = source,
 					matrix = m,
+					filter = filter,
 				}
 				table.insert(buffer, {
 					-- small_img = small_img,
@@ -436,8 +445,8 @@ function Render:Run()
 					render_width = render_width,
 					render_height = render_height,
 					z_index = element.z_index,
-					mult = {color.mult, color.symbol_mult[element.imghash]},
-					add  = {color.add, color.symbol_add[element.imghash]},
+					-- mult = {color.mult, color.symbol_mult[element.imghash]},
+					-- add  = {color.add, color.symbol_add[element.imghash]},
 				})
 			end
 		end
@@ -449,19 +458,22 @@ function Render:Run()
 	end
 
 	-- loop 2.1: run the multithreaded renderer
-	-- element_tasks["@thread"] = 8
-	Image.MultiThreadedTransform(element_tasks, function(_, _, percent)
-		IpcEmitEvent("render_event", json.encode_compliant({
-			session_id = self.session_id,
-			state = "render_element",
-			progress = percent,
-		}))
+	-- element_tasks["@thread"] = 1
+	Image.MultiThreadedTransform(element_tasks, function(current, _, percent)
+		if current % 100 == 0 then
+			IpcEmitEvent("render_event", json.encode_compliant({
+				session_id = self.session_id,
+				state = "render_element",
+				progress = percent,
+			}))
+		end
 	end)
-	-- for k,v in pairs(element_tasks)do
-	-- 	v.img = v.img:affine_transform(
-	-- 		v.render_width, v.render_height,
-	-- 		v.matrix, Image.BILINEAR)
-	-- end
+
+	IpcEmitEvent("render_event", json.encode_compliant{
+		session_id = self.session_id,
+		state = "render_element",
+		progress = 1,
+	})
 
 	-- loop 3: calculate global render region
 	local x_values = {}
@@ -567,10 +579,9 @@ function Render:Run()
 		local canvas = Image.From_RGBA(background, width, height)
 		for _, data in ipairs(buffer)do
 			-- local small_img = data.small_img
-			local small_img = element_tasks[data.small_img_id].img
+			local small_img = assert(element_tasks[data.small_img_id],
+				"internal error: element render task failed").img:clone()
 			local pos_int = data.pos_int
-			local filter = self:GetFilter(data)
-			small_img:apply_filter(filter)
 			canvas:paste(small_img, pos_int[1]-left, pos_int[2]-top)
 		end
 		bar:set_position(index)
@@ -592,13 +603,20 @@ function Render:Run()
 	}))
 end
 
+-- local function FormatList(v)
+-- 	return string.format("%.6f/%.6f/%.6f/%.6f",
+-- 			unpack(v))
+-- end
+
 function Render:GetFilter(data)
+	local key = {}
 	local mult = data.mult
 	local multRGBA = {1, 1, 1, 1}
 	for _,v in pairs(mult)do
 		for i, c in ipairs(v)do
 			multRGBA[i] = multRGBA[i] * c
 		end
+		table.insert(key, "m-"..getaddr(v))
 	end
 	local add = data.add
 	local addRGB = {0, 0, 0, 0}
@@ -606,14 +624,24 @@ function Render:GetFilter(data)
 		for i, c in ipairs(v)do
 			addRGB[i] = addRGB[i] + c* 255* v[4]
 		end
+		table.insert(key, "a-"..getaddr(v))
 	end
-	local filter = Image.Filter({
-		function(r) return math.clamp(r* multRGBA[1] + addRGB[1], 0, 255) end,
-		function(g) return math.clamp(g* multRGBA[2] + addRGB[2], 0, 255) end,
-		function(b) return math.clamp(b* multRGBA[3] + addRGB[3], 0, 255) end,
-		function(a) return math.clamp(a* multRGBA[4], 0, 255) end
-	})
-	return filter
+
+	key = table.concat(key, ",")
+	if key == "" then
+		return nil
+	elseif self.filter[key] ~= nil then
+		return self.filter[key], key
+	else
+		local filter = Image.Filter({
+			function(r) return math.clamp(r* multRGBA[1] + addRGB[1], 0, 255) end,
+			function(g) return math.clamp(g* multRGBA[2] + addRGB[2], 0, 255) end,
+			function(b) return math.clamp(b* multRGBA[3] + addRGB[3], 0, 255) end,
+			function(a) return math.clamp(a* multRGBA[4], 0, 255) end
+		})
+		self.filter[key] = filter
+		return filter, key
+	end
 end
 
 local function test()
@@ -627,8 +655,8 @@ local function test()
 		{name="HideSymbol", args={"face-"}},
 		-- {name="SetSymbolMultColour", args={"headbase",1,0.25,0.25,1}},
 		{name="Hide", args={"head_hat"}},
-		-- {name="SetMultColour", args={1,1,1,0.2}},
-		-- {name="SetAddColour", args={1,0,0,1}},
+		{name="SetMultColour", args={1,1,1,1}},
+		{name="SetAddColour", args={1,0,0,1}},
 
 	})
 	local DST_DataRoot = require "assetprovider".DST_DataRoot
@@ -643,6 +671,6 @@ local function test()
 	exit()
 end
 
-test()
+-- test()
 
 return Render

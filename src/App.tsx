@@ -12,10 +12,11 @@ import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
-import type { AllAssetTypes, ArchiveItem, Entry, Shader } from './searchengine'
+import type { ArchiveItem, Entry, Shader } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import MyTest from './components/MyTest'
 import AppFmodHandler from './components/AppFmodHandler'
+import { DefinedPresetGroup } from './components/AnimQuickLook/preset'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 // https://zhuanlan.zhihu.com/p/573735645
@@ -36,6 +37,14 @@ declare global {
 		assets_map: {[K: string]: ArchiveItem},
 		entry: Entry[],
 		entry_map: {[K: string]: Entry},
+		animpreset: {
+			def: {
+				[K: string]: DefinedPresetGroup,
+			},
+			auto: {
+				[K: number]: string[],
+			}
+		}
 		hash: Map<number, string>,
 	}
 }

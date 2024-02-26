@@ -203,6 +203,13 @@ export default function AppInit() {
           })
           appWindow.emit("update_entry")
         }),
+        await globalListen<string>("animpreset", ({payload})=> {
+          const data = JSON.parse(payload)
+          console.log(data.auto)
+          data.auto = Object.fromEntries(data.auto.map(({bankhash, build})=> [bankhash, build]))
+          data.def = data.def
+          window.animpreset = data
+        }),
         await globalListen<string>("anim_predictable_data", ({payload})=> {
           const data = JSON.parse(payload)
           const {hashmap} = data

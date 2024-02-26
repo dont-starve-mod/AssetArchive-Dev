@@ -453,6 +453,7 @@ pub mod lua_image {
         }
     }
 
+    #[derive(Clone)]
     pub struct Filter {
         r: Vec<u8>,
         g: Vec<u8>,
@@ -675,6 +676,7 @@ pub mod lua_image {
         img: Image,
         matrix: AffineTransform,
         resampler: Resampler,
+        filter: Option<Filter>,
 
         task_id: String,
         worker_id: usize,
@@ -714,6 +716,7 @@ pub mod lua_image {
             // TODO: is it valid?
             let mut keys = tasks.clone().pairs::<String, _>()
                 .map(|pair|pair.unwrap_or(("".to_string(), lua.create_table().unwrap())).0.to_string())
+                .filter(|v|v.starts_with("task"))
                 .collect::<Vec<String>>();
             let total = keys.len();
             let (main_tx, main_rx) = sync_channel::<TaskData>(1);
@@ -729,8 +732,10 @@ pub mod lua_image {
                         };
                         // println!("WORKER {} <-", i);
                         task.img = task.img.affine_transform(task.width, task.height, task.matrix, task.resampler).unwrap();
-                        task.width = 0;
-                        task.height = 0;
+                        if let Some(filter) = task.filter {
+                            task.img.apply_filter(&filter);
+                            task.filter = None;
+                        }
                         // println!("WORKER {} ->", i);
                         main_tx.send(task).unwrap();
                     }
@@ -741,11 +746,8 @@ pub mod lua_image {
                 for (i, (_, tx, is_available)) in threads.iter_mut().enumerate() {
                     if *is_available && !keys.is_empty() {
                         let key = keys.pop().unwrap();
-                        if !key.starts_with("task") {
-                            continue;
-                        }
                         let task = tasks.get::<_, Table>(key.as_str())?;
-                        *is_available = false; // ?????
+                        *is_available = false;
                         if tx.send(TaskData{
                             width: task.get("render_width")?,
                             height: task.get("render_height")?,
@@ -754,6 +756,10 @@ pub mod lua_image {
                                 .clone(),
                             matrix: AffineTransform::from_vec(task.get("matrix")?),
                             resampler: Resampler::Bilinear,
+                            filter: match task.get::<_, Option<AnyUserData>>("filter")? {
+                                Some(filter)=> Some(filter.borrow::<Filter>()?.clone()),
+                                None=> None,
+                            },
                             task_id: key.clone(),
                             worker_id: i,
                         }).is_err() {
@@ -762,12 +768,12 @@ pub mod lua_image {
                     }
                 }
                 while let Ok(task) = main_rx.try_recv() {
-                    let v = &mut threads[task.worker_id];
-                    if v.2 {
+                    let idle = &mut threads[task.worker_id].2;
+                    if *idle {
                         return Err(LuaError::RuntimeError(format!("received task data from idle worker: {}", task.worker_id)));
                     }
                     else {
-                        v.2 = true;
+                        *idle = true;
                         tasks.get::<_, Table>(task.task_id)?
                             .set("img", task.img)?;
                     }

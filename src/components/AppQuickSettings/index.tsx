@@ -3,7 +3,7 @@ import { appWindow } from '@tauri-apps/api/window'
 import { Button, Dialog, DialogBody, DialogFooter, H3, H5, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Event } from '@tauri-apps/api/event'
 import AnimQuickLook from '../AnimQuickLook'
-import { useQuickLookPresets, Preset, ALL_PRESETS, useQuickLookExport } from '../AnimQuickLook/util'
+import { useQuickLookPresets, useQuickLookExport } from '../AnimQuickLook/util'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import Preview from '../Preview'
 import { useDispatch, useSelector } from '../../redux/store'
@@ -57,7 +57,6 @@ export default function AppQuickSettings() {
 function AnimQuickLookSettings(props: {data: any, closeDialog: ()=> void}) {
   const {data, closeDialog} = props
   const presets = useQuickLookPresets(data)
-  const numActivatedPresets = presets.filter(v=> v.activated).length
   const animstate = useRef<AnimState>()
   const [_, forceUpdate] = useReducer(v=> v + 1, 0)
 
@@ -83,9 +82,9 @@ function AnimQuickLookSettings(props: {data: any, closeDialog: ()=> void}) {
         <div style={{maxHeight: 290, width: 290, paddingBottom: 40, overflowX: "hidden", overflowY: "auto"}}>
         <H5>预设</H5>
         {
-          numActivatedPresets > 0 ?
+          presets.length > 0 ?
           presets.map(v=> 
-          v.activated && <PresetSelector 
+          <PresetSelector 
             key={v.type}
             type={v.type as any} 
             title={v.title} 
@@ -160,11 +159,11 @@ function PresetIcon(props: {preset: Preset}) {
 
   const onClick = useCallback(()=> {
     const disables = {}
-    ALL_PRESETS.forEach((v)=> {
-      if (type === v.type){
-        disables[v.key] = false
-      }
-    })
+    // ALL_PRESETS.forEach((v)=> {
+    //   if (type === v.type){
+    //     disables[v.key] = false
+    //   }
+    // })
     setPresets({
       ...stored_presets,
       ...disables,
