@@ -52,20 +52,42 @@ struct LuaEnv {
     state: Mutex<HashMap<String, String>>,
     interrupt_flag: Mutex<bool>,
     init_error: Mutex<String>,
+    debug_script_root: Mutex<Option<PathBuf>>,
 }
 
 impl LuaEnv {
     fn new() -> Self {
-        let lua = unsafe { Lua::unsafe_new_with_flags(
-            StdLib::ALL - StdLib::IO, // remove libio
-            InitFlags::DEFAULT - InitFlags::LOAD_WRAPPERS,
-        ) };
         LuaEnv { 
-            lua: Mutex::new(lua),
+            lua: Mutex::new(Self::new_lua()),
             state: Mutex::new(HashMap::new()), 
             interrupt_flag: Mutex::new(false),
             init_error: Mutex::new(String::new()),
+            debug_script_root: Mutex::new(None),
         }
+    }
+
+    #[inline]
+    fn new_lua() -> Lua {
+        unsafe { Lua::unsafe_new_with_flags(
+            StdLib::ALL - StdLib::IO, // remove libio
+            InitFlags::DEFAULT - InitFlags::LOAD_WRAPPERS,
+        ) }
+    }
+
+    /// store root on first call, return stored root on reloading
+    fn get_debug_script_root(&self, path: PathBuf) -> PathBuf {
+        let mut root = self.debug_script_root.lock().unwrap();
+        if root.is_some() {
+            root.clone().unwrap()
+        }
+        else {
+            let _ = root.insert(path.clone());
+            path
+        }
+    }
+
+    fn reload(&self) {
+        *self.lua.lock().unwrap() = LuaEnv::new_lua();
     }
 }
 
@@ -110,6 +132,7 @@ fn main() {
             lua_console, 
             lua_call, 
             lua_interrupt,
+            lua_reload,
             open_url,
             fmod_send_message,
             fmod_update,
@@ -294,8 +317,18 @@ fn lua_interrupt(state: tauri::State<'_, LuaEnv>) {
 fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
     let resolver = app.path_resolver();
     let state = app.state::<LuaEnv>();
-    let lua = state.lua.lock().unwrap();
+    lua_init_impl(resolver, state)
+}
 
+#[tauri::command]
+fn lua_reload<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: tauri::State<'_, LuaEnv>) -> Result<(), String> {
+    let resolver = app.path_resolver();
+    state.reload();
+    lua_init_impl(resolver, state)
+        .map_err(|e|e.to_string())
+}
+
+fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>) -> LuaResult<()> {
     let app_dir = |path: Option<PathBuf>, create: bool|{
         if let Some(path) = path {
             if !path.is_dir() && create {
@@ -309,7 +342,8 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
         }
         None
     };
-
+    
+    let lua = state.lua.lock().unwrap();
     lua.context(|lua_ctx| -> LuaResult<()>{
         let globals = lua_ctx.globals();
  
@@ -374,10 +408,10 @@ fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
             }
         })?)?;
 
-        let workdir = std::env::current_dir().unwrap_or_default();
-        let script_root = if workdir.join("Cargo.toml").exists() { // 判定开发者环境, 有点不好, 以后要删了
+        let workdir = state.get_debug_script_root(std::env::current_dir().unwrap_or_default());
+        let script_root = if workdir.join("Cargo.toml").exists() { // TODO: 判定开发者环境, 有点不好, 以后要删了
             println!("[DEBUG] Enable dynamic script loading");
-            PathBuf::from_iter(vec!["src", "scripts"])
+            workdir.join("src").join("scripts")
         }
         else {
             PathBuf::new()

@@ -42,6 +42,11 @@ export default function MainMenu() {
     {
       isDebug && <MenuItem icon="bug" text="Debug">
         <MenuItem text="刷新" onClick={()=> location.href = location.href}/>
+        <MenuItem text="重载Lua" onClick={()=> invoke("lua_reload").then(
+          // ()=> location.href = location.href,
+          ()=> {},
+          error=> window.alert("Failed to reload:\n" + error)
+        )}/>
       </MenuItem>
     }
     <MenuNavLink icon="cog" to="/settings" text="设置"/>

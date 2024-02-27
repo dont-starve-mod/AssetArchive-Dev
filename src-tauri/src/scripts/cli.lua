@@ -56,9 +56,11 @@ local function compile()
 	prov:DoIndex(false)
 	prov:ListAsset()
 	env.prov = prov
+	print(1111)
 
 	-- TODO: --force-reindex
 	print(Args.skip_analyzing)
+	print(222)
 	if not Args.skip_analyzing then
 		require("compiler.amain").main(env)
 	end

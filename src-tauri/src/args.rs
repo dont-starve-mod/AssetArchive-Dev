@@ -40,17 +40,16 @@ pub mod lua_args {
                     .visible_aliases(["d"])
                     .args(generic_args.clone()))
                 .subcommand(clap::Command::new("compile")
-                    .about("编译词条信息")
+                    .about("编译静态注释文件")
                     .visible_aliases(["c"])
                     .args(generic_args.clone()))
-                    // .args([
-                    //     Arg::new("skip_analyzing")
-                    //         .long("skip-analyzing")
-                    //         .short('a')
-                    //         .ignore_case(true)
-                    //         .action(ArgAction::SetTrue)
-                    //         .help("跳过prefab loading分析步骤, 缩短总时长")
-                    // ])
+                    .args([
+                        Arg::new("skip_analyzing")
+                            .long("skip-analyzing")
+                            .short('a')
+                            .action(ArgAction::SetTrue)
+                            .help("跳过prefab loading分析步骤, 缩短总时长")
+                    ])
                 .subcommand(clap::Command::new("render-animation")
                     .about("渲染动画, 生成图片序列/视频/动图")
                     .visible_aliases(["animation", "anim", "a", "r"])
@@ -61,59 +60,49 @@ pub mod lua_args {
                         arg!(-a --animation <ANIMATION> "PlayAnimation, 设置动画名").required(true),
                         arg!(-f --facing <FACING> "SetFacing, 设置动画朝向"),
                         arg!(-o <BUILD> "AddOverrideBuild, 添加材质覆盖")
-                            .long("override-build")
-                            .ignore_case(true),
+                            .long("override-build"),
                         Arg::new("overryde_symbol")
                             .value_names(["SYMBOL", "BUILD", "SYMBOL"])
                             .long("override-symbol")
-                            .ignore_case(true)
                             .help("OverrideSymbol, 覆盖符号")
                             .num_args(2..=3),
                         Arg::new("clear_override_build")
                             .value_name("BUILD")
                             .long("clear-override-build")
-                            .ignore_case(true)
                             .aliases(["clearoverridebuild"])
                             .help("ClearOverrideBuild, 清除覆盖材质"),
                         Arg::new("clear_override_symbol")
                             .value_name("SYMBOL")
                             .long("clear-override-symbol")
-                            .ignore_case(true)
                             .aliases(["clearoverridesymbol"])
                             .help("ClearOverrideSymbol, 清除覆盖符号"),
                         Arg::new("hide_symbol")
                             .value_name("SYMBOL")
                             .long("hide-symbol")
-                            .ignore_case(true)
                             .help("HideSymbol, 隐藏符号"),
                         Arg::new("hide_layer")
                             .value_name("LAYER")
                             .long("hide-layer")
-                            .ignore_case(true)
                             .help("Hide, 隐藏图层")
                             .visible_alias("hide"),
                         Arg::new("mult_color")
                             .value_name("COLOR")
                             .long("mult-color")
-                            .ignore_case(true)
                             .aliases(["mult-colour", "multcolour"])
                             .help("SetMultColour, 颜色乘法"),
                         Arg::new("add_color")
                             .value_name("COLOR")
                             .long("add-color")
-                            .ignore_case(true)
                             .aliases(["add-colour", "addcolour"])
                             .help("SetAddColour, 颜色加法"),
                         Arg::new("symbol_mult_color")
                             .value_names(["SYMBOL", "COLOR"])
                             .long("symbol-mult-color")
-                            .ignore_case(true)
                             .aliases(["symbol-mult-colour", "symbolmultcolour"])
                             .help("SetSymbolMultColour, 符号颜色乘法"),
                         Arg::new("symbol_add_color")
                             .value_names(["SYMBOL", "COLOR"])
                             .long("symbol-add-color")
-                            .ignore_case(true)
                             .aliases(["symbol-add-colour", "symboladdcolour"])
                             .help("SymbolAddColour, 符号颜色加法"),
                         Arg::new("background_color")
@@ -198,6 +187,7 @@ pub mod lua_args {
                                 args.inner.subcommand_name().unwrap()
                             ).unwrap();
 
+                            println!("Get Arg? {}", s);
                             if let Ok(v) = matches.try_get_one::<String>(s) {
                                 convert_to_luastring(lua, v.map(|s|s.as_str()))
                             }
