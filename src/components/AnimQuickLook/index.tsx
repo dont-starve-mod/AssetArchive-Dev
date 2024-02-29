@@ -7,6 +7,7 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { useQuickLookCmds, useQuickLookExport } from './util'
 import { appWindow } from '@tauri-apps/api/window'
 import MiniAnimPlayerWidget from '../MiniAnimPlayerWidget'
+import { useLocalStorage } from '../../hooks'
 
 type Placement = {
   width: number,
@@ -52,6 +53,8 @@ const defaultPlacement: PlacementCalculator = (rect, options)=> {
 
   return { width, height, x, y, scale: w_scale }
 }
+
+const GREY = {color: "#aaa"}
 
 export default function AnimQuickLook(props: AnimQuickLookProps) {
   const {bankhash, animation, build, facing, animstateRef} = props
@@ -100,6 +103,7 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
   }, [])
 
   const [showPlayer, setShowPlayer] = useState(false)
+  const [pin] = useLocalStorage("quicklook_pin_player_widget")
   const exportFn = useQuickLookExport(animstate)
 
   return (
@@ -125,9 +129,10 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
         <div style={{height: 4}}/>
         <Popover2 content={
           <Menu>
-            <MenuItem icon="image-rotate-right" text="动图" onClick={()=> exportFn("gif")}/>
-            <MenuItem icon="video" text="视频" onClick={()=> exportFn("mp4")}/>
-            <MenuItem icon="widget" text="当前帧截图" onClick={()=> exportFn("snapshot")}/>
+            <MenuItem icon="image-rotate-right" text={<>动图 <span style={GREY}>gif</span></>} onClick={()=> exportFn("gif")}/>
+            <MenuItem icon="video" text={<>视频 <span style={GREY}>mp4</span></>}  onClick={()=> exportFn("mp4")}/>
+            <MenuItem icon="video" text={<>无损视频 <span style={GREY}>mov</span></>} onClick={()=> exportFn("mov")}/>
+            <MenuItem icon="widget" text={<>当前帧截图 <span style={GREY}>png</span></>} onClick={()=> exportFn("snapshot")}/>
           </Menu>
         } minimal>
           <Tooltip2 content="快速导出">
@@ -139,7 +144,7 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
       <div style={{position: "absolute", display: "flex", justifyContent: "center",
         left: 0, bottom: 0, width: "100%", paddingTop: 10, paddingBottom: 10,
         transition: "all .2s",
-        opacity: showPlayer ? 1 : 0}}
+        opacity: (showPlayer || pin) ? 1 : 0}}
           onMouseEnter={()=> setShowPlayer(true)}
           onMouseLeave={()=> setShowPlayer(false)}
           >

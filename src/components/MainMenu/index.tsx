@@ -40,20 +40,16 @@ export default function MainMenu() {
     {/* <MenuNavLink icon="bug" to="/about#bug" text="反馈bug" /> */}
     <MenuDivider />
     {
+      // only show in `npm run tauri dev`
       isDebug && <MenuItem icon="bug" text="Debug">
         <MenuItem text="刷新" onClick={()=> location.href = location.href}/>
         <MenuItem text="重载Lua" onClick={()=> invoke("lua_reload").then(
-          // ()=> location.href = location.href,
-          ()=> {},
+          ()=> location.href = location.href,
           error=> window.alert("Failed to reload:\n" + error)
         )}/>
       </MenuItem>
     }
     <MenuNavLink icon="cog" to="/settings" text="设置"/>
     <MenuNavLink icon="heart" to="/about" text="关于"/>
-    {/* <MenuItem text="Settings..." icon="cog" intent="primary" >
-      <MenuItem icon="tick" text="Save on edit" />
-      <MenuItem icon="blank" text="Compile on edit" />
-    </MenuItem> */}
   </Menu>
 }

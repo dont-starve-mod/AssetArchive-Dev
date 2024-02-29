@@ -14,33 +14,7 @@ local Preset = Class(function(self, data)
 	self.icon = data.icon
 end)
 
-local ALL_PRESETLIST = {
-	{
-		key = "test",
-		condition = {"or",
-			{"BankIs", "wilson"},
-			{"BankIs", "wilsonbeefalo"},
-		},
-		presets = {
-			Preset{
-				key = "1",
-				title = "preset of test1",
-				cmds = {
-					{name = "SetBuild", args = {"wilson"}}
-				},
-				icon = {
-					type = "inv",
-					type = "book",
-					type = nil, xml = "...", tex = "..."
-				}
-			},
-			Preset{
-				key = "2",
-				cmds = {},
-			}
-		}
-	}
-}
+local ALL_PRESETLIST = {}
 
 local CONDITION = {
 	IS_PLAYER = { "BankIs", "wilson", "wilsonbeefalo", "wilson_sit", "wilson_sit_nofaced" },
@@ -70,6 +44,7 @@ end)
 
 ALL_PRESETLIST.equip_hand = {
 	title = "工具/武器",
+	order = 10,
 	condition = CONDITION.IS_PLAYER,
 	presets = {
 		Preset{
@@ -125,9 +100,9 @@ ALL_PRESETLIST.equip_hand = {
 
 local function CreateHat(name, opentop)
 	local layers = opentop and {
-		"hair_hat", "head_hat",
+		"hair_hat", "head_hat", "head_hat_nohelm", "head_hat_helm",
 	} or {
-		"hair_nohat", "hair", "head",
+		"hair_nohat", "hair", "head", "head_hat_helm",
 	}
 	local hidecmds = {}
 	for _,v in ipairs(layers)do
@@ -146,10 +121,8 @@ end
 
 ALL_PRESETLIST.equip_head = {
 	title = "帽子/头盔",
-	condition = {"or",
-		CONDITION.IS_PLAYER,
-		{"BankIs", "pigman"}
-	},
+	order = 11,
+	condition = CONDITION.IS_PLAYER,
 	presets = {
 		Preset{
 			key = nil,
@@ -170,8 +143,35 @@ ALL_PRESETLIST.equip_head = {
 	}
 }
 
+ALL_PRESETLIST.equip_head_pig = json.decode(json.encode(ALL_PRESETLIST.equip_head))
+ALL_PRESETLIST.equip_head_pig.condition = {"BankIs", "pigman"}
+table.foreach(ALL_PRESETLIST.equip_head_pig.presets, function(_, p)
+	for i = #p.cmds, 1, -1 do
+		-- hide head layer only work on player, remove it from pig
+		if p.cmds[i].args[1] == "head" then
+			table.remove(p.cmds, i)
+			break
+		end
+	end
+end)
+
+ALL_PRESETLIST.pig_token = {
+	title = "金腰带",
+	condition = {"BankIs", "pigman"},
+	presets = {
+		Preset{
+			key = nil
+		},
+		Preset{
+			key = "pig_token",
+			cmds = {{name = "OverrideSymbol", args = {"pig_belt", "pig_token", "pig_belt"}}},
+		},
+	}
+}
+
 ALL_PRESETLIST.equip_body = {
 	title = "背包/护甲",
+	order = 12,
 	condition = CONDITION.IS_PLAYER,
 	presets = {
 		Preset{
@@ -201,7 +201,7 @@ ALL_PRESETLIST.equip_body = {
 		Preset{
 			key = "armorruins",
 			cmds = {
-				{name = "OverrideSymbol", args = {"swap_body", "armorruins", "swap_body"}},
+				{name = "OverrideSymbol", args = {"swap_body", "armor_ruins", "swap_body"}},
 			}
 		},
 		Preset{
@@ -221,6 +221,7 @@ ALL_PRESETLIST.equip_body = {
 
 ALL_PRESETLIST.mount = {
 	title = "坐骑",
+	order = 13,
 	condition = { "BankIs", "wilsonbeefalo" },
 	presets = {
 		Preset{
@@ -243,6 +244,7 @@ ALL_PRESETLIST.mount = {
 
 ALL_PRESETLIST.saddle = {
 	title = "鞍",
+	order = 14,
 	condition = { "BankIs", "wilsonbeefalo" },
 	presets = {
 		Preset{
@@ -269,73 +271,37 @@ table.foreach(ALL_PRESETLIST.saddle.presets, function(_, v)
 	}
 end)
 
-ALL_PRESETLIST.pig_base = {
-	title = "“猪人”外观",
+-- see prefabs/pigelitefighter.lua
+local ELITE_BUILD_VARIATIONS =
+{
+    ["1"] = { "pig_ear", "pig_head", "pig_skirt", "pig_torso", "spin_bod" },
+    ["2"] = { "pig_arm", "pig_ear", "pig_head", "pig_skirt", "pig_torso", "spin_bod" },
+    ["3"] = { "pig_arm", "pig_ear", "pig_head", "pig_skirt", "pig_torso", "spin_bod" },
+    ["4"] = { "pig_head", "pig_skirt", "pig_torso", "spin_bod" },
+}
+
+ALL_PRESETLIST.pig_elite = {
+	title = "猪人精英战士",
 	condition = { "BankIs", "pigman" },
 	presets = {
 		Preset{
-			key = "pigman",
-			title = "猪人",
-			cmds = {{name = "SetBuild", args = {"pig_build"}}},
-			icon = "book" -- TODO: custom
+			key = nil,
 		},
-		Preset{
-			key = "pig_guard",
-			title = "猪人守卫",
-			cmds = {{name = "SetBuild", args = {"pig_guard_build"}}},
-			icon = "book",
-		},
-		Preset{
-			key = "werepig",
-			title = "疯猪",
-			cmds = {{name = "SetBuild", args = {"werepig_build"}}},
-			icon = "book",
-		},
-		Preset{
-			key = "merm",
-			title = "鱼人",
-			cmds = {{name = "SetBuild", args = {"merm_build"}}},
-			icon = "book" -- TODO:
-		},
-		Preset{
-			key = "monkeymen",
-			title = "TODO:",
-			cmds = {{name = "SetBuild", args = {"monkeymen_build"}}},
-			icon = "book",
-		}
 	}
 }
 
-ALL_PRESETLIST.spider_base = {
-	title = "蜘蛛外观",
-	condition = { "BankIs", "spider" },
-	presets = {
-		Preset{
-			key = "spider_white",
-			cmds = {{name = "SetBuild", args = {"spider_white"}}},
-		},
-		Preset{
-			key = "spider_moon",
-			cmds = {{name = "SetBuild", args = {"ds_spider_moon"}}},
-		},
-		Preset{
-			key = "spider_caves2",
-			cmds = {{name = "SetBuild", args = {"ds_spider2_caves"}}},
-		},
-		Preset{
-			key = "spider_caves1",
-			cmds = {{name = "SetBuild", args = {"ds_spider_caves"}}},
-		},
-		Preset{
-			key = "spider",
-			cmds = {{name = "SetBuild", args = {"spider_build"}}},
-		},
-		Preset{
-			key = "spider_warrior",
-			cmds = {{name = "SetBuild", args = {"spider_warrior_build"}}},
-		},
-	}
-}
+table.foreach(ELITE_BUILD_VARIATIONS, function(k, symbols)
+	local cmds = {}
+	table.insert(ALL_PRESETLIST.pig_elite.presets, Preset{
+		key = "pigelitefighter"..k,
+		cmds = cmds,
+	})
+	for _,v in ipairs(symbols)do
+		table.insert(cmds, {name = "OverrideSymbol", args = {
+			v, "pig_elite_build", v.."_"..k,
+		}})
+	end
+end)
 
 ALL_PRESETLIST.ghost_base = {
 	title = "鬼魂外观",
@@ -364,49 +330,16 @@ ALL_PRESETLIST.ghost_base = {
 	}
 }
 
-ALL_PRESETLIST.color = {
-	condition = { "true" },
-	order = 999,
-	presets = {
-		Preset{
-			key = nil,
-		},
-		Preset{
-			key = "black",
-			title = "纯黑",
-			cmds = {
-				{name = "SetMultColour", args = {0, 0, 0, 1}},
-			},
-			icon = "tsx",
-		},
-		Preset{
-			key = "placer_green",
-			title = "允许摆放",
-			cmds = {
-				{name = "SetAddColour", args = {0, 1, 0, 1}},
-			},
-			icon = "tsx",
-		},
-		Preset{
-			key = "placer_red",
-			title = "禁止摆放",
-			cmds = {
-				{name = "SetAddColour", args = {1, 0, 0, 1}},
-			},
-			icon = "tsx",
-		},
-	}
-}
-
 -- public fixer
 table.foreach(ALL_PRESETLIST, function(k, v)
 	v.key = k
 	v.order = v.order or 0
 
-	table.foreach(v, function(_, p)
+	table.foreach(v.presets, function(_, p)
 		if p.key == nil then
+			p.key = "null"
 			p.title = "无"
-			p.cmds = {}
+			p.cmds = p.cmds or {}
 		end
 	end)
 end)
@@ -424,8 +357,7 @@ local function LinkBuildPresetForAnimation(env)
 		[smallhash("wilsonbeefalo")] = true,
 		[smallhash("wilson_sit")] = true,
 		[smallhash("wilson_sit_nofaced")] = true,
-		[smallhash("pigman")] = true,
-		[smallhash("spider")] = true,
+		-- [smallhash("pigman")] = true,
 		[smallhash("ghost")] = true,
 
 		-- unused
@@ -505,37 +437,54 @@ local function LinkBuildPresetForAnimation(env)
 				end
 			end
 			local force_build = nil
+			local sort_pref = nil
 			local num = GetTableSize(related_files)
 			local function FilterBy(fn)
 				for k in pairs(related_files)do
 					if not fn(k) then related_files[k] = nil end
 				end
 			end
-			if num <= 8
-				or bankname == "oceanfish_small"
-				or bankname == "oceanfish_medium"
-				or bankname == "hound"
-				or bankname == "beefalo"
-				or bankname == "chesspiece" then
-				-- add all build files to preset
-			elseif bankname == "dumbbell_heat" then
-				FilterBy(function(k) return k:startswith("anim/dumbbell_heat") end)
-			elseif bankname == "kitcoon" then
-				FilterBy(function(k) return k:startswith("anim/kitcoon") end)
-			elseif bankname == "cook_pot" then
+
+			if bankname == "cook_pot" then
 				FilterBy(function(k) return k:find("cook_pot") and not k:find("cook_pot_food") end)
 			elseif bankname == "pumpkin" then
 				FilterBy(function(k) return k:find("pumpkin") end)
 			elseif bankname == "clock01" then
 				FilterBy(function(k) return k:find("clock") end)
-			elseif bankname == "chester" then
-				FilterBy(function(k) return true end) --  TODO: --> fix it
+			elseif bankname == "chester"
+				or bankname == "kitcoon"
+				or bankname == "dumbbell_heat"
+				or bankname == "deerclops" 
+				or bankname == "bearger"
+				or false
+				or false then
+				FilterBy(function(k) return k:startswith("anim/"..bankname) end)
+			elseif bankname == "hound" then
+				FilterBy(function(k) return not k:find("hound_basic") end)
+			elseif bankname == "pigman" then
+				FilterBy(function(k)
+					return not k:find("pig_elite") -- as preset
+						and not k:find("pig_token") -- as preset
+						and not k:find("slide_puff")
+						and not k:find("splash_water")
+						and not k:find("yotb")
+						and not k:find("quagmire_swampig_extras")
+					end)
+				sort_pref = "pig"
 			elseif bankname == "crow" then
 				force_build = {"crow_build", "robin_build", "robin_winter_build"}
 			elseif bankname == "crow_kids" then
 				force_build = {"crow_kids"}
 			elseif bankname == "werebeaver" or bankname == "weregoose" or bankname == "weremoose" then
 				force_build = {bankname.."_build"}
+			elseif num <= 8
+				or bankname == "oceanfish_small"
+				or bankname == "oceanfish_medium"
+				or bankname == "hound"
+				or bankname == "beefalo"
+				or bankname == "chesspiece"
+				or bankname == "spider" then
+				-- add all build files to preset
 			else
 				-- TO MANY items!
 				print("Warning: too many build files related to bank:")
@@ -572,7 +521,15 @@ local function LinkBuildPresetForAnimation(env)
 			end
 			if #builds > 0 then
 				-- print(table.concat(builds, ", "))
-				table.sort(builds, function(a, b) return a < b end)
+				table.sort(builds, function(a, b) 
+					local ap = sort_pref ~= nil and a:find(sort_pref) ~= nil
+					local bp = sort_pref ~= nil and b:find(sort_pref) ~= nil
+					if ap == bp then
+						return a < b
+					else
+						return ap
+					end
+				end)
 				result[bankhash] = builds
 			else
 				error("Failed to link bankname: ", bankname)

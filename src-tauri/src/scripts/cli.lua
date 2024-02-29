@@ -28,7 +28,7 @@ local function render_animation()
 	print_info("[INFO] 开始渲染动画")
 	local root = env.root
 	local provider = require "assetprovider".Provider(root)
-	provider:DoIndex(false)
+	provider:DoIndex(Args.force_index)
 
 	-- build
 	local build = provider:GetBuild({name = Args.build})
@@ -53,14 +53,11 @@ local function compile()
 	local Provider =  require "assetprovider".Provider
 	local root = env.root
 	local prov = Provider(root)
-	prov:DoIndex(false)
+	prov:DoIndex(Args.force_index)
 	prov:ListAsset()
 	env.prov = prov
-	print(1111)
 
 	-- TODO: --force-reindex
-	print(Args.skip_analyzing)
-	print(222)
 	if not Args.skip_analyzing then
 		require("compiler.amain").main(env)
 	end

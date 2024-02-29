@@ -9,6 +9,7 @@ import Preview from '../Preview'
 import { useDispatch, useSelector } from '../../redux/store'
 import { useLocalStorage } from '../../hooks'
 import { AnimState } from '../AnimCore_Canvas/animstate'
+import { Preset } from '../AnimQuickLook/preset'
 
 type QuickSettingsKey = "XmlMap.dot" | "AnimQuickLook"
 
@@ -78,30 +79,21 @@ function AnimQuickLookSettings(props: {data: any, closeDialog: ()=> void}) {
           facing={data.facing}
           width={200} minAspectRatio={1.0} maxAspectRatio={1.4}/>
       </div>
-      <div style={{backgroundColor: "#0000", width: "100%", paddingLeft: 10}}>
+      <div style={{backgroundColor: "#0000", width: "100%", paddingLeft: 15}}>
         <div style={{maxHeight: 290, width: 290, paddingBottom: 40, overflowX: "hidden", overflowY: "auto"}}>
         <H5>预设</H5>
         {
-          presets.length > 0 ?
-          presets.map(v=> 
-          <PresetSelector 
-            key={v.type}
-            type={v.type as any} 
-            title={v.title} 
-            presets={v.presets}/>
-          ) : 
-          <p>暂无可用的预设。</p>
+          presets.map(v=> <PresetSelector key={v.key} groupKey={v.key} {...v}/>) 
         }
         <div style={{height: 10}}/>
         <H5>快速导出</H5>
-        <Button icon="image-rotate-right" onClick={()=> exportFn("gif").then(()=> closeDialog())}>动图</Button>
-        <Button icon="video" onClick={()=> exportFn("mp4").then(()=> closeDialog())}>视频</Button>
-        <Button icon="widget" onClick={()=> exportFn("snapshot").then(()=> closeDialog())}>当前帧截图</Button>
-        {/* <RadioGroup inline>
-          <Radio label="动图（gif）"/>
-          <Radio label="视频（mp4）"/>
-        </RadioGroup> */}
-        <p style={{marginTop: 10, color: "#aaa"}}>如需更丰富的动画效果和导出选项，请使用「动画渲染器」功能。</p>
+        <Button icon="image-rotate-right" onClick={()=> exportFn("gif").then(()=> closeDialog())}>动图/gif</Button>
+        <Button icon="video" onClick={()=> exportFn("mp4").then(()=> closeDialog())}>视频/mp4</Button>
+        <Button icon="video" onClick={()=> exportFn("mov").then(()=> closeDialog())}>无损视频/mov</Button>
+        <Button icon="widget" onClick={()=> exportFn("snapshot").then(()=> closeDialog())}>当前帧截图/png</Button>
+        <p style={{marginTop: 10, color: "#aaa", cursor: "pointer"}} onClick={()=> window.alert("TODO:")}>
+          在<b>「动画渲染器」</b>中可定制更多动画效果。
+        </p>
         </div>
       </div>
     </div>
@@ -109,13 +101,58 @@ function AnimQuickLookSettings(props: {data: any, closeDialog: ()=> void}) {
 }
 
 type PresetSelectorProps = {
+  groupKey: string,
   title: string,
-  type: Preset["type"],
+  inline?: boolean,
   presets: Preset[],
 }
 
+function SimplePresetSelector(props: PresetSelectorProps) {
+  const {presets, groupKey} = props
+  const [selected, setSelected] = useLocalStorage("quicklook_presets")
+  const selectedIndex = Math.max(presets.findIndex(v=> selected[`${groupKey}-${v.key}`]), 0)
+  console.log(presets, selectedIndex)
+  const onSelect = useCallback((key: string)=> {
+    let data = {...selected}
+    presets.forEach(v=> {
+      if (key === v.key) {
+        data[`${groupKey}-${v.key}`] = true
+      }
+      else {
+        delete data[`${groupKey}-${v.key}`]
+      }
+    })
+    console.log("PRESET", data)
+    setSelected(data)
+  }, [selected, presets, groupKey, setSelected])
+  const simpleTitle = props.title === "#build" ? "外观" : 
+    props.title === "#color" ? "调色" :
+    props.title
+  return (
+    <>
+      <H6 title={groupKey}>{simpleTitle}</H6>
+      <div style={{marginBottom: 10}}>
+        <RadioGroup 
+          inline={props.inline}
+          selectedValue={presets[selectedIndex].key} 
+          onChange={e=> onSelect(e.currentTarget.value)}>
+          {
+            presets.map(({key, title})=> 
+              <Radio style={{margin: "4px 5px"}} key={key} label={title || key} value={key}/>)
+          }
+        </RadioGroup>
+      </div>
+    </>
+  )
+}
+
 function PresetSelector(props: PresetSelectorProps) {
-  const {title, type, presets} = props
+  const {title, presets} = props
+  // hook for simple
+  if (title === "#build") return <SimplePresetSelector {...props}/>
+  if (title === "#color") return <SimplePresetSelector {...props} inline/>
+  return <SimplePresetSelector {...props}/>
+  // TODO: 这个地方以后再优化
   return (
     <>
       <H6>{title}</H6>
@@ -126,7 +163,6 @@ function PresetSelector(props: PresetSelectorProps) {
       </div>
     </>
   )
-
 }
 
 const SIZE = {width: 32, height: 32}
@@ -148,7 +184,8 @@ const getInventoryIconTex = (key: string, type: string) => {
     return `${key}.tex`
   }
 }
-function PresetIcon(props: {preset: Preset}) {
+
+function PresetIcon(props: {preset: any}) {
   const {key, type, title, icon} = props.preset
   const invTex = getInventoryIconTex(key, type)
   const [stored_presets, setPresets] = useLocalStorage("quicklook_presets")

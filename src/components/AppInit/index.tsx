@@ -177,19 +177,6 @@ export default function AppInit() {
           appWindow.emit("update_assets_desc")
         }),
         await globalListen<string>("entry", async ({payload})=> {
-          try {
-            let host = await invoke("dev_host")
-            if (host !== ""){
-              console.log("Load entry from " + host)
-              let response = await fetch(host + "/entry.lua")
-              payload = await response.text()
-              payload = JSON.parse(payload.substring(7))
-              console.log("Success")
-            }
-          }
-          catch(e) {
-
-          }
           const data: {items: any} = JSON.parse(payload)
           // window.entry = data.items
           window.entry_map = data.items
@@ -212,11 +199,19 @@ export default function AppInit() {
         }),
         await globalListen<string>("anim_predictable_data", ({payload})=> {
           const data = JSON.parse(payload)
-          const {hashmap} = data
+          const {hashmap, animation} = data
           window.hash = window.hash || new Map()
           hashmap.forEach(([k,v])=> {
             window.hash.set(v, k)
           })
+          window.assets.allbank = animation.map(({bank, animation})=>
+            ({
+              id: "bank-" + bank,
+              type: "bank",
+              bank,
+              animationList: animation.map(({name})=> name)
+            }))
+          console.log(window.assets.allbank)
         }),
       ]
 
@@ -269,6 +264,7 @@ export function ErrorHandler(){
           console.error(payload)
           if (payload !== "IPC_INTERRUPTED"){
             setLuaError(payload)
+            appWindow.emit("lua_call_error_emitted")
           }
         }),
         await globalListen<string>("fmod_call_error", ({payload})=> {

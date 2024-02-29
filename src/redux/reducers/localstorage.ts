@@ -10,6 +10,7 @@ export interface LocalStorage {
   tex_use_grid_background: boolean,
   animlist_sorting: ["mtime"|"title", boolean],
   quicklook_presets: {[K: string]: boolean},
+  quicklook_pin_player_widget: boolean,
   toast_max_num: number,
   toast_alive_time: number,
 }
@@ -43,6 +44,7 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     tex_use_grid_background: false,
     animlist_sorting: ["mtime", true],
     quicklook_presets: {spear: true},
+    quicklook_pin_player_widget: true,
     toast_max_num: 5,
     toast_alive_time: 7,
     ...loadPersistant()

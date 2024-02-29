@@ -88,8 +88,19 @@ export default function RenderProgress(props: {isMain?: boolean}) {
     return ()=> { unlisten.then(f=> f()) }
   }, [setCurrentSessionId])
 
+  useEffect(()=> {
+    let unlisten = appWindow.listen<never>("lua_call_error_emitted", ()=> {
+      // TODO: 注意，这个监听器默认导出过程是sync的
+      // 如果后续使用多线程渲染，则需要格外注意
+      setError("internal")
+      setPercent(0.3)
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
+
   return (
     <Dialog title="" isOpen={open} onClose={handleClose}
+      style={{userSelect: "none", WebkitUserSelect: "none"}}
       canEscapeKeyClose={false} canOutsideClickClose={false}>
       <DialogBody>
         <div style={{display: "flex", justifyContent: "center"}}>
@@ -128,7 +139,8 @@ export default function RenderProgress(props: {isMain?: boolean}) {
 
 function Aris({state}: {state: "working" | "failed" | "finish"}){
   return (
-    <div style={{width: 100, height: 100, position: "relative", backgroundColor: "transparent"}} draggable="false">
+    <div style={{width: 100, height: 100, position: "relative", backgroundColor: "transparent",
+      pointerEvents: "none"}} draggable="false">
       <div style={{transform: "scale(0.5) translate(-50%, -50%)", position: "absolute", left: 0, top: 0}} draggable="false">
         <div style={{width: 200, height: 200, borderRadius: 100, backgroundColor: "rgb(146,218,252)", overflow: "hidden", position: "relative"}}>
           {

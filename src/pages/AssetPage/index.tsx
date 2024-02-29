@@ -2,14 +2,13 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, InputGroup, Tag } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
-import { ASSET_TYPE } from '../../strings'
 import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
 import style from './index.module.css'
 import Preview, { killPreviewSfx } from '../../components/Preview'
 import ClickableTag from '../../components/ClickableTag'
-import Hash from '../../components/HumanHash'
+import Hash, { useHashToString } from '../../components/HumanHash'
 import FacingString from '../../components/FacingString'
 import CCMiniPlayground from '../../components/CCMiniPlayground'
 import KeepAlivePage, { KeepAlivePageProps } from '../../components/KeepAlive/KeepAlivePage'
@@ -40,6 +39,7 @@ function getTypeKeyById(id: string): string {
     case "r": return "allkshfile"
     case "f": return id.startsWith("fev") ? "allfmodproject" : "allfmodevent"
     case "e": return "entry"
+    case "b": return id.startsWith("bank-") ? "allbank" : "unknown"
   }
   throw Error("Failed to get type key: " + id)
 }
@@ -48,14 +48,14 @@ export default function AssetPage() {
   const [param] = useSearchParams()
   const id = param.get("id")
   const [_, forceUpdate] = useReducer(v=> v + 1, 0)
-
-  if (id === null) return <AssetInvalidPage type="null"/>
+  if (id === null || id === "undefined") return <AssetInvalidPage type="null"/>
   const asset = window.assets_map[id]
+  return
   if (!asset) {
     if (!window.assets[getTypeKeyById(id)]){
       return <AssetInvalidPage type="waiting" forceUpdate={forceUpdate}/>
     }
-    else {
+    else if (!id.startsWith("bank")){
       console.warn("Invalid asset id: ", id)
       return <AssetInvalidPage type="invalid-id" id={id}/>
     }
@@ -98,6 +98,10 @@ export default function AssetPage() {
     case "entry":
       return <KeepAlive key={id}>
         <EntryPage {...asset} key={id}/>
+      </KeepAlive>
+    case "bank":
+      return <KeepAlive key={id}>
+        <BankPage key={id} bank={Number(id.substring(("bank-".length)))}/>
       </KeepAlive>
     default:
       return <AssetInvalidPage type="invalid-type" typeName={type}/>
@@ -452,6 +456,9 @@ function ZipPage({type, file, id}) {
   const [atlas, setAtlas] = useState({})
   const [swap_icon, setSwapIconData] = useState<any>()
 
+  const navigate = useNavigate()
+  const hashToString = useHashToString()
+
   useLuaCallOnce<string>("load", result=> {
     if (result == "false") {
       // `build.bin` not exists
@@ -518,111 +525,123 @@ function ZipPage({type, file, id}) {
               </div>
             </div>
           }
-          <p><strong>贴图</strong></p>
-          <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
-            <table className={style["list-container"]}>
-              <thead>
-                <th>索引</th>
-                <th>文件名</th>
-                <th>图片</th>
-                <th>操作</th>
-              </thead>
-              <tbody>
-                {
-                  build.atlas.map((name, i)=> 
-                    <tr key={i}>
-                      <td>{i}</td>
-                      <td className='bp4-monospace-text'>{name}</td>
-                      <td>
-                        <Preview.Atlas 
-                          build={build.name} sampler={i} 
-                          lazy={false}
-                          onCreateImageBitmap={m=> setAtlas(atlas=> ({...atlas, [i]: m}))}/>
-                      </td>
-                      <td>
-                        <Button icon="duplicate" onClick={()=> copyAtlas({sampler: i})}/>
-                        <span style={{display: "inline-block", width: 10}}/>
-                        <Button icon="download" onClick={()=> downloadAtlas({sampler: i, defaultPath: name})}></Button>
-                      </td>
-                    </tr>)
-                }
-              </tbody>
-            </table>
-          </div>
-          <p><strong>元件</strong></p>
-          <p>
-            <BatchDownloadButton type="build" file={file}/>
-          </p>
-          <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
-            <div className={style["symbol-list"]}>
-              {
-                build.symbol.map(({imghash, imglist}, index: number)=> {
-                  const unfold = unfoldSymbol[imghash]
-                  return <div className={style["symbol-container"] + " " + (!unfold ? style["symbol-container-hoverable"]: "" )} key={index}>
-                    <H6 className={"can-select"}
-                      onClick={()=> setUnFoldSymbol({...unfoldSymbol, [imghash]: !unfold})}>
-                      <Icon style={{marginRight: 0}} icon={unfold ? "caret-down" : "caret-right"} size={16}/>
-                      <Hash hash={imghash}/>
-                      <Tag style={{marginLeft: 8}} minimal>{imglist.length}</Tag>
-                    </H6>
-                    <div
-                      className={style["element-list"]} 
-                      style={{display: unfold ? "none" : undefined}}>
-                      {
-                        imglist.map(element=> 
-                        <Popover2 minimal
-                          placement="top-start"
-                          content={<div className={style["element-op"]}>
-                            <H6><Hash hash={imghash}/>-{element.index}</H6>
-                            <Button icon="duplicate" onClick={()=> copyElement({imghash, index: element.index})}>
-                              
-                            </Button>
-                            {/* <br/> */}
-                            <Button icon="download" style={{marginLeft: 4}}
-                              onClick={()=> downloadElement({imghash, index: element.index,
-                                defaultPath: (window.hash.get(imghash) || `Hash-${imghash}`) + `-${element.index}.png`})}>
-                              
-                            </Button>
-                          </div>}>
-                          <div className={style["element"]} key={`${imghash}-${element.index}`}>
-                            <Preview.FastSymbolElement atlas={atlas} data={element} width={40} height={40}/>
-                          </div>
-                        </Popover2>)
-                      }
-                    </div>
-                    <div 
-                      className={style["element-detailed-list"]}
-                      style={{display: unfold ? undefined : "none"}}>
-                      <table>
-                        <thead></thead>
-                        <tbody>
+          {
+            build.atlas.length === 0 ?
+            <div>
+              <Callout intent='danger' style={{paddingBottom: 5, marginBottom: 20, marginTop: 5}}>
+                <p>
+                  这是一个无效的材质，不包含任何贴图。
+                </p>
+              </Callout>
+            </div> :
+            <>
+              <p><strong>贴图</strong></p>
+              <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
+                <table className={style["list-container"]}>
+                  <thead>
+                    <th>索引</th>
+                    <th>文件名</th>
+                    <th>图片</th>
+                    <th>操作</th>
+                  </thead>
+                  <tbody>
+                    {
+                      build.atlas.map((name, i)=> 
+                        <tr key={i}>
+                          <td>{i}</td>
+                          <td className='bp4-monospace-text'>{name}</td>
+                          <td>
+                            <Preview.Atlas 
+                              build={build.name} sampler={i} 
+                              lazy={false}
+                              onCreateImageBitmap={m=> setAtlas(atlas=> ({...atlas, [i]: m}))}/>
+                          </td>
+                          <td>
+                            <Button icon="duplicate" onClick={()=> copyAtlas({sampler: i})}/>
+                            <span style={{display: "inline-block", width: 10}}/>
+                            <Button icon="download" onClick={()=> downloadAtlas({sampler: i, defaultPath: name})}></Button>
+                          </td>
+                        </tr>)
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <p><strong>元件</strong></p>
+              <p>
+                <BatchDownloadButton type="build" file={file}/>
+              </p>
+              <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
+                <div className={style["symbol-list"]}>
+                  {
+                    build.symbol.map(({imghash, imglist}, index: number)=> {
+                      const unfold = unfoldSymbol[imghash]
+                      return <div className={style["symbol-container"] + " " + (!unfold ? style["symbol-container-hoverable"]: "" )} key={index}>
+                        <H6 className={"can-select"}
+                          onClick={()=> setUnFoldSymbol({...unfoldSymbol, [imghash]: !unfold})}>
+                          <Icon style={{marginRight: 0}} icon={unfold ? "caret-down" : "caret-right"} size={16}/>
+                          <Hash hash={imghash}/>
+                          <Tag style={{marginLeft: 8}} minimal>{imglist.length}</Tag>
+                        </H6>
+                        <div
+                          className={style["element-list"]} 
+                          style={{display: unfold ? "none" : undefined}}>
                           {
-                            imglist.map(element=> <tr>
-                              <td className='can-select'>
-                                <Hash hash={imghash}/>-{element.index}
-                              </td>
-                              <td>
-                                {formatElementSize(element, atlas)}
-                              </td>
-                              <td>
-                                <Preview.FastSymbolElement atlas={atlas} data={element} width={40} height={40}/>
-                              </td>
-                              <td>
-                                <Button icon="duplicate" style={{marginRight: 8}} onClick={()=> copyElement({imghash, index: element.index})}/>
-                                <Button icon="download"
+                            imglist.map(element=> 
+                            <Popover2 minimal
+                              placement="top-start"
+                              content={<div className={style["element-op"]}>
+                                <H6><Hash hash={imghash}/>-{element.index}</H6>
+                                <Button icon="duplicate" onClick={()=> copyElement({imghash, index: element.index})}>
+                                  
+                                </Button>
+                                {/* <br/> */}
+                                <Button icon="download" style={{marginLeft: 4}}
                                   onClick={()=> downloadElement({imghash, index: element.index,
-                                    defaultPath: (window.hash.get(imghash) || `Hash-${imghash}`) + `-${element.index}.png`})}/>
-                              </td>
-                            </tr>)
+                                    defaultPath: (window.hash.get(imghash) || `Hash-${imghash}`) + `-${element.index}.png`})}>
+                                  
+                                </Button>
+                              </div>}>
+                              <div className={style["element"]} key={`${imghash}-${element.index}`}>
+                                <Preview.FastSymbolElement atlas={atlas} data={element} width={40} height={40}/>
+                              </div>
+                            </Popover2>)
                           }
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                })
-              }
-            </div>
-          </div>
+                        </div>
+                        <div 
+                          className={style["element-detailed-list"]}
+                          style={{display: unfold ? undefined : "none"}}>
+                          <table>
+                            <thead></thead>
+                            <tbody>
+                              {
+                                imglist.map(element=> <tr>
+                                  <td className='can-select'>
+                                    <Hash hash={imghash}/>-{element.index}
+                                  </td>
+                                  <td>
+                                    {formatElementSize(element, atlas)}
+                                  </td>
+                                  <td>
+                                    <Preview.FastSymbolElement atlas={atlas} data={element} width={40} height={40}/>
+                                  </td>
+                                  <td>
+                                    <Button icon="duplicate" style={{marginRight: 8}} onClick={()=> copyElement({imghash, index: element.index})}/>
+                                    <Button icon="download"
+                                      onClick={()=> downloadElement({imghash, index: element.index,
+                                        defaultPath: (window.hash.get(imghash) || `Hash-${imghash}`) + `-${element.index}.png`})}/>
+                                  </td>
+                                </tr>)
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    })
+                  }
+                </div>
+              </div>
+            </>
+          }
         </> :
         <></>
       }
@@ -652,7 +671,16 @@ function ZipPage({type, file, id}) {
               const reposition = {} as any
               return <tr>
                 <td className='bp4-monospace-text'>
-                  <Hash hash={bankhash}/>
+                  <Popover2 minimal placement="top" content={<Menu>
+                    <MenuItem text="拷贝" icon="duplicate" 
+                      onClick={()=> writeText(hashToString(bankhash)).then(onSuccess)}/>
+                    <MenuItem text="查看动画库详情" icon="link"
+                      onClick={()=> navigate("/asset?id=bank-"+bankhash)}/>
+                  </Menu>}>
+                    <span style={{cursor: "pointer"}}>
+                      <Hash hash={bankhash}/>
+                    </span>
+                  </Popover2>
                 </td>
                 <td className='bp4-monospace-text'>
                   {name}
@@ -1017,6 +1045,27 @@ function EntryPage(props: Entry) {
           }
         </>
       }
+    </div>
+  )
+}
+
+type BankPageProps = {
+  bank: number,
+}
+
+function BankPage(props: BankPageProps) {
+  console.log("BANKPAGE", props)
+  const {bank} = props
+  const hashToString = useHashToString()
+  const bankName = hashToString(bank)
+  const bankName_Hash = `HASH-${bank}`
+  const resolved = typeof bankName === "string"
+
+  return (
+    <div>
+      <H3>{resolved ? bankName : bankName_Hash} <AssetType type="bank"/></H3>
+      
+
     </div>
   )
 }

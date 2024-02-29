@@ -32,6 +32,12 @@ pub mod lua_args {
                     .long("game-data-directory")
                     .help("显式指定游戏资源根目录路径")
             ];
+            let index_args = [
+                Arg::new("force_index")
+                    .long("force-index")
+                    .action(ArgAction::SetTrue)
+                    .help("忽略缓存, 强制进行资源索引, 会显著增加耗时, 不建议使用")
+            ];
             let matches = clap::Command::new("Asset Archive CLI")
                 .author("老王天天写bug")
                 .about("饥荒资源档案 - 命令行工具 (Asset Archive CLI)")
@@ -42,7 +48,7 @@ pub mod lua_args {
                 .subcommand(clap::Command::new("compile")
                     .about("编译静态注释文件")
                     .visible_aliases(["c"])
-                    .args(generic_args.clone()))
+                    .args(generic_args.clone())
                     .args([
                         Arg::new("skip_analyzing")
                             .long("skip-analyzing")
@@ -50,6 +56,8 @@ pub mod lua_args {
                             .action(ArgAction::SetTrue)
                             .help("跳过prefab loading分析步骤, 缩短总时长")
                     ])
+                    .args(index_args.clone())
+                )
                 .subcommand(clap::Command::new("render-animation")
                     .about("渲染动画, 生成图片序列/视频/动图")
                     .visible_aliases(["animation", "anim", "a", "r"])
@@ -122,6 +130,7 @@ pub mod lua_args {
                             .ignore_case(true)
                             .help("导出格式")
                     ])
+                    .args(index_args.clone())
                     
                     .after_help("颜色参数:\n  css格式的颜色值, 例如: red, #f00, rgb(255,255,0), rgba(255,255,0,100), transparent")
                 )
@@ -131,17 +140,19 @@ pub mod lua_args {
                     .args([
                         generic_args[0].clone(),
                         Arg::new("install")
+                            .long("install")
                             .short('i')
                             .action(ArgAction::SetTrue)
                             .help("自动安装（需要联网）"),
                         Arg::new("uninstall")
+                            .long("uninstall")
                             .short('u')
                             .action(ArgAction::SetTrue)
                             .help("卸载已安装的FFmpeg"),
                         Arg::new("set_custom_path")
                             .long("set-custom-path")
                             .value_name("PATH")
-                            .help("手动安装: 使用自定义的可执行文件路径, 例如: ffmpeg, /usr/local/bin/ffmpeg, path/to/ffmpeg.exe"),
+                            .help("手动安装: 需要有效的可执行文件路径, 例如: ffmpeg, /usr/local/bin/ffmpeg, path/to/ffmpeg.exe"),
                 ]))
                 
                     
@@ -187,7 +198,6 @@ pub mod lua_args {
                                 args.inner.subcommand_name().unwrap()
                             ).unwrap();
 
-                            println!("Get Arg? {}", s);
                             if let Ok(v) = matches.try_get_one::<String>(s) {
                                 convert_to_luastring(lua, v.map(|s|s.as_str()))
                             }

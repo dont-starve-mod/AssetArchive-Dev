@@ -33,6 +33,8 @@ declare global {
 			allkshfile: Shader[],
 			allfmodevent: FmodEvent[],
 			allfmodproject: FmodProject[],
+
+			allbank: any[],
 		}
 		assets_map: {[K: string]: ArchiveItem},
 		entry: Entry[],
@@ -50,6 +52,7 @@ declare global {
 }
 
 window.assets_map = {}
+window.assets.allbank = []
 window.entry = []
 window.entry_map = {}
 

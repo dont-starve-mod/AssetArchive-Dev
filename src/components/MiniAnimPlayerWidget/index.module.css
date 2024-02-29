@@ -29,9 +29,25 @@
   justify-content: flex-end;
 }
 
-.control-group button span, .control-group-right button span{
+.control-group-left {
+  position: absolute;
+  height: 30px;
+  left: 4px;
+  top: 0px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.control-group button span,
+.control-group-left button span,
+.control-group-right button span
+{
   transform: scale(0.8);
   color: white!important;
+}
+
+.unpin button span {
+  color: rgba(255,255,255, 0.4)!important;
 }
 
 .bar {

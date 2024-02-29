@@ -8,7 +8,6 @@ use std::ops::Index;
 // #[cfg(windows)]
 // use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
 
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum Resampler {
@@ -108,15 +107,9 @@ impl AffineTransform {
     }
 
     /// apply affine transform on coord xy
-    fn onpointxy(&self, px: f64, py: f64) -> (f64, f64) {
+    fn onpoint(&self, px: f64, py: f64) -> (f64, f64) {
         (self.tx + self.a * px + self.c * py, 
          self.ty + self.b * px + self.d * py)
-    }
-
-    /// apply affine transform on point
-    fn onpoint(&self, point: Point) -> Point {
-        let (x, y) = self.onpointxy(point.x, point.y);
-        Point{x, y}
     }
 
     /// check if any NAN is not in matrix
@@ -157,10 +150,6 @@ impl Index<usize> for AffineTransform {
             _ => panic!("Index out of bound")
         }
     }
-}
-
-pub struct Point {
-    x: f64, y: f64
 }
 
 pub mod lua_image {
@@ -354,7 +343,7 @@ pub mod lua_image {
         fn affine_transform(&self, width: u32, height: u32, matrix: AffineTransform, resampler: Resampler) -> Result<Self, &'static str> {
             let rev_matrix = matrix.reverse();
             if rev_matrix.is_valid() {
-                let transformer = |x, y|rev_matrix.onpointxy(x as f64, y as f64);
+                let transformer = |x, y|rev_matrix.onpoint(x as f64, y as f64);
                 Ok(self.transform(width, height, transformer, resampler))
             }
             else {
@@ -654,7 +643,7 @@ pub mod lua_image {
                 Ok(matrix.reverse())
             });
             _methods.add_method("point", |_, matrix: &Self, (x, y): (f64, f64)|{
-                let (x, y) = matrix.onpointxy(x, y);
+                let (x, y) = matrix.onpoint(x, y);
                 Ok(Variadic::from_iter([x, y]))
             });
             _methods.add_meta_method(MetaMethod::ToString, |_, matrix: &Self, ()|{

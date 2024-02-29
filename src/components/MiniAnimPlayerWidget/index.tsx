@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'reac
 import style from './index.module.css'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import { Button } from '@blueprintjs/core'
-import { useMouseDrag } from '../../hooks'
+import { useLocalStorage, useMouseDrag } from '../../hooks'
 import { useQuickLookExport } from '../AnimQuickLook/util'
 
 type MiniAnimPlayerWidgetProps = {
@@ -15,6 +15,7 @@ export default function MiniAnimPlayerWidget(props: MiniAnimPlayerWidgetProps) {
   const [_, forceUpdate] = useReducer(v=> v + 1, 0)
   const player = useMemo(()=> animstate.getPlayer(), [animstate])
   const percent = player.getSmoothPercent()
+  const [pin, setPin] = useLocalStorage("quicklook_pin_player_widget")
 
   useEffect(()=> {
     let timer = setInterval(()=> {
@@ -59,6 +60,11 @@ export default function MiniAnimPlayerWidget(props: MiniAnimPlayerWidgetProps) {
           onClick={()=> [animstate.isPaused ? animstate.resume() : animstate.pause(), forceUpdate()]}/>
         <Button icon="step-forward" small minimal
           onClick={()=> [player.step(1), animstate.pause(), forceUpdate()]}/>
+      </div>
+      <div className={style["control-group-left"] + " " + (!pin ? style["unpin"] : "")}>
+        <Button icon="pin" small minimal
+          onClick={()=> setPin(!pin)}
+        />
       </div>
       <div className={style["control-group-right"]}>
         <Button icon="camera" small minimal

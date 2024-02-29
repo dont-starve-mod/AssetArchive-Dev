@@ -96,7 +96,14 @@ export type Entry = {
   }>
 }
 
-export type ArchiveItem = Asset | Entry
+export type Bank = {
+  id: string,
+  type: "bank",
+  bank: number,
+  animationList: string[],
+}
+
+export type ArchiveItem = Asset | Entry | Bank
 /*
 export class SearchEngine {
   data: {

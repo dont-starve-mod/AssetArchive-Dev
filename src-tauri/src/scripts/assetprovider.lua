@@ -830,7 +830,16 @@ function Provider:GetSymbolElement(args)
 					return
 				end
 				local img = symbol.imglist[i]
+				if img.blank then
+					if args.format == "img" then
+						return Image.From_RGBA("\0\0\0\0", 1, 1)
+					end
+					return nil
+				end
 				local atlas = atlaslist[img.sampler]
+				if atlas == nil then
+					error("Failed to get atlas: "..json.encode(img).." -> "..args.build.."["..tostring(img.sampler).."]")
+				end
 				local w, h = atlas:GetSize()
 				local x_scale = w / img.cw
 				local y_scale = h / img.ch

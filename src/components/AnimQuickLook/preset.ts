@@ -3,7 +3,7 @@ import smallhash from "../../smallhash"
 export type Preset = {
   key: string,
   title: string,
-  cmds: any[],
+  cmds: ({name: string, args: any[]})[],
 }
 
 type ConditionId = "and" | "or" | "true" | "false" | "bankis" 

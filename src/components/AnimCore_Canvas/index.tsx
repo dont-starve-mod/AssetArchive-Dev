@@ -1,13 +1,15 @@
-import React, { useRef, useCallback } from 'react'
+import React, { useRef, useCallback, useState, useEffect } from 'react'
 import { addAnimState, removeCanvas, CanvasRenderer } from './animcore'
 import { useMouseDrag, useMouseScroll } from '../../hooks'
 import { IRenderParams } from './renderparams'
+import { v4 } from 'uuid'
+import { AnimState } from './animstate'
 
 type AnimCoreProps = {
   width?: number,
   height?: number,
   bgc?: string,
-  animstate: any,
+  animstate: AnimState,
   customLoaders?: object,
   renderRef?: (render: any)=> void
 }
@@ -40,13 +42,39 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
   const canvasStyle = {
     width, height,
   }
-  
+
+  const [filterId] = useState(()=> v4())
+  const [colorMatrix, setColorMatrix] = useState("")
+
+  useEffect(()=> {
+    const onTint = ()=> {
+      const {mult, add} = animstate.getPreviewTint()
+      const colorMatrix = [
+        mult[0], 0, 0, 0, add[0]* add[3],
+        0, mult[1], 0, 0, add[1]* add[3],
+        0, 0, mult[2], 0, add[2]* add[3],
+        0, 0, 0, mult[3], 0,
+      ].join(" ")
+      setColorMatrix(colorMatrix)     
+    }
+    onTint()
+    animstate.addEventListener("rebuildtint", onTint)
+    return ()=> animstate.removeEventListener("rebuildtint", onTint)
+  }, [animstate])
+
   return (
     <div style={{...canvasStyle, backgroundColor: bgc, position: "relative"}}>
-      <canvas ref={onRef} 
+      <svg height="0" style={{position: "absolute"}}>
+        <filter id={filterId}>
+          <feColorMatrix values={colorMatrix}/>
+          {/* <feColorMatrix values={colorMatrix} style={{colorInterpolationFilters:"sRGB"}}/> */}
+        </filter>
+      </svg>
+      <canvas 
+        ref={onRef} 
         width={width* window.devicePixelRatio} 
         height={height* window.devicePixelRatio} 
-        style={{...canvasStyle, position: "absolute"}}
+        style={{...canvasStyle, position: "absolute", filter: `url(#${filterId})`}}
         onMouseDown={onMouseDown}
         onWheel={onWheel}
         onMouseEnter={onMouseEnter}

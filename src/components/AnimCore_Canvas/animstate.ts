@@ -167,7 +167,7 @@ const getApiGroup = (name: string) => {
     return "UNKNOWN"
 }
 
-type AnimStateEvent = "rebuildsymbolsource" | "changeframelist" | "changerect"
+type AnimStateEvent = "rebuildsymbolsource" | "rebuildtint" | "changeframelist" | "changerect"
 
 interface IData {
   bank?: hash,
@@ -474,6 +474,11 @@ export class AnimState {
     return {mult, add}
   }
 
+  getPreviewTint() {
+    let {mult, add} = this.getTint()
+    return {mult, add}
+  }
+
   shouldRender({imghash, layerhash}: {imghash: hash, layerhash: hash}): boolean {
     let result = true
     this.api_list.forEach(({name, args, disabled})=> {
@@ -525,6 +530,7 @@ export class AnimState {
       add: add || [0,0,0,1], 
       symbolMult, symbolAdd
     }
+    this._event.dispatchEvent(new Event("rebuildtint"))
     return this
   }
 

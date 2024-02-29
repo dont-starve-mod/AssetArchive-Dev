@@ -9,6 +9,21 @@ import { useCallback, useMemo } from "react"
 import { save } from "@tauri-apps/api/dialog"
 import { useLuaCall } from "../../hooks"
 
+const GLOBAL_PRESETS = {
+  COLOR: {
+    key: "[COLOR]",
+    title: "#color",
+    order: 99999,
+    presets: [
+      {key: "null", title: "无", cmds: []},
+      {key: "white", title: "纯白", cmds: [{name: "SetAddColour", args: [1,1,1,1]}]},
+      {key: "black", title: "纯黑", cmds: [{name: "SetMultColour", args: [0,0,0,1]}]},
+      {key: "green", title: "绿色（允许摆放）", cmds: [{name: "SetAddColour", args: [0,1,0,1]}]},
+      {key: "red", title: "红色（禁止摆放）", cmds: [{name: "SetAddColour", args: [1,0,0,1]}]},
+    ]
+  }
+}
+
 export function useQuickLookPresets(
   data: {bank?: string | number, animation?: string, build?: string}) {
     return useMemo(()=> {
@@ -42,10 +57,13 @@ export function useQuickLookPresets(
       def.toSorted((a, b)=> a.order - b.order).forEach(v=> {
         result.push(v)
       })
+
     }
     else if (data.build !== undefined){
   
     }
+    // add public preset (color)
+    result.push(GLOBAL_PRESETS.COLOR)
 
     return result
   }, [])
@@ -58,7 +76,6 @@ export function useQuickLookCmds(
   const presets = useQuickLookPresets(data)
   return useMemo(()=> {
     const list = [] as Api[]
-    console.log("??", presets)
     presets.forEach(v=> {
       const {key, presets} = v
       const preset = presets.find(v=> stored_presets[`${key}-${v.key}`]) || presets[0]
@@ -69,7 +86,7 @@ export function useQuickLookCmds(
   }, [stored_presets, presets])
 }
 
-type ExportFormat = "gif" | "mp4" | "snapshot"
+type ExportFormat = "gif" | "mp4" | "mov" | "snapshot"
 
 export function useQuickLookExport(
   animstate: AnimState, defaultName?: string
