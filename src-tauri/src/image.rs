@@ -568,15 +568,40 @@ pub mod lua_image {
                     Ok(other)=> {
                         let (width, height) = (img.width as i64, img.height as i64);
                         for (x, y, pixel) in other.inner.pixels() {
-                        let ox = px + x as i64;
+                            let ox = px + x as i64;
                             let oy = py + y as i64;
                             if ox < 0 || oy < 0 || ox >= width || oy >= height {
                                 continue;
                             }
                             let background = img.get_pixel(ox as u32, oy as u32).unwrap();
-                            let merge = match pixel[3] {
+                            let merge = match pixel[3] as u32 {
                                 255=> pixel,
                                 0=> background,
+                                n=> {
+                                    // ref to Pillow AlphaComposite.c #ImagingAlphaComposite
+                                    const PRECISION_BITS: u32 = 16 - 8 - 2;
+                                    let shift_for_div255 = |a| ((a >> 8) + a) >> 8;
+                                    let clamp = |a: u32|a.clamp(0, 255) as u8;
+
+                                    let blend = background[3] as u32 * (255 - n);
+                                    let outa255 = n*255 + blend;
+                                    let coef1 = n*255*255* (1 << PRECISION_BITS) / outa255;
+                                    let coef2 = 255* (1 << PRECISION_BITS) - coef1;
+                                    
+                                    let (tmpr, tmpg, tmpb) = (
+                                        pixel[0] as u32 * coef1 + background[0] as u32 * coef2,
+                                        pixel[1] as u32 * coef1 + background[1] as u32 * coef2,
+                                        pixel[2] as u32 * coef1 + background[2] as u32 * coef2,
+                                    );
+                                    let (r, g, b, a) = (
+                                        shift_for_div255(tmpr + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
+                                        shift_for_div255(tmpg + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
+                                        shift_for_div255(tmpb + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
+                                        shift_for_div255(outa255 + 0x80)
+                                    );
+                                    Rgba::from([clamp(r), clamp(g), clamp(b), clamp(a)])
+                                },
+                                #[allow(unreachable_patterns)]
                                 n=> {
                                     let a1: f64 = n as f64 / 255.0;
                                     let a2: f64 = background[3] as f64 / 255.0;
