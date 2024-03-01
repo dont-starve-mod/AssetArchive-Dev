@@ -50,7 +50,7 @@ export default function AssetPage() {
   const [_, forceUpdate] = useReducer(v=> v + 1, 0)
   if (id === null || id === "undefined") return <AssetInvalidPage type="null"/>
   const asset = window.assets_map[id]
-  return
+  // return
   if (!asset) {
     if (!window.assets[getTypeKeyById(id)]){
       return <AssetInvalidPage type="waiting" forceUpdate={forceUpdate}/>

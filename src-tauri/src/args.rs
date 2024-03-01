@@ -6,6 +6,7 @@ pub mod lua_args {
     use super::*;
     struct Args {
         inner: clap::ArgMatches,
+        exec: String,
     }
 
     fn convert_to_luastring<'lua>(lua: Context<'lua>, s: Option<&str>) -> LuaResult<Value<'lua>> {
@@ -139,27 +140,21 @@ pub mod lua_args {
                     .visible_aliases(["ffmpeg"])
                     .args([
                         generic_args[0].clone(),
-                        Arg::new("install")
-                            .long("install")
-                            .short('i')
-                            .action(ArgAction::SetTrue)
-                            .help("自动安装（需要联网）"),
                         Arg::new("uninstall")
                             .long("uninstall")
                             .short('u')
                             .action(ArgAction::SetTrue)
                             .help("卸载已安装的FFmpeg"),
-                        Arg::new("set_custom_path")
-                            .long("set-custom-path")
+                        Arg::new("path")
+                            .long("path")
                             .value_name("PATH")
-                            .help("手动安装: 需要有效的可执行文件路径, 例如: ffmpeg, /usr/local/bin/ffmpeg, path/to/ffmpeg.exe"),
+                            .help("使用自定义安装, 需要有效的可执行文件路径, 例如: ffmpeg, path/to/ffmpeg.exe, /usr/local/bin/ffmpeg")
+                            .conflicts_with("uninstall"),
                 ]))
-                
-                    
                 .after_help("")
                 .get_matches();
 
-            Args { inner: matches }
+            Args { inner: matches, exec: std::env::args().next().unwrap_or("".into()) }
         }
     }
 
@@ -209,6 +204,9 @@ pub mod lua_args {
                             }
                         }
                     },
+                    Value::Number(n) if n == 0.0 => {
+                        convert_to_luastring(lua, Some(args.exec.as_str()))
+                    },
                     _ => Err(LuaError::ToLuaConversionError { from: "(lua)", to: "string", message: None })
                 }
             });
@@ -225,6 +223,7 @@ pub mod lua_args {
             globals.set("Args", Args::new())?;
         }
         else {
+            // avoid panic from strict.lua
             globals.set("Args", Value::Boolean(false))?;
         }
         Ok(())

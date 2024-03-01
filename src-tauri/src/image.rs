@@ -269,7 +269,7 @@ pub mod lua_image {
                 (Some(c1), Some(c2))=> {
                     let (a1, a2) = (c1[3] as f64, c2[3] as f64);
                     let mut result = c1.map2(&c2, |v1, v2| Self::normalize(
-                        (v1 as f64 * a1 * percent + v2 as f64 * a2 * (1.0 - percent)) / (a1*0.5 + a2*0.5)));
+                        (v1 as f64 * percent + v2 as f64 * (1.0 - percent))));
                     result[3] = Self::normalize(a1 * percent + a2 * (1.0 - percent));
                     Some(result)
                 },
@@ -291,10 +291,9 @@ pub mod lua_image {
         fn normalize(c: f64) -> u8 {
            f64::clamp(c.round(), 0.0, 255.0) as u8
         }
-        /// 对图片执行变换, 返回新的图片, 其中变换定义为一个闭包
-        /// 例如: |(px, py)| -> (sx, sy)
-        /// 性能可能会比较糟糕 —— 因为并未规定渲染框的范围, 会造成浪费
-        /// 建议该方法仅用于测试
+        /// apply transform on the image, return new one
+        /// transforming method is define as a closure, eg: |(px, py)| -> (sx*2.0, sy*2.0)
+        /// NOTE: bbox not calculated
         pub fn transform(&self, width: u32, height: u32,
             transformer: impl Fn(u32, u32)-> (f64, f64), resampler: Resampler) -> Self {
             let mut imgbuf = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::new(width, height);
@@ -622,9 +621,6 @@ pub mod lua_image {
                                     ])
                                 }
                             };
-                            if pixel[3] < 255 && pixel[3] > 0 {
-                                // println!("ALPHA: {:?} {:?} -> {:?}", pixel, background, merge);
-                            }
                             img.set_pixel(ox as u32, oy as u32, merge);
                         }
                         Ok(())
@@ -689,7 +685,6 @@ pub mod lua_image {
         height: u32,
         img: Image,
         matrix: AffineTransform,
-        resampler: Resampler,
         filter: Option<Filter>,
 
         task_id: String,
@@ -722,12 +717,13 @@ pub mod lua_image {
             // }
             let num_threads = tasks.get::<_, usize>("@thread")
                 .unwrap_or_else(|_|num_cpus::get());
+            let resampler = tasks.get::<_, Resampler>("@resampler")
+                .unwrap_or(Resampler::Bilinear);
             if num_threads == 0 || num_threads > 64 {
                 return Err(LuaError::RuntimeError("num threads not support".into()));
             }
             println!("[MultiThreadedTransform] spawn {} threads", num_threads);
             let mut threads = Vec::with_capacity(num_threads);
-            // TODO: is it valid?
             let mut keys = tasks.clone().pairs::<String, _>()
                 .map(|pair|pair.unwrap_or(("".to_string(), lua.create_table().unwrap())).0.to_string())
                 .filter(|v|v.starts_with("task"))
@@ -745,7 +741,7 @@ pub mod lua_image {
                             Err(_)=> return, // function returned, channel closed
                         };
                         // println!("WORKER {} <-", i);
-                        task.img = task.img.affine_transform(task.width, task.height, task.matrix, task.resampler).unwrap();
+                        task.img = task.img.affine_transform(task.width, task.height, task.matrix, resampler).unwrap();
                         if let Some(filter) = task.filter {
                             task.img.apply_filter(&filter);
                             task.filter = None;
@@ -769,7 +765,6 @@ pub mod lua_image {
                                 .borrow::<Image>()?
                                 .clone(),
                             matrix: AffineTransform::from_vec(task.get("matrix")?),
-                            resampler: Resampler::Bilinear,
                             filter: match task.get::<_, Option<AnyUserData>>("filter")? {
                                 Some(filter)=> Some(filter.borrow::<Filter>()?.clone()),
                                 None=> None,

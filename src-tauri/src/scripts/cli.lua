@@ -1,5 +1,12 @@
 -- app cli handlers
 
+if Args == false then
+	rawset(_G, "print_debug", print)
+	rawset(_G, "print_info", print)
+	rawset(_G, "print_error", print)
+	return
+end
+
 local verbose = tonumber(Args.verbose)
 print_debug = verbose >= 2 and print or function() end
 print_info  = verbose >= 1 and print or function() end

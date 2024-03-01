@@ -459,6 +459,7 @@ function Render:Run()
 
 	-- loop 2.1: run the multithreaded renderer
 	-- element_tasks["@thread"] = 1
+	-- element_tasks["@resampler"] = Image.NEAREST
 	Image.MultiThreadedTransform(element_tasks, function(current, _, percent)
 		if current % 100 == 0 then
 			IpcEmitEvent("render_event", json.encode_compliant({
@@ -533,6 +534,8 @@ function Render:Run()
 			path = path:as_string(),
 			format = format,
 			scale = self.scale or 1.0,
+			width = width,
+			height = height,
 			rate = self.rate or anim.framerate or error("Failed to get export framerate"),
 		}
 	elseif format == "png" then
@@ -588,7 +591,7 @@ function Render:Run()
 		IpcEmitEvent("render_event", json.encode_compliant({
 			session_id = self.session_id,
 			state = "render_canvas",
-			progress = index/#framebuffer,
+			progress = math.min(.99, index/#framebuffer),
 		}))
 		enc:encode_frame(canvas)
 	end

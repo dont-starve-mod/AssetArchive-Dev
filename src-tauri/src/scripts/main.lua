@@ -22,10 +22,7 @@ local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot
 local Provider =  require "assetprovider".Provider
 local AnimProjectManager = require "animproject".AnimProjectManager
-
-if Args then
-	require "cli"
-end
+require "cli"
 
 GLOBAL = {
 	root = nil,

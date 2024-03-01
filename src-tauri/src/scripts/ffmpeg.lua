@@ -1,9 +1,6 @@
 -- utils for ffmpeg encoder
 local Config = Persistant.Config
 
-local print_info = rawget(_G, "print_info") or print
-local print_error = rawget(_G, "print_error") or print
-
 local FFmpeg = Class(function(self)
     self.bindir = APP_DATA_DIR/"bin"
     self.binname = PLATFORM == "WINDOWS" and "ffmpeg.exe" or "ffmpeg"
@@ -22,8 +19,10 @@ local URLS = {
 }
 
 local DOWNLOADER_ID = "FFMPEG"
+FFmpeg.DOWNLOADER_ID = DOWNLOADER_ID
 
 function FFmpeg:StartDownloading()
+    print_info("[INFO] Start downloading FFmpeg")
     local url = URLS[PLATFORM]
     if url == nil then
         error("[ERROR] Unsupported platform: "..PLATFORM)
@@ -38,6 +37,13 @@ end
 function FFmpeg:Uninstall()
     if self.binpath:exists() then
         self.binpath:delete()
+    end
+    if not self.binpath:exists() then
+        print_info("[INFO] FFmpeg has been successfully removed")
+        return true
+    else
+        print_error("[ERROR] Failed to remove FFmpeg")
+        return false
     end
 end
 
@@ -71,7 +77,7 @@ function FFmpeg:Install(bytes)
     end
 
     if bytes:startswith(ZIP_SIG) then
-        print_info("[INFO] 开始安装 (compressed_method=zip)")
+        print_info("[INFO] unpack file (compressed_method=zip)")
         local f = ZipLoader(FileSystem.CreateBytesReader(bytes), ZipLoader.NAME_FILTER.ALL_LAZY)
         for _, name in ipairs(f:List())do
             if name:find("ffmpeg") then
@@ -79,27 +85,27 @@ function FFmpeg:Install(bytes)
                 if bytes and #bytes > BINSIZE then
                     binpath:write(bytes)
                     binpath:set_mode(511) -- 0o777
-                    print_info("[INFO] 安装完成")
+                    print_info("[INFO] successfully installed FFmpeg")
                     return binpath
                 end
             end
         end
-        error("[ERROR] 安装失败: 无法解压程序包")
+        error("[ERROR] Failed to install")
     elseif bytes:startswith("\55\122\188\175\39") then
-        print_info("[INFO] 开始安装 (compressed_method=7z)")
+        print_info("[INFO] unpack file (compressed_method=7z)")
         local bytes = Algorithm.Sevenz_Decompress(bytes)
         if bytes and #bytes > BINSIZE then
             binpath:write(bytes)
             binpath:set_mode(511) -- 0o777
-            print_info("[INFO] 安装完成")
+            print_info("[INFO] successfully installed FFmpeg")
             return binpath
         else
             print_error(type(bytes), bytes ~= nil and #bytes or -1)
             print_error("Internal error: decompressed bytes too short")
-            error("[ERROR] 安装失败: 无法解压程序包")
+            error("[ERROR] Failed to install")
         end
     else
-        error("[ERROR] 安装失败: 无法识别文件格式")
+        error("[ERROR] Failed to install: unknown file type")
     end
 end
 
@@ -107,13 +113,13 @@ function FFmpeg:ValidateBinPath(path)
     return FFcore.ValidateBinPath(path)
 end
 
-function FFmpeg:TryGetBinPath()
+function FFmpeg:TryGetBinPath(no_warning)
     local path = Config:Get("ffmpeg_path")
     if path ~= nil and FFcore.ValidateBinPath(path) then
-        return path
+        return path, "CUSTOM"
     elseif FFcore.ValidateBinPath(self.binpath:as_string()) then
-        return self.binpath:as_string()
-    else
+        return self.binpath:as_string(), "AUTO"
+    elseif not no_warning then
         print_error("Warning: failed to get ffmpeg path")
     end
 end

@@ -38,10 +38,16 @@ fn run_version<P: AsRef<OsStr>>(path: P) -> Result<bool, String> {
     .stdout(Stdio::piped())
     .output()
     .map(|output|{
-        format!("{}{}", 
+        let s = format!("{}{}", 
             String::from_utf8(output.stderr).unwrap_or("".to_string()),
             String::from_utf8(output.stdout).unwrap_or("".to_string())
-        ).find("ffmpeg").is_some()
+        );
+        // strip configuration flags (may contains unintended `ffmpeg`)
+        let s = match s.find("configuration") {
+            Some(n)=> s.split_at(n).0,
+            None=> s.as_str(),
+        };
+        s.find("ffmpeg").is_some()
     })
     .map_err(|e| e.to_string())
 }
@@ -72,6 +78,7 @@ pub mod lua_ffmpeg {
 
     struct FfmpegEncoder {
       inner: FfmpegChild,
+      size: Option<(u32, u32)>,
     }
   
     impl FfmpegEncoder {
@@ -83,7 +90,11 @@ pub mod lua_ffmpeg {
           println!("[FFMPEG.STDERR] {}", line.unwrap()));
         });
     
-        FfmpegEncoder { inner: child }
+        FfmpegEncoder { inner: child, size: None }
+      }
+
+      pub fn set_size(&mut self, width: u32, height: u32) {
+        self.size = Some((width, height));
       }
   
       pub fn get_stdin(&mut self) -> &ChildStdin {
@@ -93,7 +104,7 @@ pub mod lua_ffmpeg {
   
     impl UserData for FfmpegEncoder {
       fn add_methods<'lua, T: rlua::UserDataMethods<'lua, Self>>(_methods: &mut T) {
-        // encode a image frame, accept image userdata or png bytes
+        // encode a image frame, accept image userdata or raw bytes
         _methods.add_method_mut("encode_frame", |_, encoder: &mut Self, img: Value|{
           let bytes = match img {
             Value::String(s)=> {
@@ -101,7 +112,16 @@ pub mod lua_ffmpeg {
             },
             Value::UserData(img)=> {
               match img.borrow::<Image>() {
-                Ok(img)=> img.save_png_bytes(),
+                Ok(img)=> {
+                    let size = (img.width, img.height);
+                    // check size
+                    match encoder.size {
+                        None=> encoder.set_size(size.0, size.1),
+                        Some(s) if s == size => (),
+                        Some(_)=> return Err(LuaError::RuntimeError("Image size changed in encoding".into())),
+                    };
+                    img.as_bytes().to_vec()
+                },
                 Err(e)=> return Err(e)
               }
             },
@@ -115,8 +135,8 @@ pub mod lua_ffmpeg {
         // close stdin pipe and wait ffmpeg process to exit
         _methods.add_method_mut("wait", |_, encoder: &mut Self, ()|{
           encoder.inner.wait()
-            .map_err(|e| LuaError::RuntimeError(e.to_string()))
             .map(|v| v.success())
+            .map_err(|e| LuaError::RuntimeError(e.to_string()))
         });
       }
     }
@@ -169,15 +189,19 @@ pub mod lua_ffmpeg {
         let format = args.get::<_, String>("format")?;
         let scale = args.get::<_, f32>("scale").unwrap_or(1.0);
         let rate = args.get::<_, f32>("rate").unwrap_or(30.0);
+        let width = args.get::<_, u32>("width")?;
+        let height = args.get::<_, u32>("height")?;
 
         let mut command = FfmpegCommand::new_with_path(bin);
         command.hide_banner()
+            .args(["-f", "rawvideo"])
+            .args(["-video_size", format!("{}x{}", width, height).as_str()])
+            .args(["-pixel_format", "rgba"])
             .args(["-r", rate.to_string().as_str()])
-            .args(["-f", "image2pipe"])
             .args(["-i", "pipe:0"]);
 
         match &format[..] {
-            "gif"=> (),
+            "gif" | "webp" => (),
             "mp4"=> {
                 command.args(["-vcodec", "h264", "-pix_fmt", "yuv420p",
                 "-crf", "18", "-preset", "veryslow"]);
@@ -223,7 +247,8 @@ pub mod lua_ffmpeg {
         match path.to_string() {
             Ok(path)=> match run_version(path){
                 Ok(v)=> {
-                    Ok(if v { (true, "") } else { (false, "Interval error in running `$ffmpeg -version`")})
+                    Ok(if v { (true, "") } 
+                        else { (false, "Internal error in running `$ffmpeg -version`, do you provide correct path?")})
                         .map(|v| (v.0, v.1.to_string()))
                 },
                 Err(e)=> {
