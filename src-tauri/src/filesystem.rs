@@ -539,7 +539,7 @@ pub mod lua_filesystem {
 
     impl std::fmt::Display for Path {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.inner.to_string_lossy().to_string())
+            write!(f, "{}", self.inner.to_string_lossy())
         }
     }
 
@@ -683,7 +683,7 @@ pub mod lua_filesystem {
                 Ok(path.to_string())
             });
             _methods.add_meta_method(MetaMethod::ToString, |_, path: &Self, ()|{
-                Ok(format!("Path<{}>", path.to_string()))
+                Ok(format!("Path<{}>", path))
             });
             _methods.add_meta_method(MetaMethod::Div, |_, path: &Self, s: String|{
                 Ok(path.join(s))

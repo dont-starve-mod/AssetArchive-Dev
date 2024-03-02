@@ -1,3 +1,4 @@
 *.lua
 *.dat
 *.py
+.DS_Store

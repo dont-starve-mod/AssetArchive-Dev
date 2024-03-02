@@ -154,11 +154,12 @@ impl Index<usize> for AffineTransform {
 
 pub mod lua_image {
     use std::sync::mpsc::sync_channel;
+    use std::sync::{Arc, Condvar, Mutex};
     use std::thread::spawn;
 
     use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, GenericImage};
     use image::ColorType;
-    use rlua::{Context, AnyUserData};
+    use rlua::{AnyUserData, Context};
     use rlua::Value;
     use rlua::{Function, MetaMethod, UserData, UserDataMethods, Variadic, Table};
 
@@ -348,6 +349,68 @@ pub mod lua_image {
             }
             else {
                 Err("Invalid affine matrix: nan")
+            }
+        }
+
+        /// paste another image on this, this method will mutate dest image pixels
+        pub fn paste(&mut self, other: Image, px: i64, py: i64) {
+            let (width, height) = (self.width as i64, self.height as i64);
+            for (x, y, pixel) in other.inner.pixels() {
+                let ox = px + x as i64;
+                let oy = py + y as i64;
+                if ox < 0 || oy < 0 || ox >= width || oy >= height {
+                    continue;
+                }
+                let background = self.get_pixel(ox as u32, oy as u32).unwrap();
+                let merge = match pixel[3] as u32 {
+                    255=> pixel,
+                    0=> background,
+                    n=> {
+                        // ref to Pillow AlphaComposite.c #ImagingAlphaComposite
+                        const PRECISION_BITS: u32 = 16 - 8 - 2;
+                        let shift_for_div255 = |a| ((a >> 8) + a) >> 8;
+                        let clamp = |a: u32| a.clamp(0, 255) as u8;
+
+                        let blend = background[3] as u32 * (255 - n);
+                        let outa255 = n*255 + blend;
+                        let coef1 = n*255*255* (1 << PRECISION_BITS) / outa255;
+                        let coef2 = 255* (1 << PRECISION_BITS) - coef1;
+                        
+                        let (tmpr, tmpg, tmpb) = (
+                            pixel[0] as u32 * coef1 + background[0] as u32 * coef2,
+                            pixel[1] as u32 * coef1 + background[1] as u32 * coef2,
+                            pixel[2] as u32 * coef1 + background[2] as u32 * coef2,
+                        );
+                        let (r, g, b, a) = (
+                            shift_for_div255(tmpr + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
+                            shift_for_div255(tmpg + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
+                            shift_for_div255(tmpb + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
+                            shift_for_div255(outa255 + 0x80)
+                        );
+                        Rgba::from([clamp(r), clamp(g), clamp(b), clamp(a)])
+                    },
+                    #[allow(unreachable_patterns)]
+                    n=> {
+                        let a1: f64 = n as f64 / 255.0;
+                        let a2: f64 = background[3] as f64 / 255.0;
+                        let a1a2 = a1* a2;
+                        let alpha = a1 + a2 - a1a2;
+                        // rgb
+                        let r1a1 = pixel[0] as f64 / 255.0 * a1;
+                        let g1a1 = pixel[1] as f64 / 255.0 * a1;
+                        let b1a1 = pixel[2] as f64 / 255.0 * a1;
+                        let r2a2 = background[0] as f64 / 255.0 * a2;
+                        let g2a2 = background[1] as f64 / 255.0 * a2;
+                        let b2a2 = background[2] as f64 / 255.0 * a2;
+                        Rgba::<u8>::from([
+                            Image::normalize((r1a1 + r2a2 - r2a2* a1)/alpha* 255.0),
+                            Image::normalize((g1a1 + g2a2 - g2a2* a1)/alpha* 255.0),
+                            Image::normalize((b1a1 + b2a2 - b2a2* a1)/alpha* 255.0),
+                            Image::normalize(alpha* 255.0)
+                        ])
+                    }
+                };
+                self.set_pixel(ox as u32, oy as u32, merge);
             }
         }
 
@@ -566,64 +629,8 @@ pub mod lua_image {
             _methods.add_method_mut("paste", |_, img: &mut Self, (other, px, py): (AnyUserData, i64, i64)|{
                 match other.borrow::<Image>() {
                     Ok(other)=> {
-                        let (width, height) = (img.width as i64, img.height as i64);
-                        for (x, y, pixel) in other.inner.pixels() {
-                            let ox = px + x as i64;
-                            let oy = py + y as i64;
-                            if ox < 0 || oy < 0 || ox >= width || oy >= height {
-                                continue;
-                            }
-                            let background = img.get_pixel(ox as u32, oy as u32).unwrap();
-                            let merge = match pixel[3] as u32 {
-                                255=> pixel,
-                                0=> background,
-                                n=> {
-                                    // ref to Pillow AlphaComposite.c #ImagingAlphaComposite
-                                    const PRECISION_BITS: u32 = 16 - 8 - 2;
-                                    let shift_for_div255 = |a| ((a >> 8) + a) >> 8;
-                                    let clamp = |a: u32| a.clamp(0, 255) as u8;
-
-                                    let blend = background[3] as u32 * (255 - n);
-                                    let outa255 = n*255 + blend;
-                                    let coef1 = n*255*255* (1 << PRECISION_BITS) / outa255;
-                                    let coef2 = 255* (1 << PRECISION_BITS) - coef1;
-                                    
-                                    let (tmpr, tmpg, tmpb) = (
-                                        pixel[0] as u32 * coef1 + background[0] as u32 * coef2,
-                                        pixel[1] as u32 * coef1 + background[1] as u32 * coef2,
-                                        pixel[2] as u32 * coef1 + background[2] as u32 * coef2,
-                                    );
-                                    let (r, g, b, a) = (
-                                        shift_for_div255(tmpr + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
-                                        shift_for_div255(tmpg + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
-                                        shift_for_div255(tmpb + (0x80 << PRECISION_BITS)) >> PRECISION_BITS,
-                                        shift_for_div255(outa255 + 0x80)
-                                    );
-                                    Rgba::from([clamp(r), clamp(g), clamp(b), clamp(a)])
-                                },
-                                #[allow(unreachable_patterns)]
-                                n=> {
-                                    let a1: f64 = n as f64 / 255.0;
-                                    let a2: f64 = background[3] as f64 / 255.0;
-                                    let a1a2 = a1* a2;
-                                    let alpha = a1 + a2 - a1a2;
-                                    // rgb
-                                    let r1a1 = pixel[0] as f64 / 255.0 * a1;
-                                    let g1a1 = pixel[1] as f64 / 255.0 * a1;
-                                    let b1a1 = pixel[2] as f64 / 255.0 * a1;
-                                    let r2a2 = background[0] as f64 / 255.0 * a2;
-                                    let g2a2 = background[1] as f64 / 255.0 * a2;
-                                    let b2a2 = background[2] as f64 / 255.0 * a2;
-                                    Rgba::<u8>::from([
-                                        Image::normalize((r1a1 + r2a2 - r2a2* a1)/alpha* 255.0),
-                                        Image::normalize((g1a1 + g2a2 - g2a2* a1)/alpha* 255.0),
-                                        Image::normalize((b1a1 + b2a2 - b2a2* a1)/alpha* 255.0),
-                                        Image::normalize(alpha* 255.0)
-                                    ])
-                                }
-                            };
-                            img.set_pixel(ox as u32, oy as u32, merge);
-                        }
+                        // TODO: this clone can be removed
+                        img.paste(other.clone(), px, py);
                         Ok(())
                     },
                     Err(_)=> Err(LuaError::ToLuaConversionError { from: "(lua)", to: "Image", message: None })
@@ -659,6 +666,12 @@ pub mod lua_image {
         }
     }
 
+    impl AsRef<Image> for Image {
+        fn as_ref(&self) -> &Image {
+            self
+        }
+    }
+
     impl UserData for AffineTransform {
         fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(_methods: &mut T) {
             _methods.add_method("reverse", |_, matrix: &Self, ()|{
@@ -681,7 +694,7 @@ pub mod lua_image {
         }
     }
 
-    struct TaskData {
+    struct ElementTaskData {
         width: u32,
         height: u32,
         img: Image,
@@ -689,6 +702,15 @@ pub mod lua_image {
         filter: Option<Filter>,
 
         task_id: String,
+        worker_id: usize,
+    }
+
+    struct CompositeTaskData {
+        canvas: Image,
+        index: usize,
+        /// element image, px, py (paste position may be nagative)
+        elements: Vec<(Image, i64, i64)>,
+
         worker_id: usize,
     }
 
@@ -734,11 +756,11 @@ pub mod lua_image {
                 .filter(|v|v.starts_with("task"))
                 .collect::<Vec<String>>();
             let total = keys.len();
-            let (main_tx, main_rx) = sync_channel::<TaskData>(1);
+            let (main_tx, main_rx) = sync_channel::<ElementTaskData>(1);
             #[allow(unused_variables)]
             for i in 0..num_threads {
                 let main_tx = main_tx.clone();
-                let (tx, rx) = sync_channel::<TaskData>(1);
+                let (tx, rx) = sync_channel::<ElementTaskData>(1);
                 threads.push((spawn(move ||{
                     loop {
                         let mut task = match rx.recv() {
@@ -752,7 +774,9 @@ pub mod lua_image {
                             task.filter = None;
                         }
                         // println!("WORKER {} ->", i);
-                        main_tx.send(task).unwrap();
+                        if main_tx.send(task).is_err() { // function returned, silently exit worker thread
+                            break;
+                        }
                     }
                 }), tx, true)) // thread, sender, is_available
             }
@@ -763,7 +787,7 @@ pub mod lua_image {
                         let key = keys.pop().unwrap();
                         let task = tasks.get::<_, Table>(key.as_str())?;
                         *is_available = false;
-                        if tx.send(TaskData{
+                        if tx.send(ElementTaskData{
                             width: task.get("render_width")?,
                             height: task.get("render_height")?,
                             img: task.get::<_, AnyUserData>("img")?
@@ -801,13 +825,112 @@ pub mod lua_image {
             Ok(())
         })?)?;
 
-        table.set("MutiThreadedCompositeAndRender", lua_ctx.create_function(|lua, tasks: Table|{
+        table.set("MultiThreadedCompositeAndRender", lua_ctx.create_function(|_, tasks: Table|{
+            // type tasks = {
+            //    [I: usize]: task, 
+            //    "@numframe" : usize,
+            //    "@thread": int,
+            //    "@encoder": function(img, index)
+            //    "@sequential": boolean
+            //    "@progress": function(current, total, percent)}
+            //
             let num_threads = tasks.get::<_, usize>("@thread")
                 .unwrap_or_else(|_|num_cpus::get())
                 .clamp(1, 64);
-            println!("[MultiThreadedTransform] spawn {} threads", num_threads);
+            println!("[MultiThreadedCompositeAndRender] spawn {} threads", num_threads);
             let onprogress = tasks.get::<_, Option<Function>>("@progress")?;
-            let encoder = tasks.get::<_, Value>("@encoder")?;
+            let encoder = tasks.get::<_, Function>("@encoder")?;
+            let canvas = tasks.get::<_, AnyUserData>("@canvas")?;
+            let canvas = canvas.borrow::<Image>()?;
+            let sequential = tasks.get::<_, bool>("@sequential")?;
+            let current_index = Arc::new(Mutex::new(1_usize)); // Lua table index starts at 1
+            let total = tasks.get::<_, usize>("@numframe")?;
+            let mut keys = (1..=total).rev().collect::<Vec<usize>>(); 
+            let cond = Arc::new(Condvar::new());
+            let mut threads = Vec::with_capacity(num_threads);
+            let (main_tx, main_rx) = sync_channel::<CompositeTaskData>(1);
+            #[allow(unused_variables)]
+            for i in 0..num_threads {
+                let main_tx = main_tx.clone();
+                let cond = Arc::clone(&cond);
+                let (tx, rx) = sync_channel::<CompositeTaskData>(1);
+                let current_index = Arc::clone(&current_index);
+                threads.push((spawn(move||{
+                    loop {
+                        let mut task = match rx.recv() {
+                            Ok(task)=> task,
+                            Err(_)=> return, // function returned, channel closed
+                        };
+                        // println!("WORKER {} <-", i);
+                        for (ele, x, y) in task.elements {
+                            task.canvas.paste(ele, x, y);
+                        }
+                        task.elements = vec![];
+                        // wait for sync
+                        // * mp4/mov/gif encoder uses FFmpeg, so must be sequential
+                        // * png encoder is not
+                        let mut index = current_index.lock().unwrap();
+                        while *index != task.index && sequential {
+                            index = cond.wait(index).unwrap();
+                        }
+                        // println!("WORKER {} ->", i);
+                        if main_tx.send(task).is_err() { // function returned, silently exit worker thread
+                            break;
+                        }
+                        drop(index);
+                    }
+                }), tx, true)) // thread, sender, is_available
+            }
+
+            loop {
+                for (i, (_, tx, is_available)) in threads.iter_mut().enumerate() {
+                    if *is_available && !keys.is_empty() {
+                        let key = keys.pop().unwrap();
+                        let mut elements = vec![];
+                        for pair in tasks.get::<_, Table>(key)?.sequence_values::<Table>() {
+                            let v = pair?;
+                            let img = v.get::<_, AnyUserData>("img")?.borrow::<Image>()?.clone();
+                            let px = v.get::<_, i64>("px")?;
+                            let py = v.get::<_, i64>("py")?;
+                            elements.push((img, px, py));
+                        }
+                        *is_available = false;
+                        if tx.send(CompositeTaskData{
+                            canvas: canvas.clone(),
+                            index: key,
+                            elements,
+                            worker_id: i,
+                        }).is_err() {
+                            return Err(LuaError::RuntimeError("thread panic".into()));
+                        }
+                    }
+                }
+                while let Ok(task) = main_rx.try_recv() {
+                    let available = &mut threads[task.worker_id].2;
+                    if *available {
+                        return Err(LuaError::RuntimeError(format!("received task data from idle worker: {}", task.worker_id)));
+                    }
+                    *available = true;
+
+                    if sequential {
+                        let mut current_index = current_index.lock().unwrap();
+                        if *current_index != task.index {
+                            return Err(LuaError::RuntimeError(format!("encoder sequential failed: exp: {} - cur: {}", 
+                                *current_index, task.index)));
+                        }
+                        *current_index += 1;
+                        cond.notify_all();
+                    }
+                    encoder.call((task.canvas, task.index))?;
+                }
+                if let Some(ref onprogress) = onprogress {
+                    let current = total - keys.len();
+                    onprogress.call((current, total, current as f64 / total as f64))?;
+                }
+                if keys.is_empty() && !threads.iter().any(|v|!v.2) {
+                    break;
+                }
+            }
 
             Ok(())
         })?)?;

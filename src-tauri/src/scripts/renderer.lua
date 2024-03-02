@@ -462,6 +462,7 @@ function Render:Run()
 	-- element_tasks["@resampler"] = Image.NEAREST
 	element_tasks["@progress"] = function(current, _, percent)
 		if current % 100 == 0 then
+			self:TryInterrupt()
 			IpcEmitEvent("render_event", json.encode_compliant({
 				session_id = self.session_id,
 				state = "render_element",
@@ -550,17 +551,14 @@ function Render:Run()
 		end
 
 		enc = {
-			index = 0,
-			encode_frame = function(self, img)
-				local name = string.format("%05d.png", self.index)
+			encode_frame = function(self, img, index)
+				local name = string.format("%05d.png", index)
 				local out = (png_dir/name):as_string()
 				img:save(out)
 
-				if png_path == nil then
+				if png_path == nil and index == 1 then
 					png_path = out -- use the first frame to display
 				end
-
-				self.index = self.index + 1
 			end,
 			wait = function() end, -- dummy
 		}
@@ -573,29 +571,36 @@ function Render:Run()
 		}
 	end
 
-	local background = string.rep(
-		self.bgc == "transparent" and "\0\0\0\0" or string.char(HexToRGB(self.bgc)).."\255",
-		width* height)
+	local composite_tasks = {
+		["@canvas"] = Image.From_RGBA(
+			string.rep(self.bgc == "transparent" and "\0\0\0\0" or string.char(HexToRGB(self.bgc)).."\255", width* height),
+			width, height),
+		["@numframe"] = #framebuffer,
+		["@encoder"] = function(img, index) enc:encode_frame(img, index) end,
+		["@sequential"] = type(enc) == "userdata"
+	}
 	local bar = ProgressBar(#framebuffer)
 	for index, buffer in ipairs(framebuffer)do
 		self:TryInterrupt()
 		table.sort(buffer, function(a,b) return a.z_index > b.z_index end)
-		local canvas = Image.From_RGBA(background, width, height)
 		for _, data in ipairs(buffer)do
-			-- local small_img = data.small_img
-			local small_img = assert(element_tasks[data.small_img_id],
-				"internal error: element render task failed").img:clone()
-			local pos_int = data.pos_int
-			canvas:paste(small_img, pos_int[1]-left, pos_int[2]-top)
+			data.img = 	assert(element_tasks[data.small_img_id], "internal error: element render task failed").img
+			data.px = data.pos_int[1] - left
+			data.py = data.pos_int[2] - top
 		end
-		bar:set_position(index)
+		composite_tasks[index] = buffer
+	end
+
+	-- composite_tasks["@thread"] = 8
+	composite_tasks["@progress"] = function(current, _, percent)
+		bar:set_position(current)
 		IpcEmitEvent("render_event", json.encode_compliant({
 			session_id = self.session_id,
 			state = "render_canvas",
-			progress = math.min(.99, index/#framebuffer),
+			progress = math.min(.99, current/#framebuffer),
 		}))
-		enc:encode_frame(canvas)
 	end
+	Image.MultiThreadedCompositeAndRender(composite_tasks)
 
 	enc:wait()  -- wait ffmpeg subprocess to finish and shutdown
 	bar:done()

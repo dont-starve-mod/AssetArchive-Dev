@@ -47,7 +47,7 @@ fn run_version<P: AsRef<OsStr>>(path: P) -> Result<bool, String> {
             Some(n)=> s.split_at(n).0,
             None=> s.as_str(),
         };
-        s.find("ffmpeg").is_some()
+        s.contains("ffmpeg")
     })
     .map_err(|e| e.to_string())
 }
