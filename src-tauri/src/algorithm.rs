@@ -108,10 +108,12 @@ pub mod lua_algorithm {
     }
 
     #[inline]
-    fn mult_alpha_and_clamp(v: u8, a: u8) -> u8 {
+    fn mult_alpha_impl(v: u8, a: u8) -> u8 {
         match a {
             0 => 0,
             255 => v,
+            a => ((v as u32 * a as u32 + a as u32)>> 8) as u8,
+            #[allow(unreachable_patterns)]
             a => f32::clamp((v as f32)* (a as f32)/255.0, 0.0, 255.0) as u8
         }
     }
@@ -120,9 +122,9 @@ pub mod lua_algorithm {
     fn mult_alpha(bytes: &[u8]) -> Vec<u8> {
         bytes.chunks_exact(4)
             .map(|color|[
-                mult_alpha_and_clamp(color[0], color[3]),
-                mult_alpha_and_clamp(color[1], color[3]),
-                mult_alpha_and_clamp(color[2], color[3]),
+                mult_alpha_impl(color[0], color[3]),
+                mult_alpha_impl(color[1], color[3]),
+                mult_alpha_impl(color[2], color[3]),
                 color[3]
             ])
             .collect::<Vec<_>>()

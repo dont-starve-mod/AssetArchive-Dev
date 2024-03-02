@@ -268,9 +268,10 @@ pub mod lua_image {
             match (c1, c2) {
                 (Some(c1), Some(c2))=> {
                     let (a1, a2) = (c1[3] as f64, c2[3] as f64);
+                    let alpha = Self::normalize(a1 * percent + a2 * (1.0 - percent));
                     let mut result = c1.map2(&c2, |v1, v2| Self::normalize(
-                        (v1 as f64 * percent + v2 as f64 * (1.0 - percent))));
-                    result[3] = Self::normalize(a1 * percent + a2 * (1.0 - percent));
+                        (v1 as f64 * a1* percent + v2 as f64 * a2* (1.0 - percent))/alpha as f64));
+                    result[3] = alpha;
                     Some(result)
                 },
                 (Some(c1), None)=> {
@@ -580,7 +581,7 @@ pub mod lua_image {
                                     // ref to Pillow AlphaComposite.c #ImagingAlphaComposite
                                     const PRECISION_BITS: u32 = 16 - 8 - 2;
                                     let shift_for_div255 = |a| ((a >> 8) + a) >> 8;
-                                    let clamp = |a: u32|a.clamp(0, 255) as u8;
+                                    let clamp = |a: u32| a.clamp(0, 255) as u8;
 
                                     let blend = background[3] as u32 * (255 - n);
                                     let outa255 = n*255 + blend;
@@ -709,20 +710,24 @@ pub mod lua_image {
             unreachable!("Rust GifWriter is removed");
             // GifWriter::new(&path).map_err(|e|LuaError::RuntimeError(e.to_string()))
         })?)?;
-        table.set("MultiThreadedTransform", lua_ctx.create_function(|lua, (tasks, onprogress): (Table, Option<Function>)|{
-            // type tasks = {[K:task-id]: task, "@thread": int}
+        table.set("MultiThreadedTransform", lua_ctx.create_function(|lua, tasks: Table|{
+            // type tasks = {
+            //    [K:task-id]: task, 
+            //    "@thread": int, 
+            //    "@resampler": int, 
+            //    "@progress": function(current, total, percent)}
+            //
             // type task = {
             //   id: string,
-            //   img: Image, width, height, matrix, resampler?
+            //   img: Image, width, height, matrix
             // }
             let num_threads = tasks.get::<_, usize>("@thread")
-                .unwrap_or_else(|_|num_cpus::get());
+                .unwrap_or_else(|_|num_cpus::get())
+                .clamp(1, 64);
+            println!("[MultiThreadedTransform] spawn {} threads", num_threads);
+            let onprogress = tasks.get::<_, Option<Function>>("@progress")?;
             let resampler = tasks.get::<_, Resampler>("@resampler")
                 .unwrap_or(Resampler::Bilinear);
-            if num_threads == 0 || num_threads > 64 {
-                return Err(LuaError::RuntimeError("num threads not support".into()));
-            }
-            println!("[MultiThreadedTransform] spawn {} threads", num_threads);
             let mut threads = Vec::with_capacity(num_threads);
             let mut keys = tasks.clone().pairs::<String, _>()
                 .map(|pair|pair.unwrap_or(("".to_string(), lua.create_table().unwrap())).0.to_string())
@@ -781,11 +786,9 @@ pub mod lua_image {
                     if *idle {
                         return Err(LuaError::RuntimeError(format!("received task data from idle worker: {}", task.worker_id)));
                     }
-                    else {
-                        *idle = true;
-                        tasks.get::<_, Table>(task.task_id)?
-                            .set("img", task.img)?;
-                    }
+                    *idle = true;
+                    tasks.get::<_, Table>(task.task_id)?
+                        .set("img", task.img)?;
                 }
                 if let Some(ref onprogress) = onprogress {
                     let current = total - keys.len();
@@ -795,6 +798,17 @@ pub mod lua_image {
                     break;
                 }
             }
+            Ok(())
+        })?)?;
+
+        table.set("MutiThreadedCompositeAndRender", lua_ctx.create_function(|lua, tasks: Table|{
+            let num_threads = tasks.get::<_, usize>("@thread")
+                .unwrap_or_else(|_|num_cpus::get())
+                .clamp(1, 64);
+            println!("[MultiThreadedTransform] spawn {} threads", num_threads);
+            let onprogress = tasks.get::<_, Option<Function>>("@progress")?;
+            let encoder = tasks.get::<_, Value>("@encoder")?;
+
             Ok(())
         })?)?;
     

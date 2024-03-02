@@ -460,7 +460,7 @@ function Render:Run()
 	-- loop 2.1: run the multithreaded renderer
 	-- element_tasks["@thread"] = 1
 	-- element_tasks["@resampler"] = Image.NEAREST
-	Image.MultiThreadedTransform(element_tasks, function(current, _, percent)
+	element_tasks["@progress"] = function(current, _, percent)
 		if current % 100 == 0 then
 			IpcEmitEvent("render_event", json.encode_compliant({
 				session_id = self.session_id,
@@ -468,7 +468,8 @@ function Render:Run()
 				progress = percent,
 			}))
 		end
-	end)
+	end
+	Image.MultiThreadedTransform(element_tasks)
 
 	IpcEmitEvent("render_event", json.encode_compliant{
 		session_id = self.session_id,
