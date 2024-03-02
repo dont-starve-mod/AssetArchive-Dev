@@ -24,7 +24,7 @@
 
 extern crate proc_macro;
 
-use std::{env, path::{self, PathBuf}};
+use std::{env, ffi::OsStr, path::{self, PathBuf}};
 use quote::quote;
 use proc_macro::{TokenStream, Span};
 use syn::{
@@ -49,7 +49,7 @@ impl IncludeLua {
                 Ok(ref entry) if entry.file_type().is_file() => {
                     let path = entry.path().strip_prefix(&lua_dir).expect("Reached file outside of lua directory.");
                     if path.extension() == Some("lua".as_ref()) {
-                        let module = if path.parent().is_some() && path.file_stem().expect("Missing file name!") == &"init".as_ref() {
+                        let module = if path.parent().is_some() && path.file_stem().expect("Missing file name!") == OsStr::new("init") {
                             path.parent()
                                 .unwrap()
                                 .to_str()

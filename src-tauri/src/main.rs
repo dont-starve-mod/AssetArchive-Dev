@@ -331,6 +331,7 @@ fn lua_reload<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: tauri::State<'
 fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>) -> LuaResult<()> {
     let app_dir = |path: Option<PathBuf>, create: bool|{
         if let Some(path) = path {
+            #[allow(clippy::collapsible_if)]
             if !path.is_dir() && create {
                 if std::fs::create_dir_all(path.clone()).is_err() {
                     eprintln!("Cannot create app directory: {}", path.to_string_lossy());
