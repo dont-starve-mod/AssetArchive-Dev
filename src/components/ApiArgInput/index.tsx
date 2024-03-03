@@ -84,9 +84,14 @@ export default function ArgInput(props: ArgInputProps) {
   else if (name === "ShowSymbol" || name === "HideSymbol" || name === "ClearOverrideSymbol") {
     return <SymbolSetter value={args[0] as string} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
   }
-  else if (name === "PlayAnimation" || name === "PushAnimation" || name === "SetPercent") {
+  else if (name === "PlayAnimation" || name === "PushAnimation") {
     return <AnimSetter name={name} value={args[0]} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
-    // TODO: 非标准警告 额外参数
+  }
+  else if (name === "SetPercent") {
+    return <>
+      <AnimSetter name={name} value={args[0]} onChange={(v: string)=> onChange(v, 0)} onValidChange={onValidChange} inputRef={ref=> childRef[0] = ref}/>
+      
+    </>
   }
   else if (name === "OverrideSymbol" || name === "OverrideSkinSymbol") {
     return <OverrideSymbolSetter args={args as string[]} onChange={onChange} onValidChange={onValidChange} inputRefIndexCb={(ref: HTMLInputElement, index)=> childRef[index] = ref}/>

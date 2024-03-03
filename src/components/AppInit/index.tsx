@@ -9,7 +9,7 @@ import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
 import { AppSettings, init as initSettings, update as updateSetting } from '../../redux/reducers/appsettings'
 import { MeiliSearch } from 'meilisearch'
-import type { AllAssetTypes, Entry } from '../../searchengine'
+import type { AllAssetTypes, ArchiveItem, Entry } from '../../searchengine'
 import type { AssetDesc } from '../../assetdesc'
 import { setAddr, addDocuments, search } from '../../global_meilisearch'
 import { useOS } from '../../hooks'
@@ -22,7 +22,7 @@ globalListen("tauri://destroyed", (e)=> {
     invoke("shutdown", {reason: "MainWindowDestroyed"})
 })
 
-function generateDocument(data: {[K: string]: AllAssetTypes[]}) {
+function generateDocument(data: {[K: string]: ArchiveItem[]}) {
   const result = []
   Object.values(data).forEach(v=> v.forEach(item=> {
     const {id, type} = item
@@ -53,6 +53,11 @@ function generateDocument(data: {[K: string]: AllAssetTypes[]}) {
     else if (type === "shader") {
       const {file, _vs, _ps} = item
       result.push({id, type, file})
+    }
+    else if (type === "bank") {
+      const {bank, animationList} = item
+      const bankName = window.hash.get(bank)
+      result.push({id, type, plain_text: `${bankName} ${bank.toString()}`, animationList})
     }
     else {
       console.warn("Invalid asset type", item)
@@ -192,7 +197,6 @@ export default function AppInit() {
         }),
         await globalListen<string>("animpreset", ({payload})=> {
           const data = JSON.parse(payload)
-          console.log(data.auto)
           data.auto = Object.fromEntries(data.auto.map(({bankhash, build})=> [bankhash, build]))
           data.def = data.def
           window.animpreset = data
@@ -211,7 +215,9 @@ export default function AppInit() {
               bank,
               animationList: animation.map(({name})=> name)
             }))
-          console.log(window.assets.allbank)
+          Object.values(window.assets.allbank).forEach(v=> 
+            window.assets_map[v.id] = v)
+          appWindow.emit("update_assets", window.assets)
         }),
       ]
 

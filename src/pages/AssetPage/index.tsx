@@ -50,12 +50,11 @@ export default function AssetPage() {
   const [_, forceUpdate] = useReducer(v=> v + 1, 0)
   if (id === null || id === "undefined") return <AssetInvalidPage type="null"/>
   const asset = window.assets_map[id]
-  // return
   if (!asset) {
     if (!window.assets[getTypeKeyById(id)]){
       return <AssetInvalidPage type="waiting" forceUpdate={forceUpdate}/>
     }
-    else if (!id.startsWith("bank")){
+    else{
       console.warn("Invalid asset id: ", id)
       return <AssetInvalidPage type="invalid-id" id={id}/>
     }
@@ -660,10 +659,7 @@ function ZipPage({type, file, id}) {
                     style={{marginTop: -4, marginBottom: -2}} />
                 </Tooltip2>
               </th>
-              <th>预览
-                {/* <Button icon="cog" minimal small
-                    style={{marginTop: -4, marginBottom: -2}} /> */}
-              </th>
+              <th>预览</th>
             </thead>
             <tbody>
             {
@@ -1061,11 +1057,57 @@ function BankPage(props: BankPageProps) {
   const bankName_Hash = `HASH-${bank}`
   const resolved = typeof bankName === "string"
 
+  const [animationList, setList] = useState<
+    // idle_loop  34  255  anim/player_idles.zip
+    {name: string, numframes: number, facing: number, file: string}[]
+  >()
+
+  const filterList = useMemo(()=> {
+    return []
+  }, [animationList])
+
+  const hasFilter = false
+
   return (
     <div>
       <H3>{resolved ? bankName : bankName_Hash} <AssetType type="bank"/></H3>
-      
-
+      <H5>动画列表</H5>
+      {
+        Array.isArray(animationList) && <>
+          <p>共包含{animationList.length}个动画。
+          {
+            hasFilter && 
+            `筛选出${filterList.length}个动画。`
+          }
+          </p>
+        </>
+      }
+      <InputGroup 
+        placeholder="筛选"
+        spellCheck="false"
+        autoComplete="off" 
+        leftIcon="filter"
+        small
+        style={{maxWidth: 200}}
+        // onChange={e=> onFilterChange(e.currentTarget.value)}
+      />
+      <hr/>
+      <table>
+        <thead>
+          <th>名字</th>
+          <th>朝向</th>
+          <th>帧数
+            <Tooltip2 placement="right" content={"30帧 = 1秒"}>
+              <Button icon="help" minimal small
+                style={{marginTop: -4, marginBottom: -2}} />
+            </Tooltip2>
+          </th>
+          <th>预览</th>
+        </thead>
+        <tbody>
+          
+        </tbody>
+      </table>
     </div>
   )
 }

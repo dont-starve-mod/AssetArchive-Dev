@@ -12,7 +12,7 @@ import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import AppQuickSettings from './components/AppQuickSettings'
 import { useAppSetting } from './hooks'
-import type { ArchiveItem, Entry, Shader } from './searchengine'
+import type { ArchiveItem, Bank, Entry, Shader } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import MyTest from './components/MyTest'
 import AppFmodHandler from './components/AppFmodHandler'
@@ -34,7 +34,7 @@ declare global {
 			allfmodevent: FmodEvent[],
 			allfmodproject: FmodProject[],
 
-			allbank: any[],
+			allbank: Bank[],
 		}
 		assets_map: {[K: string]: ArchiveItem},
 		entry: Entry[],

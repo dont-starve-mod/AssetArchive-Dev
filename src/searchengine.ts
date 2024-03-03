@@ -101,6 +101,7 @@ export type Bank = {
   type: "bank",
   bank: number,
   animationList: string[],
+  plain_desc?: string,
 }
 
 export type ArchiveItem = Asset | Entry | Bank

@@ -8,7 +8,9 @@ import aris_working from './aris-working.gif'
 // @ts-ignore
 import aris_failed from './aris-failed.png'
 // @ts-ignore
-import aris_finish from './aris-finish.gif'
+// import aris_finish from './aris-finish.gif'
+// @ts-ignore
+import aris_finish_new from './aris-finish-new.gif'
 import { appWindow } from '@tauri-apps/api/window'
 
 type RenderEvent = {
@@ -138,11 +140,14 @@ export default function RenderProgress(props: {isMain?: boolean}) {
 }
 
 function Aris({state}: {state: "working" | "failed" | "finish"}){
+  const color = state === "working" ? "rgb(146,218,252)" : 
+    state === "failed" ? "#f66" : 
+    state === "finish" ? "#8f8" : ""
   return (
     <div style={{width: 100, height: 100, position: "relative", backgroundColor: "transparent",
       pointerEvents: "none"}} draggable="false">
       <div style={{transform: "scale(0.5) translate(-50%, -50%)", position: "absolute", left: 0, top: 0}} draggable="false">
-        <div style={{width: 200, height: 200, borderRadius: 100, backgroundColor: "rgb(146,218,252)", overflow: "hidden", position: "relative"}}>
+        <div style={{width: 200, height: 200, borderRadius: 100, backgroundColor: color, transition: "all .7s", overflow: "hidden", position: "relative"}}>
           {
             state === "working" &&
             <img src={aris_working} height={200} style={{position: "absolute", transform: "scale(1.2) translate(-22px, -15px)"}}/>
@@ -153,7 +158,7 @@ function Aris({state}: {state: "working" | "failed" | "finish"}){
           }
           {
             state === "finish" &&
-            <img src={aris_finish} height={210} style={{position: "absolute", transform: "translate(-15px, -10px)"}}/>
+            <img src={aris_finish_new} height={210} style={{position: "absolute", transform: "scale(1.3) translate(24px, -16px)"}}/>
           }
         </div>
       </div>

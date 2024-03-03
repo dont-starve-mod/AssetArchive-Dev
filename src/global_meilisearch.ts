@@ -23,7 +23,7 @@ export function setAddr(addr: string) {
   // state.client.createIndex("assets")
   state.client.index("assets").updateSettings({
     filterableAttributes: ["type"],
-    searchableAttributes: ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias"],
+    searchableAttributes: ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text", "animationList"],
     separatorTokens: ["/"],
     synonyms: SYNONYMS_MAP,
     pagination: {
