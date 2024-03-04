@@ -123,3 +123,10 @@ footer a:hover {
 .bp4-dark .highlight-color {
   color: #b489ff;
 }
+
+.sort-popover {
+  padding: 6px;
+  padding-top: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}

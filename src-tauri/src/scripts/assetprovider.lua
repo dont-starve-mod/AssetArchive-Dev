@@ -494,6 +494,8 @@ function Provider:Load(args)
 		else
 			return self:GetBuildData(args)
 		end
+	elseif type == "bank" then
+		return self:GetBank(args)
 	elseif type == "animation" then
 		return self:GetAnimation(args)
 	elseif type == "atlas" then
@@ -592,11 +594,54 @@ function Provider:LoadBuild(path, lazy)
 	end
 end
 
+function Provider:GetBank(args)
+	local bank = args.bank
+	if type(bank) == "string" then
+		bank = smallhash(bank)
+	end
+	if type(bank) == "number" then
+		local data = self.index.animinfo[bank]
+		if not data then
+			return json.encode_compliant{}
+		end
+		-- get all animation list for a bank with basic info: name, facing, numframes, asset
+		-- (detailed frame data are ignored)
+	
+		timeit(true) ---*
+		local all_paths = {}
+		for _, info in pairs(data)do
+			for k in pairs(info.files)do
+				all_paths[k] = true
+			end
+		end
+		local result = {}
+		-- iter all assetpath and collect animation with bank
+		for k in pairs(all_paths)do
+			local anim = self:LoadAnim(k)
+			if anim then
+				for _,v in ipairs(anim.animlist)do
+					if v.bankhash == bank then
+						table.insert(result, {
+							name = v.name,
+							facing = v.facing,
+							framerate = v.framerate,
+							numframes = v.numframes,
+							assetpath = k, -- anim/xxxx.zip
+						})
+					end
+				end
+			end
+		end
+		timeit()  ------*
+		return result
+	end
+end
+
 function Provider:GetAnimation(args)
 	if type(args.name) == "string" and 
 		(type(args.bank) == "string" or type(args.bank) == "number") then
 		-- convert bank to number
-		local bank = type(args.bank) == "string" and Algorithm.SmallHash_Impl(args.bank) or args.bank 
+		local bank = type(args.bank) == "string" and smallhash(args.bank) or args.bank 
 		local paths = self.index:GetAnimFileList(bank, args.name)
 		if paths then
 			local result = {}

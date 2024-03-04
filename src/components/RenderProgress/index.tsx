@@ -158,7 +158,7 @@ function Aris({state}: {state: "working" | "failed" | "finish"}){
           }
           {
             state === "finish" &&
-            <img src={aris_finish_new} height={210} style={{position: "absolute", transform: "scale(1.3) translate(24px, -16px)"}}/>
+            <img src={aris_finish_new} height={210} style={{position: "absolute", transform: "scale(1.2) translate(24px, -12px)"}}/>
           }
         </div>
       </div>

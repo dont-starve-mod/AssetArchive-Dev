@@ -77,7 +77,7 @@
 
 .project-list-table thead th:nth-child(3),
 .project-list-table tbody td:nth-child(3) {
-  width: 90px; /* static width for preview icon */
+  width: 50px; /* static width for preview icon */
 }
 
 .mtime {

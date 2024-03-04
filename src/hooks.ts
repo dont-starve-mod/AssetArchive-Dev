@@ -354,7 +354,7 @@ export function useIntersectionObserver(param: {ref: React.MutableRefObject<HTML
   return { visible, appeared }
 }
 
-/** dragger utils */
+// dragger utils 
 type dragDataKey = "source" | "payload"
 const getDragData = async (key: dragDataKey)=> {
   return invoke<string>("get_drag_data", { key })
@@ -373,5 +373,38 @@ export function useDragData() {
     get: getDragData, 
     set: setDragData,
     clear: clearDragData,
+  }
+}
+
+// page utils
+type PageOptions = {
+  numItemsPerPage?: number,
+  resetScroll?: ()=> void,
+}
+export function usePagingHandler<T>(items: Array<T>, options: PageOptions) {
+  const {numItemsPerPage = 100, resetScroll} = options
+  const [page, setPage] = useState(0)
+  const totalPage = Math.ceil(items.length / numItemsPerPage)
+  const clampedPage = Math.max(0, Math.min(page, totalPage - 1))
+  const range = [page* numItemsPerPage, (page + 1)* numItemsPerPage - 1]
+  const next = useCallback(()=> {
+    setPage(Math.min(totalPage - 1, page + 1))
+    resetScroll?.()
+  }, [clampedPage, totalPage, resetScroll])
+  const prev = useCallback(()=> {
+    setPage(Math.max(0, clampedPage - 1))
+    resetScroll?.()
+  }, [clampedPage, totalPage, resetScroll])
+  const first = useCallback(()=> {
+    setPage(0)
+    resetScroll?.()
+  }, [resetScroll])
+  const last  = useCallback(()=> {
+    setPage(Math.max(totalPage - 1, 0))
+    resetScroll?.()
+  }, [totalPage, resetScroll])
+
+  return {
+    prev, next, first, last, page: clampedPage, range
   }
 }

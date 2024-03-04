@@ -13,6 +13,7 @@ import { useSelector } from '../../redux/store'
 import { Select2 } from '@blueprintjs/select'
 import { Classes, Popover2 } from '@blueprintjs/popover2'
 import { useLocalStorage } from '../../hooks'
+import PageTurner from '../../components/PageTurner'
 
 // TODO: 该组件的保活机制还有一些问题，需要深入测试
 
@@ -249,18 +250,15 @@ function ResultPagesView({items, currentPage, numResultsPerPage, totalPage, setC
         })
       }
       <div style={{height: 10}}/>
-      <Button icon="step-backward" disabled={pageIndex <= 0} onClick={firstPage}/>
-      <div style={{display: "inline-block", width: 10}}/>
-      <Button icon="arrow-left" disabled={pageIndex <= 0} onClick={prevPage}>
-        上一页
-      </Button>
-      <div style={{display: "inline-block", padding: 5}}>
-        {pageIndex + 1}/{totalPage}
+      <div style={{display: "inline-block", marginRight: 10}}>
+        <PageTurner 
+          page={pageIndex} totalPage={totalPage} 
+          prev={prevPage}
+          next={nextPage}
+          first={firstPage}
+          last={()=> {}}
+        />
       </div>
-      <Button icon="arrow-right" disabled={pageIndex >= totalPage - 1} onClick={nextPage}>
-        下一页
-      </Button>
-      <div style={{display: "inline-block", width: 10}}/>
       <PageNumSetter/>
     </>
   )

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useReducer, useMemo } from 'react'
-import { Alert, Button, H3, H5, Icon, PopoverInteractionKind, ToastProps } from '@blueprintjs/core'
+import { Alert, Button, H3, H5, Icon, PopoverInteractionKind, Radio, RadioGroup, ToastProps } from '@blueprintjs/core'
 import { AnimProject, Api, NewAnimProject } from '../../animproject'
 import { useLocalStorage, useLuaCall, useLuaCallOnce, useMouseDragClick } from '../../hooks'
 import style from './style.module.css'
@@ -10,6 +10,7 @@ import { appWindow } from '@tauri-apps/api/window'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
 import AnimProjectSetter, { AnimProjectSetterAction } from '../../components/AnimProjectSetter'
 import { openAnimSubwindow } from './util'
+import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
 
 // TODO: 在执行后端操作（删除/创建/复制）时，按钮应显示为loading
 // 完成操作后，再移除model
@@ -117,15 +118,18 @@ export default function AnimListPage() {
   }, {type: "list"}, [])
 
   const sortedProjectList = useMemo(()=> {
-    const [by, reversed] = sortBy
-    const cmp = (a: AnimProject, b: AnimProject)=> {
-      if (a[by] === b[by]) return 0
-      else if (a[by] !== undefined && b[by] === undefined) return 1
-      else if (a[by] === undefined && b[by] !== undefined) return -1
-      // @ts-ignore
-      else return a[by] < b[by] ? -1 : 1
-    }
-    return Array.from(recent).sort((a, b)=> cmp(a, b) * (reversed ? -1 : 1))
+    return recent.toSorted((a, b)=> {
+      // put invalid field to bottom
+      if (a.title === undefined || a.mtime === undefined) return -1
+      if (b.title === undefined || b.mtime === undefined) return 1
+      switch (sortBy) {
+        case "title.a-z":
+        case "title.z-a":
+          return (a.title.localeCompare(b.title) < 0) === (sortBy === "title.a-z") ? -1 : 1
+        case "mtime.9-0":
+          return (a.mtime < b.mtime) ? 1 : -1
+      }
+    })
   }, [sortBy, recent])
 
   const onChangeTitle = useCallback(({id, title}: {[K: string]: string})=> {
@@ -168,21 +172,33 @@ export default function AnimListPage() {
     <H3>动画渲染器</H3>
     <p>将饥荒动画转换为视频和图片格式。</p>
     <div style={{height: 30}}></div>
-    <H5>近期的项目
-    <Button icon="sort-alphabetical" onClick={()=> setSorting(["title", false])} minimal></Button>
-    <Button icon="sort-alphabetical-desc" onClick={()=> setSorting(["title", true])} minimal></Button>
-    <Button icon="history" onClick={()=> setSorting(["mtime", true])} minimal/>
-    </H5>
+    <H5>近期的项目</H5>
     <table className={style["project-list-table"]}>
       <thead className="">
-        <th>名字</th>
-        <th>上次修改</th>
+        <th>
+          <Popover2 minimal placement="right" content={<div className="sort-popover">
+            <RadioGroup selectedValue={sortBy} onChange={e=> setSorting(e.currentTarget.value as typeof sortBy)}>
+              <Radio label="按项目名字排序（a-z）" value="title.a-z"></Radio>
+              <Radio label="按项目名字排序（z-a）" value="title.z-a"></Radio>
+            </RadioGroup>
+          </div>}>
+            <div style={{cursor: "pointer"}}>
+              名字 <Button minimal icon="sort"/>
+            </div>
+          </Popover2>
+        </th>
+        <th>
+          <Popover2 minimal placement="right" content={<div className="sort-popover">
+            <RadioGroup selectedValue={sortBy} onChange={e=> setSorting(e.currentTarget.value as typeof sortBy)}>
+              <Radio label="按修改日期排序" value="mtime.9-0"></Radio>
+            </RadioGroup>
+          </div>}>
+            <div style={{cursor: "pointer"}}>
+              上次修改 <Button minimal icon="sort"/>
+            </div>
+          </Popover2>
+        </th>
         <th></th>
-        {/* <th>预览
-          <Tooltip2 content={"预览模式只展示动画基础外观，无调色效果。"}>
-            <Button icon="help" minimal small style={{marginTop: -3, marginBottom: -0}}/>
-          </Tooltip2>
-        </th> */}
       </thead>
       <tbody>
         {
@@ -208,14 +224,13 @@ export default function AnimListPage() {
                   interactionKind={PopoverInteractionKind.HOVER}
                   hoverCloseDelay={0}
                 >
-                  {/* <Button minimal icon="eye-open"/> */}
-                  <Button icon="info-sign"/>
+                  <Button icon="open-application" onClick={()=> openAnimSubwindow({id: item.id})}/>
                 </Popover2>
-                <Button
+                {/* <Button
                   icon="open-application" 
                   style={{marginLeft: 8}}
                   onClick={()=> openAnimSubwindow({id: item.id})}
-                />
+                /> */}
               </td>
             </tr>
           })
@@ -345,7 +360,7 @@ function AnimProjectPreview(props: AnimProject & AnimProjectItemHandlers) {
         <p className={style["mtime"]}>上次修改: <Mtime mtime={props.mtime}/></p>
         <br/>
         {/* <H5>预览</H5> */}
-        <AnimCanvas cmds={cmds}/>
+        <AnimPreview cmds={cmds}/>
         <div style={{height: 10}}></div>
         <EditableText 
           multiline={true} 
@@ -374,19 +389,40 @@ function AnimProjectPreview(props: AnimProject & AnimProjectItemHandlers) {
   )
 }
 
-function AnimCanvas(props: {cmds: Api[]}){
+function AnimPreview(props: {cmds: Api[]}){
   const {cmds} = props
+  const WIDTH = 300, HEIGHT = 250
   const animstate = useRef(new AnimState()).current
   animstate.autoFacing = true
 
+  const render = useRef<RenderParams>()
+
   useEffect(()=> {
+    const onChangeRect = ()=> {
+      const {left, right, top, bottom, width, height} = animstate.rect
+      const xScale = WIDTH / width
+      const yScale = Math.max(0.2, HEIGHT / height)
+      const scale = Math.min(0.5, xScale, yScale)
+      if (render.current){
+        render.current.centerStyle = "origin"
+        // @ts-ignore
+        render.current.applyPlacement({x: WIDTH/2, y: -top* yScale, scale})
+      }
+    }
+    animstate.addEventListener("changerect", onChangeRect)
     animstate.clear().runCmds(cmds)
+    return ()=> animstate.removeEventListener("changerect", onChangeRect)
   }, [cmds])
 
+  const renderRef = useCallback((v: any)=> {
+    render.current = v
+  }, [])
+
   return <AnimCore 
-    width={300} 
-    height={250} 
+    width={WIDTH} 
+    height={HEIGHT} 
     animstate={animstate}
+    renderRef={renderRef}
     globalScale={0.5}
     bgc="#aaa"
   />

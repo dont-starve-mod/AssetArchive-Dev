@@ -2,15 +2,21 @@
 import { createSlice } from "@reduxjs/toolkit"
 import type { PayloadAction, SliceCaseReducers } from "@reduxjs/toolkit"
 
+
+type BankSort = "name.a-z" | "name.z-a" | "0-9" | "9-0" | "path.a-z" | "path.z-a" | (string & {}) // facing-0|1|..255
+type BankFilter = "-pre" | "-pst" | "-pre/pst" |  "-lag"
+
 export interface LocalStorage {
   num_search_results_per_page: number,
   atlas_view_show_border: boolean,
   atlas_view_show_uvbox: boolean,
   tex_maximized: boolean,
   tex_use_grid_background: boolean,
-  animlist_sorting: ["mtime"|"title", boolean],
+  animlist_sorting: "title.a-z" | "title.z-a" | "mtime.9-0",
   quicklook_presets: {[K: string]: boolean},
   quicklook_pin_player_widget: boolean,
+  bank_sort_strategy: BankSort[],
+  bank_filter_strategy: BankFilter[],
   toast_max_num: number,
   toast_alive_time: number,
 }
@@ -44,7 +50,9 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     tex_use_grid_background: false,
     animlist_sorting: ["mtime", true],
     quicklook_presets: {spear: true},
-    quicklook_pin_player_widget: true,
+    quicklook_pin_player_widget: false,
+    bank_sort_strategy: [],
+    bank_filter_strategy: [],
     toast_max_num: 5,
     toast_alive_time: 7,
     ...loadPersistant()

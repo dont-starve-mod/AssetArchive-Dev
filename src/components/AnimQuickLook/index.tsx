@@ -75,8 +75,6 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
     animstate.facing = facing
     animstate.setApiList([
       animation ? {name: "SetBankAndPlayAnimation", args: [bankhash, animation]} : undefined,
-      // {name: "SetBuild", args: ["wilson"]},
-      // {name: "OverrideSymbol", args: ["swap_object", "swap_ham_bat", "swap_ham_bat"]},
       build ? {name: "AddOverrideBuild", args: [build]} : undefined,
       ...cmds
     ].filter(v=> v !== undefined) as any)

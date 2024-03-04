@@ -24,6 +24,7 @@ FocusStyleManager.onlyShowFocusOnTabs()
 declare global {
 	interface Window {
 		app_init?: boolean,
+		keystate: {[key: string]: boolean},
 		assets: {
 			allxmlfile: Xml[],
 			alltexelement: Tex[],
@@ -52,7 +53,6 @@ declare global {
 }
 
 window.assets_map = {}
-window.assets.allbank = []
 window.entry = []
 window.entry_map = {}
 

@@ -8698,7 +8698,7 @@ table.bp4-html-table.bp4-html-table-bordered.bp4-html-table-striped tbody tr:not
   box-shadow: inset 1px 0 0 0 rgba(17, 20, 24, 0.15);
 }
 table.bp4-html-table.bp4-interactive tbody tr:hover td {
-  background-color: rgba(143, 153, 168, 0.3);
+  background-color: rgba(143, 153, 168, 0.2);
   cursor: pointer;
 }
 @media (forced-colors: active) and (prefers-color-scheme: dark) {

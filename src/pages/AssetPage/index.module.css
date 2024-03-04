@@ -200,3 +200,34 @@
   border-bottom: 1px solid #ccc;
   border-radius: 2px;
 }
+
+table.animation-table {
+
+}
+
+table.animation-table th {
+  text-align: left;
+}
+
+.animation-table td, .animation-table th {
+  padding: 2px 8px!important;
+  min-width: 80px;
+}
+
+.animation-table tr td {
+  padding: 4px!important;
+}
+
+.animation-table tr:hover {
+  background-color: #eee;
+}
+
+:global(.bp4-dark) .animation-table tr:hover {
+  background-color: #fff2;
+}
+
+.filter-popover {
+  padding: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}

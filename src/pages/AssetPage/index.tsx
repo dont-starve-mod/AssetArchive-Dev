@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, InputGroup, Tag } from '@blueprintjs/core'
+import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, InputGroup, Tag, RadioGroup, Radio, Checkbox } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
 import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
@@ -24,6 +24,9 @@ import AssetDesc from '../../components/AssetDesc'
 import { search } from '../../global_meilisearch'
 import AnimQuickLook from '../../components/AnimQuickLook'
 import { formatAlias, sortedAlias } from '../../components/AliasTitle'
+import { byte2facing } from '../../facing'
+import PopoverMenu from '../../components/PopoverMenu'
+import smallhash from '../../smallhash'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -668,7 +671,7 @@ function ZipPage({type, file, id}) {
               return <tr>
                 <td className='bp4-monospace-text'>
                   <Popover2 minimal placement="top" content={<Menu>
-                    <MenuItem text="拷贝" icon="duplicate" 
+                    <MenuItem text="拷贝库名" icon="duplicate" 
                       onClick={()=> writeText(hashToString(bankhash)).then(onSuccess)}/>
                     <MenuItem text="查看动画库详情" icon="link"
                       onClick={()=> navigate("/asset?id=bank-"+bankhash)}/>
@@ -1050,7 +1053,6 @@ type BankPageProps = {
 }
 
 function BankPage(props: BankPageProps) {
-  console.log("BANKPAGE", props)
   const {bank} = props
   const hashToString = useHashToString()
   const bankName = hashToString(bank)
@@ -1058,15 +1060,113 @@ function BankPage(props: BankPageProps) {
   const resolved = typeof bankName === "string"
 
   const [animationList, setList] = useState<
-    // idle_loop  34  255  anim/player_idles.zip
-    {name: string, numframes: number, facing: number, file: string}[]
-  >()
+    // idle_loop    34   255   [30]    anim/player_idles.zip
+    // ext: is_pre is_pst is_lag
+    {name: string, numframes: number, framerate: number, facing: number, assetpath: string,
+      isPre: boolean, isPst: boolean, isLag: boolean}[]
+  >([])
 
-  const filterList = useMemo(()=> {
-    return []
+  useLuaCallOnce<string>("load", response=> {
+    const list = JSON.parse(response) as typeof animationList
+    list.forEach(v=> {
+      v.isPre = v.name.endsWith("_pre")
+      v.isPst = v.name.endsWith("_pst")
+      v.isLag = v.name.endsWith("_lag")
+    })
+    setList(list)
+  }, {type: "bank", bank}, [bank])
+
+  const [sort, setSort] = useLocalStorage("bank_sort_strategy")
+  const [filter, setFilter] = useLocalStorage("bank_filter_strategy")
+
+  const setFirstElementInList = useCallback((value: string, list: string[])=> 
+    [value, ...list.filter(v=> v !== value)]
+  , [])
+
+  const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
+    setSort(setFirstElementInList(e.currentTarget.value, sort))
+  }, [setFirstElementInList, sort, setSort])
+
+  const getFirstElementInList = useCallback((choice: string[], list: string[])=> 
+    list.find(v=> choice.indexOf(v) !== -1) || choice[0]
+  , [])
+
+  const onChangeFilter = useCallback((value: string, e: React.FormEvent<HTMLInputElement>)=> {
+    if (e.currentTarget.checked)
+      setFilter([...filter, value] as any)
+    else
+      setFilter(filter.filter(v=> v !== value))
+  }, [filter, setFilter])
+
+  const facingList = useMemo(()=> {
+    const facings = new Set<number>()
+    animationList.forEach(v=> facings.add(v.facing))
+    return [...facings].toSorted((a, b)=> a - b)
   }, [animationList])
 
+  const noPrePst = filter.indexOf("-pre/pst") !== -1
+  const noLag = filter.indexOf("-lag") !== -1
+
+  const filterCounts = useMemo(()=> {
+    const counts = {
+      // ["-pre"]: 0,
+      // ["-pst"]: 0,
+      ["-pre/pst"]: 0,
+      ["-lag"]: 0,
+    }
+    animationList.forEach(({isPre, isPst, isLag})=> {
+      if (isPre || isPst)
+        counts["-pre/pst"]++
+      if (isLag)
+        counts["-lag"]++
+    })
+    return counts
+  }, [animationList])
+
+  const filteredAnimationList = useMemo(()=> {
+    return animationList.filter(({isPre, isLag, isPst})=> {
+      if (noPrePst && (isPre|| isPst))
+        return false
+      if (noLag && isLag)
+        return false
+
+      return true
+    })
+  }, [animationList, noPrePst, noLag])
+
+  const sortedAnimationList = useMemo(()=> {
+    return filteredAnimationList.toSorted((a, b)=> {
+      // check sort rule from start to end
+      for (let s of sort) {
+        // console.log("S=", s)
+        switch (s) {
+          case "name.a-z":
+          case "name.z-a":
+            if (a.name !== b.name)
+              return (s === "name.a-z") === (a.name < b.name) ? -1 : 1
+          case "path.a-z":
+          case "path.z-a":
+            if (a.assetpath !== b.assetpath)
+              return (s === "path.a-z") === (a.assetpath < b.assetpath) ? -1: 1
+          case "0-9":
+          case "9-0":
+            if (a.numframes !== b.numframes)
+              return (s === "0-9") === (a.numframes < b.numframes) ? -1 : 1
+          default:
+            const a_top = s === `facing-${a.facing}`
+            const b_top = s === `facing-${b.facing}`
+            if (a_top !== b_top)
+              return a_top ? -1 : 1
+            else if (a.facing !== b.facing)
+              return a.facing - b.facing
+        }
+      }
+      return 0
+    })
+  }, [filteredAnimationList, sort])
+
   const hasFilter = false
+  const onSuccess = useCopySuccess()
 
   return (
     <div>
@@ -1074,38 +1174,148 @@ function BankPage(props: BankPageProps) {
       <H5>动画列表</H5>
       {
         Array.isArray(animationList) && <>
-          <p>共包含{animationList.length}个动画。
+          <p>总共包含{animationList.length}个动画。
           {
             hasFilter && 
-            `筛选出${filterList.length}个动画。`
+            `筛选出${222}个动画。` + `其中${8}个动画被过滤`
           }
           </p>
         </>
       }
-      <InputGroup 
-        placeholder="筛选"
-        spellCheck="false"
-        autoComplete="off" 
-        leftIcon="filter"
-        small
-        style={{maxWidth: 200}}
-        // onChange={e=> onFilterChange(e.currentTarget.value)}
-      />
-      <hr/>
-      <table>
+      <div style={{display: "flex", alignItems: "center"}}>
+        <InputGroup 
+          placeholder="筛选"
+          spellCheck="false"
+          autoComplete="off" 
+          leftIcon="filter"
+          small
+          style={{maxWidth: 200}}
+          // onChange={e=> onFilterChange(e.currentTarget.value)}
+        />
+        <Checkbox style={{margin: 5}} className="no-select"
+          checked={filter.indexOf("-pre/pst") !== -1}
+          onChange={e=> onChangeFilter("-pre/pst", e)}
+        >
+          隐藏前/后摇动画（{filterCounts["-pre/pst"]}）
+        </Checkbox>
+        <Checkbox style={{margin: 5}} className="no-select"
+          checked={filter.indexOf("-lag") !== -1}
+          onChange={e=> onChangeFilter("-lag", e)}>
+          隐藏延迟动画（{filterCounts["-lag"]}）
+        </Checkbox>
+      </div>
+      <br/>
+      <table className={style["animation-table"] + " bp4-html-table"}>
         <thead>
-          <th>名字</th>
-          <th>朝向</th>
-          <th>帧数
-            <Tooltip2 placement="right" content={"30帧 = 1秒"}>
-              <Button icon="help" minimal small
-                style={{marginTop: -4, marginBottom: -2}} />
-            </Tooltip2>
+          <th>
+            <Popover2 minimal placement="right" content={<div className="sort-popover">
+              <RadioGroup 
+                // selectedValue={getFirstElementInList(["name.a-z", "name.z-a"], sort)}
+                selectedValue={sort[0]}
+                onChange={onChangeSort}>
+                <Radio label="按名字排序（a–z）" value="name.a-z"/>
+                <Radio label="按名字排序（z–a）" value="name.z-a"/>
+              </RadioGroup>
+            </div>}>
+              <div style={{cursor: "pointer"}}>
+                名字 <Button icon="sort" minimal small/>
+              </div>
+            </Popover2>
+          </th>
+          <th>
+            <Popover2 minimal placement="right" content={<div className="sort-popover">
+              <RadioGroup
+                // selectedValue={getFirstElementInList(facingList.map(n=> `facing-${n}`), sort)}
+                selectedValue={sort[0]}
+                onChange={onChangeSort}>
+                {
+                  facingList.map(f=> 
+                    <Radio label={`将${byte2facing(f)}置顶`} value={`facing-${f}`}/>)
+                }
+              </RadioGroup>
+            </div>}>
+              <div style={{cursor: "pointer"}}>
+                朝向 <Button icon="sort" minimal small/>
+              </div>
+            </Popover2>
+          </th>
+          <th>
+            <Popover2 minimal placement="right" content={<div className="sort-popover">
+              <RadioGroup
+                // selectedValue={getFirstElementInList(["0-9", "9-0"], sort)}
+                selectedValue={sort[0]}
+                onChange={onChangeSort}>
+                <Radio label="按帧数排序（小到大）" value="0-9"/>
+                <Radio label="按帧数排序（大到小）" value="9-0"/>
+              </RadioGroup>
+            </div>
+            }>
+              <div style={{cursor: "pointer"}}>
+                帧数 <Button icon="sort" minimal small/>
+              </div>
+            </Popover2>
           </th>
           <th>预览</th>
+          <th>
+            <Popover2 minimal placement="right" content={<div className="sort-popover">
+              <RadioGroup
+                // selectedValue={getFirstElementInList(["path.a-z", "path.z-a"], sort)}
+                selectedValue={sort[0]}
+                onChange={onChangeSort}>
+                <Radio label="按路径排序（a-z）" value="path.a-z"/>
+                <Radio label="按路径排序（z-a）" value="path.z-a"/>
+              </RadioGroup>
+            </div>
+            }>
+              <div style={{cursor: "pointer"}}>
+                动画包路径 <Button icon="sort" minimal small/>
+              </div>
+            </Popover2>            
+          </th>
         </thead>
         <tbody>
-          
+          {
+            sortedAnimationList.map(v=> {
+              const reposition = {} as any
+              return <tr>
+                <td>
+                  <PopoverMenu placement="top" menu={[
+                    {key: "copy", text: "拷贝名字", icon: "duplicate", onClick: ()=>
+                      writeText(v.name).then(onSuccess)},
+                  ]}>
+                    {v.name}
+                  </PopoverMenu>
+                </td>
+                <td>{byte2facing(v.facing)}</td>
+                <td>{v.numframes}</td>
+                <td>
+                  <Popover2 interactionKind="hover"
+                      placement="right"
+                      ref={v=> {reposition.fn = ()=> { v?.reposition() }}}
+                      content={<div style={{padding: 5}}>
+                    <AnimQuickLook 
+                      bankhash={bank}
+                      animation={v.name}
+                      facing={v.facing}
+                      build={v.assetpath.substring(5, v.assetpath.length-4)} // strip anim/xxx.zip -> xxx
+                      onResize={()=> reposition.fn?.()}
+                    />
+                    </div>}>
+                    <Button icon="eye-open"/>
+                  </Popover2>
+                </td>
+                <td>
+                  <PopoverMenu placement="top" menu={[
+                    {key: "copy", text: "拷贝路径", icon: "duplicate", onClick: ()=>
+                      writeText(v.assetpath).then(onSuccess)},
+                    {key: "link", text: "查看动画包详情", icon: "link", directURL: "/asset?id=z-"+smallhash(v.assetpath)}
+                  ]}>
+                    {v.assetpath}
+                  </PopoverMenu>
+                </td>
+              </tr>
+            })
+          }
         </tbody>
       </table>
     </div>

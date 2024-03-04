@@ -389,5 +389,29 @@ function GlobalHotKey() {
       },
     }
   ])
+  // global listener for key pressing state
+  useEffect(()=> {
+    window.keystate = {}
+    const map = {
+      ["Control"]: !isMacOS ? "ctrl" : "",
+      ["Meta"]: isMacOS ? "ctrl" : "",
+    }
+    const onKeyDown = (e: KeyboardEvent)=> {
+      if (map[e.key]) {
+        window.keystate[map[e.key]] = true
+      }
+    }
+    const onKeyUp = (e: KeyboardEvent)=> {
+      if (map[e.key]) {
+        window.keystate[map[e.key]] = false
+      }
+    }
+    window.addEventListener("keyup", onKeyUp)
+    window.addEventListener("keydown", onKeyDown)
+    return ()=> {
+      window.removeEventListener("keyup", onKeyUp)
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [])
   return <></>
 }
