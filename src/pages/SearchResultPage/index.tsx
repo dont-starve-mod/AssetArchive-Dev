@@ -252,7 +252,8 @@ function ResultPagesView({items, currentPage, numResultsPerPage, totalPage, setC
       <div style={{height: 10}}/>
       <div style={{display: "inline-block", marginRight: 10}}>
         <PageTurner 
-          page={pageIndex} totalPage={totalPage} 
+          page={pageIndex} 
+          totalPage={totalPage} 
           prev={prevPage}
           next={nextPage}
           first={firstPage}

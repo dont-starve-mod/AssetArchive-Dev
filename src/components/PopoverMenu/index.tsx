@@ -6,17 +6,19 @@ import style from './index.module.css'
 
 type PopoverMenuProps = {
   menu: Array<({
-    key: string,
+    key?: string,
     text: string,
     /** setting direct url for a menu item 
      * makes it trigger instantly when user pressing ctrl/cmd and left click */
     directURL?: string,
+    /** visible = false will skip rendering this menu */
+    visible?: boolean,
   } & MenuItemProps)>,
   children: JSX.Element | string,
 } & Pick<Popover2Props, "placement">
 
 export default function PopoverMenu(props: PopoverMenuProps) {
-  const {placement, menu} = props
+  const {placement = "top", menu} = props
   const nagivate = useNavigate()
   const directURL = useMemo(()=> {
     for (let v of menu) {
@@ -41,9 +43,9 @@ export default function PopoverMenu(props: PopoverMenuProps) {
       // }}
       content={<Menu>
       {
-        menu.map(v=> 
-          <MenuItem 
-            key={v.key}
+        menu.map((v, i)=> 
+          v.visible !== false && <MenuItem 
+            key={v.key || v.icon as string || i}
             onClick={v.directURL ? ()=> nagivate(v.directURL) : undefined}
             {...v}/>)
       }

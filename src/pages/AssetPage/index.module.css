@@ -201,29 +201,35 @@
   border-radius: 2px;
 }
 
-table.animation-table {
-
+.compact-table {
+  /* background-color: pink; */
 }
 
-table.animation-table th {
+.compact-table th {
   text-align: left;
 }
 
-.animation-table td, .animation-table th {
+.compact-table td, .compact-table th {
   padding: 2px 8px!important;
   min-width: 80px;
 }
 
-.animation-table tr td {
+.compact-table tr td {
   padding: 4px!important;
 }
 
-.animation-table tr:hover {
+.compact-table tr:hover {
   background-color: #eee;
 }
 
-:global(.bp4-dark) .animation-table tr:hover {
+:global(.bp4-dark) .compact-table tr:hover {
   background-color: #fff2;
+}
+
+.compact-table td.sound-path {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .filter-popover {

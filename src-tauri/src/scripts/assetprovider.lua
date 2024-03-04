@@ -516,6 +516,8 @@ function Provider:Load(args)
 		return self:GetAnimBin(args)
 	elseif type == "fev_ref" then
 		return self:GetFevRef(args)
+	elseif type == "fev_abstract" then
+		return self:GetFevAbstract(args)
 	elseif type == "shader_src" then
 		return self:GetShaderSource(args)
 	elseif type == "show" then
@@ -1315,6 +1317,23 @@ function Provider:GetFevRef(args)
 			local event = v:GetEventByPath(args.path)
 			if event ~= nil then
 				return event
+			end
+		end
+	end
+end
+
+function Provider:GetFevAbstract(args)
+	if type(args.path) == "string" then
+		for _,v in ipairs(self.allfevfile)do
+			print(v.project_name)
+			if args.path:endswith(v.project_name..".fev") then
+				local result = {}
+				for k,info in pairs(v.event_map)do
+					result[k] = {
+						has_sounddef = info.has_sounddef,
+					}
+				end
+				return result
 			end
 		end
 	end

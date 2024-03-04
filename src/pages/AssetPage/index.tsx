@@ -27,6 +27,7 @@ import { formatAlias, sortedAlias } from '../../components/AliasTitle'
 import { byte2facing } from '../../facing'
 import PopoverMenu from '../../components/PopoverMenu'
 import smallhash from '../../smallhash'
+import SortableField from '../../components/SortableField'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -732,29 +733,39 @@ type FevRefFileList = Array<{
   }
 }>
 
+enum CategoryPrefix {
+  SFX = "master/set_sfx/",
+  MUSIC = "master/set_music/",
+  AMB = "master/set_ambience/",
+}
+
+const formatSoundCategory = (category: string)=> {
+  if (category.startsWith(CategoryPrefix.SFX))
+    return "音效" 
+  else if (category.startsWith(CategoryPrefix.MUSIC))
+    return "音乐"
+  else if (category.startsWith(CategoryPrefix.AMB))
+    return "环境声"
+  else
+    return category
+}
+
+const formatSoundLength = (lengthms: number)=> {
+  if (lengthms < 0) {
+    return "无限循环"
+  }
+  else if (lengthms < 1000) {
+    return `${lengthms}毫秒`
+  }
+  else {
+    return `${(lengthms/1000).toFixed(2)}秒`
+  }
+}
+
 function FmodEventPage(props: FmodEvent) {
   const {id, path, project, lengthms, category, param_list} = props
-  const typeStr = useMemo(()=> {
-    if (category.startsWith("master/set_sfx/"))
-      return "音效" 
-    else if (category.startsWith("master/set_music/"))
-      return "音乐"
-    else if (category.startsWith("master/set_ambience/"))
-      return "环境声"
-    else
-      return category
-  }, [category])
-  const lengthStr = useMemo(()=> {
-    if (lengthms < 0) {
-      return "无限循环"
-    }
-    else if (lengthms < 1000) {
-      return `${lengthms}毫秒`
-    }
-    else {
-      return `${(lengthms/1000).toFixed(2)}秒`
-    }
-  }, [lengthms])
+  const typeStr = formatSoundCategory(category)
+  const lengthStr = formatSoundLength(lengthms)
   const paramList = useMemo(()=> {
     if (param_list.length === 0)
       return "无"
@@ -897,27 +908,27 @@ function FmodProjectPage(props: FmodProject) {
     return ()=> { unlisten.then(f=> f()) }
   }, [])
 
-  const [filterResult, setFilterResult] = useState<any[]>()
+  const [queryResult, setQueryResult] = useState<any[]>()
 
   const allEventList = useMemo(()=> {
     return window.assets.allfmodevent
       .filter(v=> v.project_name === name)
       .sort((a, b)=> a.path.toLowerCase() < b.path.toLowerCase() ? -1 : 1)
-  }, [name, filterResult])
+  }, [name, queryResult])
 
   const filterEventList = useMemo(()=> {
-    return Array.isArray(filterResult) && 
-      filterResult
+    return Array.isArray(queryResult) && 
+      queryResult
         .filter(v=> v.project_name === name)
         .sort((a, b)=> a.path.toLowerCase() < b.path.toLowerCase() ? -1 : 1)
-  }, [name, filterResult])
+  }, [name, queryResult])
 
   const hasFilter = Array.isArray(filterEventList)
 
-  const onFilterChange = useCallback((query: string)=> {
+  const onQueryChange = useCallback((query: string)=> {
     query = query.trim()
     if (!query) {
-      setFilterResult(undefined)
+      setQueryResult(undefined)
       return
     }
     else {
@@ -927,7 +938,7 @@ function FmodProjectPage(props: FmodProject) {
         showMatchesPosition: true
       }).then(result=> {
         if (result.query !== query) return
-          setFilterResult(result.hits
+          setQueryResult(result.hits
             .map(({id, _matchesPosition})=> {
               return {
                 matches: _matchesPosition,
@@ -940,12 +951,65 @@ function FmodProjectPage(props: FmodProject) {
     }
   }, [name])
 
+  const [abstract, setAbstract] = useState<{
+    [path: string]: {has_sounddef: boolean},
+  }>({})
+
+  useLuaCallOnce<string>("load", response=> {
+    const data = JSON.parse(response) as typeof abstract
+    setAbstract(data)
+  }, {type: "fev_abstract", path: file}, [file])
+
+  const numEmpty = useMemo(()=> {
+    return Object.values(abstract)
+      .filter(v=> !v.has_sounddef)
+      .length
+  }, [abstract])
+
+  const [filter, setFilter] = useLocalStorage("fev_filter_strategy")
+  const [sort, setSort] = useLocalStorage("fev_sort_strategy")
+  const noEmpty = filter.indexOf("-empty") !== -1
+
+  const items = hasFilter ? filterEventList : allEventList
+
+  // collect sort data
+  const sortData = useMemo(()=> {
+    const data = {
+      hasLoop: false,
+      hasSfx: false,
+      hasMusic: false,
+      hasAmb: false,
+      hasEmpty: false,
+      hasNoParam: false,
+      paramNames: [] as string[],
+    }
+    const paramNames = new Set<string>()
+    items.forEach(({lengthms, category, path, param_list})=> {
+      if (lengthms < 0)
+        data["hasLoop"] = true
+      if (!data["hasSfx"] && category.startsWith(CategoryPrefix.SFX))
+        data["hasSfx"] = true
+      if (!data["hasMusic"] && category.startsWith(CategoryPrefix.MUSIC))
+        data["hasMusic"] = true
+      if (!data["hasAmb"] && category.startsWith(CategoryPrefix.AMB))
+        data["hasAmb"] = true
+      if (abstract && abstract[path] && !abstract[path].has_sounddef)
+        data["hasEmpty"] = true
+      if (param_list.length > 0)
+        param_list.forEach(({name})=> paramNames.add(name))
+      else
+        data["hasNoParam"] = true
+    })
+    data.paramNames = [...paramNames].toSorted()
+    return data
+  }, [items, abstract])
+
+  const onSuccess = useCopySuccess()
   return (
     <div>
       <H3>{file}<AssetType type="fmodproject"/></H3>
       {/* <H5>描述</H5>
       <AssetDesc id={id}/> */}
-      <H5>列表</H5>
       <p>
         总共包含{allEventList.length}个音效。
         {
@@ -953,20 +1017,105 @@ function FmodProjectPage(props: FmodProject) {
           `筛选出${filterEventList.length}个音效。`
         }
       </p>
-      <InputGroup 
-        placeholder="筛选"
-        spellCheck="false"
-        autoComplete="off" 
-        leftIcon="filter"
-        small
-        style={{maxWidth: 200}}
-        onChange={e=> onFilterChange(e.currentTarget.value)}
-      />
-      <hr/>
-      {
-        (hasFilter ? filterEventList : allEventList)
-          .map(v=> <AccessableItem key={v.id} {...v}/>)
-      }
+      <div style={{display: "flex", alignContent: "center", marginBottom: 10}}>
+        <InputGroup 
+          placeholder="筛选"
+          spellCheck="false"
+          autoComplete="off" 
+          leftIcon="filter"
+          small
+          style={{maxWidth: 200}}
+          onChange={e=> onQueryChange(e.currentTarget.value)}
+        />
+        <Checkbox style={{marginLeft: 10, marginTop: 4}}>隐藏空音效（{numEmpty}）</Checkbox>
+      </div>
+      {items.length === 0 && <p>什么都没有...</p>}
+      <table className={style["compact-table"] + " bp4-html-table"} 
+        style={{display: items.length === 0 ? "none" : undefined}}>
+        <thead>
+          <th>
+            <SortableField
+              text="路径"
+              selectedValue=""
+              onChange={()=> {}}
+              choices={[
+                {label: "按路径排序（a-z）", value: "path.a-z"},
+                {label: "按路径排序（z-a）", value: "path.z-a"},
+              ]}
+            />
+          </th>
+          <th>
+            <SortableField
+              text="分类"
+              selectedValue=""
+              onChange={()=> {}}
+              choices={[
+                {label: `将${formatSoundCategory(CategoryPrefix.SFX)}置顶`, 
+                  visible: sortData["hasSfx"], value: "category.sfx"},
+                {label: `将${formatSoundCategory(CategoryPrefix.MUSIC)}置顶`, 
+                  visible: sortData["hasMusic"], value: "category.music"},
+                {label: `将${formatSoundCategory(CategoryPrefix.AMB)}置顶`, 
+                  visible: sortData["hasAmb"], value: "category.amb"},
+              ]}
+            />
+          </th>
+          <th>
+            <SortableField
+              text="时长"
+              selectedValue=""
+              onChange={()=> {}}
+              choices={[
+                {label: `按时长排序（小到大）`, value: "len.0-9"},
+                {label: `按时长排序（大到小）`, value: "len.9-0"},
+                {label: `将${formatSoundLength(-1)}置顶`, visible: sortData["hasLoop"], value: "len.loop"},
+              ]}
+            />
+          </th>
+          <th>播放 <Button minimal disabled style={{cursor: "default"}}/> </th>
+          <th>
+            <SortableField
+              text="参数"
+              selectedValue=""
+              onChange={()=> {}}
+              choices={[
+                {label: `将无参数置顶`, visible: sortData["hasNoParam"], value: "no-param"},
+                ...sortData.paramNames.map(name=> ({
+                  label: `将含有${name}参数置顶`, value: `param-${name}`
+                }))
+              ]}
+            />
+          </th>
+        </thead>
+        <tbody>
+          {
+            items.map(v=> <tr key={v.path}>
+              <td className={style["sound-path"]}>
+                <PopoverMenu menu={
+                  [
+                    {icon: "duplicate", text: "拷贝路径", 
+                      onClick: ()=> writeText(v.path).then(onSuccess)},
+                    {icon: "link", text: "查看详情",
+                      directURL: "/asset?id=f-"+smallhash(v.path)}
+                  ]
+                }>
+                  {v.path}
+                </PopoverMenu>
+              </td>
+              <td>{formatSoundCategory(v.category)}</td>
+              <td>{formatSoundLength(v.lengthms)}</td>
+              <td>
+                <Button icon="play"/>
+              </td>
+              <td>
+                {v.param_list.length === 0 && "-"}
+                {v.param_list.map(({name})=> <div>
+                  <Tag key={name} minimal style={{marginBottom: 3}}>{name}</Tag>
+                </div>)}
+              </td>
+            </tr>)
+          }
+        </tbody>
+      </table>
       <H5>基本信息</H5>
       <AssetFilePath type="fev" path={name}/>
     </div>
@@ -1205,7 +1354,7 @@ function BankPage(props: BankPageProps) {
         </Checkbox>
       </div>
       <br/>
-      <table className={style["animation-table"] + " bp4-html-table"}>
+      <table className={style["compact-table"] + " bp4-html-table"}>
         <thead>
           <th>
             <Popover2 minimal placement="right" content={<div className="sort-popover">

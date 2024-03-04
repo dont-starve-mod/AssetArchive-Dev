@@ -5,6 +5,9 @@ import type { PayloadAction, SliceCaseReducers } from "@reduxjs/toolkit"
 
 type BankSort = "name.a-z" | "name.z-a" | "0-9" | "9-0" | "path.a-z" | "path.z-a" | (string & {}) // facing-0|1|..255
 type BankFilter = "-pre" | "-pst" | "-pre/pst" |  "-lag"
+type FevSort = "path.a-z" | "path.z-a" | "len.0-9" | "len.9-0" | "len.loop" | 
+  "category.sfx" | "category.music" | "category.amb" | "no-param" | (string & {}) // param-xxx|yyyy
+type FevFilter = "-empty"
 
 export interface LocalStorage {
   num_search_results_per_page: number,
@@ -17,6 +20,8 @@ export interface LocalStorage {
   quicklook_pin_player_widget: boolean,
   bank_sort_strategy: BankSort[],
   bank_filter_strategy: BankFilter[],
+  fev_sort_strategy: FevSort[],
+  fev_filter_strategy: FevFilter[],
   toast_max_num: number,
   toast_alive_time: number,
 }
@@ -53,6 +58,8 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     quicklook_pin_player_widget: false,
     bank_sort_strategy: [],
     bank_filter_strategy: [],
+    fev_sort_strategy: [],
+    fev_filter_strategy: [],
     toast_max_num: 5,
     toast_alive_time: 7,
     ...loadPersistant()
