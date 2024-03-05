@@ -1,24 +1,22 @@
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import style from './index.module.css'
-import { Button, H4, H6, Menu, MenuItem, Tag } from '@blueprintjs/core'
-import { FmodEventInfo, FmodPlayingInfo } from '../AppFmodHandler'
+import { Button, Menu, MenuItem, Tag } from '@blueprintjs/core'
+import { FmodEventInfo } from '../AppFmodHandler'
 import TinySlider from '../TinySlider'
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
+import { Popover2 } from '@blueprintjs/popover2'
 import { invoke } from '@tauri-apps/api'
-import { useDispatch, useSelector } from '../../redux/store'
-import { setState } from '../../redux/reducers/appstates'
-import { useCopySuccess } from '../../hooks'
+import { useSelector } from '../../redux/store'
+import { useCopySuccess, useLocalStorage } from '../../hooks'
 import { writeText } from '@tauri-apps/api/clipboard'
 
 export default function SfxPlayer(props: FmodEventInfo & {sfxId?: string}) {
   const {path, param_list} = props
   const {sfxId = "SFX_PLAYER_DEFAULT"} = props
-  const fmod_param_value = useSelector(({appstates})=> 
-    appstates.fmod_param_value)
+  const [fmod_param_value] = useLocalStorage("fmod_param_value")
   const play = useCallback(()=> {
     const params = Object.fromEntries(
       param_list.map(({name, range})=> {
-        const percent = fmod_param_value[name] || 0
+        const {[name]: percent = 0.5} = fmod_param_value
         return [name, range[0] + (range[1]-range[0])*percent]
       })
     )
@@ -82,20 +80,20 @@ type ParamSetterProps = {
 
 function ParamSetter(props: ParamSetterProps & {sfxId: string, paramList: any[]}) {
   const {name, range, sfxId} = props
-  const fmod_param_value = useSelector(({appstates})=> appstates.fmod_param_value)
-  const dispatch = useDispatch()
-  
+  const [fmod_param_value, setParam] = useLocalStorage("fmod_param_value")
+
   const onChange = useCallback((percent: number)=> {
     const value = range[0] + (range[1]-range[0])* percent
-    dispatch(setState({key: "fmod_param_value", value: {...fmod_param_value, [name]: percent}}))
+    setParam({...fmod_param_value, [name]: percent})
     invoke("fmod_send_message", { data: JSON.stringify({
       api: "SetParameter",
       args: [sfxId, name, value],
     })})
-  }, [name, range, fmod_param_value])
+  }, [name, range, fmod_param_value, setParam, sfxId])
 
   const param = props.paramList && props.paramList.find(v=> v.name === name)
   const current = param ? param.current.toFixed(2) : "-"
+  const {[name]: percent = 0.5} = fmod_param_value
 
   return (
     <div className={style["param"]}>
@@ -110,7 +108,7 @@ function ParamSetter(props: ParamSetterProps & {sfxId: string, paramList: any[]}
       <div className={style["slider"]}>
         <TinySlider
           min={0} max={1} stepSize={0.01}
-          value={fmod_param_value[name] || 0} onChange={onChange}/>
+          value={percent} onChange={onChange}/>
       </div>
     </div>
   )

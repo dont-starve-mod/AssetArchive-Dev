@@ -7,6 +7,7 @@ import style from "./index.module.css"
 import { Hit, SearchParams } from 'meilisearch'
 import { ArchiveItem } from '../../searchengine'
 import AliasTitle, { formatAlias } from '../AliasTitle'
+import { useHashToString } from '../HumanHash'
 
 const PREIVEW_SIZE = { width: 50, height: 50 }
 const MARK_STYLE: React.CSSProperties = { fontWeight: 800 }
@@ -17,12 +18,12 @@ export function AccessableItem(props: Result){
   const {type, id, plain_desc} = props
   const match = props._matchesPosition || {}
   const navigate = useNavigate()
+  const hashToString = useHashToString()
   return (
     <div 
       className={style["search-item-box"]}
       onClick={()=> {
         // props.onClickItem()
-        // TODO: 词条和asset的区别
         navigate("/asset?id=" + encodeURIComponent(id))
       }}>
       <div className={style["left"]}>
@@ -34,8 +35,6 @@ export function AccessableItem(props: Result){
               <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
             type === "tex" ?
               <MatchText text={props.tex} match={match["tex"]} style={MARK_STYLE}/> :
-            // type === "tex_no_ref" && props._is_cc ?
-              
             type === "tex_no_ref" ?
               <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
             type === "shader" ?
@@ -44,6 +43,8 @@ export function AccessableItem(props: Result){
               <MatchText text={props.path} match={match["path"]} style={MARK_STYLE}/> :
             type === "fmodproject" ?
               <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "bank" ?
+              <MatchText text={hashToString(props.bank)} style={MARK_STYLE}/> :
             type === "entry" ?
               <MatchText text={props.plain_alias} match={match["alias"]} style={MARK_STYLE}/> :
             <></>
@@ -76,7 +77,7 @@ export function AccessableItem(props: Result){
             <Preview.Sfx {...props} {...PREIVEW_SIZE}/> :
           type === "shader" ? 
             <Preview.SimpleIcon icon="code"/> :
-          type === "fmodproject" ?
+          type === "fmodproject" || type === "bank" ?
             <Preview.SimpleIcon icon="box"/> :
           type === "entry" ? 
             <></> :

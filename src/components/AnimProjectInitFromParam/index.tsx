@@ -54,7 +54,7 @@ export default function AnimProjectInitFromParam(props: {
       bank: initData.bank[0],
       animation: initData.animation[0],
     })
-  }, [onConfirm])
+  }, [onConfirm, initData.build, initData.bank, initData.animation])
   return (
     <Dialog title="初始化" 
       style={{width: 400}}
@@ -126,11 +126,11 @@ function InitInput(props: {
         setLoading(false)
       }
     }
-  }, [])
+  }, [dispatch, field])
 
   useEffect(()=> {
     onQueryChange(value)
-  }, [onQueryChange])
+  }, [onQueryChange, value])
 
   const onAnimationQueryChange = useCallback(async (value: string)=> {
     if (field === "animation") {
@@ -142,12 +142,12 @@ function InitInput(props: {
         setLoading(false)
       }
     }
-  }, [bankValue])
+  }, [bankValue, dispatch, field])
 
   useEffect(()=> {
     // refresh anim predict after change bankValue
     onAnimationQueryChange(value)
-  }, [onAnimationQueryChange])
+  }, [onAnimationQueryChange, value])
 
   const onQueryChangeAll = useCallback((query: string)=> {
     if (field !== "animation"){

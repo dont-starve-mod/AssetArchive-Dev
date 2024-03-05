@@ -7,8 +7,6 @@ export interface AppStates {
   predict_init_flag: boolean,
   /** fmod playing info */
   fmod_playing_info: {[K: string]: FmodPlayingInfo},
-  /** fmod sound params (percent [0,1]) */
-  fmod_param_value: {[K: string]: number},
 }
 
 const appstates = createSlice<AppStates, SliceCaseReducers<AppStates>>({
@@ -16,13 +14,6 @@ const appstates = createSlice<AppStates, SliceCaseReducers<AppStates>>({
   initialState: {
     predict_init_flag: false,
     fmod_playing_info: {},
-    fmod_param_value: {
-      intensity: 1,
-      nightmare: 1,
-      param00: 0.5,
-      param01: 0.5,
-      param02: 0.5,
-    }
   },
   reducers: {
     setState: <T extends keyof AppStates>(

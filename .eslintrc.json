@@ -6,6 +6,7 @@
   "rules": {
     "@typescript-eslint/no-unused-vars": "off",
     "jsx-a11y/alt-text": "off",
+    "jsx-a11y/anchor-is-valid": "off",
     "no-mixed-operators": "off",
     "no-fallthrough": "off",
     "react-hooks/exhaustive-deps": "error"

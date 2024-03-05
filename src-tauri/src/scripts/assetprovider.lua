@@ -1332,7 +1332,7 @@ function Provider:GetFevAbstract(args)
 			if args.path:endswith(v.project_name..".fev") then
 				local result = {}
 				for k,info in pairs(v.event_map)do
-					result[k] = {
+					result[v.project_name.."/"..k] = {
 						has_sounddef = info.has_sounddef,
 					}
 				end

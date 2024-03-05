@@ -122,7 +122,7 @@ function SearchResultDisplay({result}: {result: Response}) {
         totalPage: Math.ceil(v.length / numResultsPerPage)
       }])
   )
-
+  
   const setTabScroll = useCallback((key: TabId)=> {
     if ((scroll.top[key] || 0) > 0 && scroll.node[key] && scroll.top[key] !== scroll.node[key].scrollTop){
       scroll.node[key].scrollTop = scroll.top[key]
@@ -130,6 +130,7 @@ function SearchResultDisplay({result}: {result: Response}) {
         console.warn("Failed to restore tab scroll", key)
       }
     }
+    /* eslint-disable-next-line */
   }, [])
 
   useEffect(()=> {
@@ -168,6 +169,7 @@ function SearchResultDisplay({result}: {result: Response}) {
           全部 {hits.length + (hits.length === maxTotalHits ? "+" : "")}
         </GroupTag>
         {
+          // @ts-ignore
           SEARCH_RESULT_TYPE.map(({key, name})=> 
           <GroupTag selected={tab === key} key={key} onClick={()=> selectTab(key)}>
             {name} {resultGroups[key].length + (resultGroups[key].length === maxTotalHits ? "+" : "")}

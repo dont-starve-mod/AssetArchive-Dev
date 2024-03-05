@@ -31,6 +31,7 @@ import SortableField from '../../components/SortableField'
 import store, { useSelector } from '../../redux/store'
 import { invoke } from '@tauri-apps/api'
 import PageTurner from '../../components/PageTurner'
+import TinySlider from '../../components/TinySlider'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -502,6 +503,16 @@ function ZipPage({type, file, id}) {
   const onSuccess = useCopySuccess()
 
   const buildName = build && build.name
+  const guessBankNames = useMemo(()=> {
+    const result = []
+    Object.entries(window.animpreset.auto).forEach(([k, v])=> {
+      if (v.indexOf(buildName) !== -1)
+        // @ts-ignore
+        result.push(Number(k))
+    })
+    console.log(result)
+    return result
+  }, [buildName])
 
   return <div>
     <H3>{file} <AssetType type={type}/></H3>
@@ -653,7 +664,15 @@ function ZipPage({type, file, id}) {
       }
       <H5>动画 <ClickableTag term="animation"/></H5>
       {
-        animList === false ? "本资源包内不包含动画。" :
+        animList === false ? <>
+          <p>本资源包内不包含动画。</p>
+          {
+            guessBankNames.length > 0 && <p>
+              这些动画库可能与之相关：
+              {guessBankNames.map(v=> <Hash key={v} hash={v}/>)}
+            </p>
+          }
+        </> :
         animList !== undefined ? <div style={{display: "inline-block", border: "1px solid #ddd", borderRadius: 2, marginBottom: 20}}>
           <table className={style["list-container"]}>
             <thead>
@@ -912,7 +931,8 @@ function FmodProjectPage(props: FmodProject) {
     return ()=> { unlisten.then(f=> f()) }
   }, [])
 
-  const [queryResult, setQueryResult] = useState<any[]>()
+  const [query, setQuery] = useState("")
+  const [queryResult, setQueryResult] = useState<{[path: string]: boolean}>({all: true})
 
   const allEventList = useMemo(()=> {
     return window.assets.allfmodevent
@@ -920,40 +940,23 @@ function FmodProjectPage(props: FmodProject) {
       .sort((a, b)=> a.path.toLowerCase() < b.path.toLowerCase() ? -1 : 1)
   }, [name])
 
-  const filterEventList = useMemo(()=> {
-    return Array.isArray(queryResult) && 
-      queryResult
-        .filter(v=> v.project_name === name)
-        .sort((a, b)=> a.path.toLowerCase() < b.path.toLowerCase() ? -1 : 1)
-  }, [name, queryResult])
-
-  const hasFilter = Array.isArray(filterEventList)
-
-  const onQueryChange = useCallback((query: string)=> {
-    query = query.trim()
-    if (!query) {
-      setQueryResult(undefined)
+  useEffect(()=> {
+    if (!query.trim()) {
+      setQueryResult({all: true})
       return
     }
-    else {
-      search("assets", query, {
-        filter: "type = fmodevent",
-        limit: 1000, 
-        showMatchesPosition: true
-      }).then(result=> {
-        if (result.query !== query) return
-          setQueryResult(result.hits
-            .map(({id, _matchesPosition})=> {
-              return {
-                matches: _matchesPosition,
-                ...window.assets_map[id]
-              }
-            })
-          )
-        }
-      )
-    }
-  }, [])
+    search("assets", query, {
+      filter: "type = fmodevent",
+      limit: 1000, 
+      showMatchesPosition: true
+    }).then(response=> {
+      if (response.query !== query) return
+      const result = {}
+      console.log(response.hits)
+      response.hits.forEach(({fmodpath})=> result[fmodpath] = true)
+      setQueryResult(result)
+    })
+  }, [query])
 
   const [abstract, setAbstract] = useState<{
     [path: string]: {has_sounddef: boolean},
@@ -974,7 +977,68 @@ function FmodProjectPage(props: FmodProject) {
   const [sort, setSort] = useLocalStorage("fev_sort_strategy")
   const noEmpty = filter.indexOf("-empty") !== -1
 
-  const items = hasFilter ? filterEventList : allEventList
+  const [items, numFiltered] = useMemo(()=> {
+    let list: typeof allEventList = []
+    let numFiltered = 0
+    if (noEmpty) {
+      list = allEventList.filter(v=> abstract[v.path] && abstract[v.path].has_sounddef)
+      numFiltered = allEventList.length - list.length
+      console.log(list.length)
+    }
+    else {
+      list = allEventList
+    }
+    if (!queryResult.all) {
+      list = list.filter(({path})=> queryResult[path])
+    }
+    return [list, numFiltered]
+  }, [noEmpty, abstract, queryResult, allEventList])
+
+  const sortedItems = useMemo(()=> items.toSorted((a, b)=> {
+    for (let s of sort) {
+      let prefix = "" // test prefix for category
+      let loopIs = Infinity // always place loop to bottom, unless sort by `len.loop`
+      switch (s) {
+        case "path.a-z":
+        case "path.z-a":
+          if (a.path !== b.path)
+            return (a.path < b.path) === (s === "path.a-z") ? -1 : 1
+        
+        case "category.amb":
+          prefix = prefix || CategoryPrefix.AMB
+        case "category.music":
+          prefix = prefix || CategoryPrefix.MUSIC
+        case "category.sfx":
+          prefix = prefix || CategoryPrefix.SFX
+          const ac = a.category.startsWith(prefix)
+          const bc = b.category.startsWith(prefix)
+          if (ac !== bc)
+            return ac ? -1 : 1
+        
+        case "len.loop":
+        case "len.9-0":
+          loopIs = -1
+        case "len.0-9":
+          const al = a.lengthms < 0 ? loopIs : a.lengthms
+          const bl = b.lengthms < 0 ? loopIs : b.lengthms
+          if (al !== bl)
+            return (al < bl) === (s === "len.0-9" || s === "len.loop") ? -1 : 1
+
+        case "no-param":
+          const anp = a.param_list.length === 0
+          const bnp = b.param_list.length === 0
+          if (anp !== bnp)
+            return anp ? -1 : 1
+        default:
+          // param-xxxxx
+          const ap = Boolean(a.param_list.find(({name})=> `param-${name}` === s))
+          const bp = Boolean(b.param_list.find(({name})=> `param-${name}` === s))
+          if (ap !== bp)
+            return ap ? -1 : 1
+      }
+    }
+    return 0
+  }), [items, sort])
 
   // collect sort data
   const sortData = useMemo(()=> {
@@ -1007,8 +1071,19 @@ function FmodProjectPage(props: FmodProject) {
     data.paramNames = [...paramNames].toSorted()
     return data
   }, [items, abstract])
+  
+  const resetScroll = useCallback(()=> {
+    document.getElementById("app-article").scrollTop = 1
+  }, [])
+  const handler = usePagingHandler(items, {resetScroll})
+  const {range, first} = handler
 
-  const onSuccess = useCopySuccess()
+  const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
+    const value = e.currentTarget.value
+    setSort([value, ...sort.filter(v=> v !== value)])
+    first()
+  }, [sort, setSort, first])
+
   return (
     <div>
       <H3>{file}<AssetType type="fmodproject"/></H3>
@@ -1017,8 +1092,8 @@ function FmodProjectPage(props: FmodProject) {
       <p>
         总共包含{allEventList.length}个音效。
         {
-          hasFilter && 
-          `筛选出${filterEventList.length}个音效。`
+          numFiltered > 0 &&
+          <span style={{color: "#999"}}>（{numFiltered}个被隐藏）</span>
         }
       </p>
       <div style={{display: "flex", alignContent: "center", marginBottom: 10}}>
@@ -1029,19 +1104,23 @@ function FmodProjectPage(props: FmodProject) {
           leftIcon="filter"
           small
           style={{maxWidth: 200}}
-          onChange={e=> onQueryChange(e.currentTarget.value)}
+          value={query}
+          onChange={e=> setQuery(e.currentTarget.value)}
         />
-        <Checkbox style={{marginLeft: 10, marginTop: 4}}>隐藏空音效（{numEmpty}）</Checkbox>
+        <Checkbox 
+          style={{marginLeft: 10, marginTop: 4}}
+          checked={filter.indexOf("-empty") !== -1}
+          onChange={e=> setFilter(e.currentTarget.checked ? ["-empty"] : [])}>
+          隐藏空音效（{numEmpty}）
+        </Checkbox>
       </div>
-      {items.length === 0 && <p>什么都没有...</p>}
-      <table className={style["compact-table"] + " bp4-html-table"} 
-        style={{display: items.length === 0 ? "none" : undefined}}>
+      <table className={style["compact-table"] + " bp4-html-table"}>
         <thead>
           <th>
             <SortableField
               text="路径"
-              selectedValue=""
-              onChange={()=> {}}
+              selectedValue={sort[0]}
+              onChange={onChangeSort}
               choices={[
                 {label: "按路径排序（a-z）", value: "path.a-z"},
                 {label: "按路径排序（z-a）", value: "path.z-a"},
@@ -1051,8 +1130,8 @@ function FmodProjectPage(props: FmodProject) {
           <th>
             <SortableField
               text="分类"
-              selectedValue=""
-              onChange={()=> {}}
+              selectedValue={sort[0]}
+              onChange={onChangeSort}
               choices={[
                 {label: `将${formatSoundCategory(CategoryPrefix.SFX)}置顶`, 
                   visible: sortData["hasSfx"], value: "category.sfx"},
@@ -1066,8 +1145,8 @@ function FmodProjectPage(props: FmodProject) {
           <th>
             <SortableField
               text="时长"
-              selectedValue=""
-              onChange={()=> {}}
+              selectedValue={sort[0]}
+              onChange={onChangeSort}
               choices={[
                 {label: `按时长排序（小到大）`, value: "len.0-9"},
                 {label: `按时长排序（大到小）`, value: "len.9-0"},
@@ -1079,8 +1158,8 @@ function FmodProjectPage(props: FmodProject) {
           <th>
             <SortableField
               text="参数"
-              selectedValue=""
-              onChange={()=> {}}
+              selectedValue={sort[0]}
+              onChange={onChangeSort}
               choices={[
                 {label: `将无参数置顶`, visible: sortData["hasNoParam"], value: "no-param"},
                 ...sortData.paramNames.map(name=> ({
@@ -1092,12 +1171,13 @@ function FmodProjectPage(props: FmodProject) {
         </thead>
         <tbody>
           {
-            items.map(v=> <tr key={v.path}>
+            sortedItems.map((v, i)=> 
+            i >= range[0] && i <= range[1] &&
+            <tr key={v.path}>
               <td className={style["sound-path"]}>
                 <PopoverMenu menu={
                   [
-                    {icon: "duplicate", text: "拷贝路径", 
-                      onClick: ()=> writeText(v.path).then(onSuccess)},
+                    {icon: "duplicate", text: "拷贝路径", copyText: v.path},
                     {icon: "link", text: "查看详情",
                       directURL: "/asset?id=f-"+smallhash(v.path)}
                   ]
@@ -1112,33 +1192,35 @@ function FmodProjectPage(props: FmodProject) {
               </td>
               <td>
                 {v.param_list.length === 0 && "-"}
-                {v.param_list.map(({name})=> <div>
-                  <Tag key={name} minimal style={{marginBottom: 3}}>{name}</Tag>
-                </div>)}
+                {v.param_list.map(({name, range})=> 
+                  <ParamSlider name={name} range={range}/>)}
               </td>
             </tr>)
           }
         </tbody>
       </table>
+      <PageTurner {...handler} style={{marginTop: 10, marginBottom: 40}}/>
       <H5>基本信息</H5>
       <AssetFilePath type="fev" path={name}/>
+      <div style={{height: 50}}/>
     </div>
   )
 }
+// TODO: 轮播模式
 
 function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
   const SFX_ID = "PREVIEW_SFX"
-  const {path} = props
+  const {path, param_list} = props
   const isPlaying = useSelector(({appstates})=> 
     (appstates.fmod_playing_info[SFX_ID] || {}).playing)
   const playingPath = useSelector(({appstates})=> 
     (appstates.fmod_playing_info[SFX_ID] || {}).path)
+  const [fmod_param_value] = useLocalStorage("fmod_param_value")
   const play = useCallback(()=> {
     // don't use `useSelector` for performance issue
-    const param_value = store.getState().appstates.fmod_param_value
     const params = Object.fromEntries(
-      props.param_list.map(({name, range})=> {
-        const percent = param_value[name] || 0
+      param_list.map(({name, range})=> {
+        const percent = fmod_param_value[name] || 0
         return [name, range[0] + (range[1]-range[0])*percent]
       })
     )
@@ -1146,7 +1228,7 @@ function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
       api: "PlaySoundWithParams",
       args: [path, SFX_ID, params],
     })})
-  }, [path, props.param_list])
+  }, [path, param_list, fmod_param_value])
   const stop = useCallback(()=> {
     invoke("fmod_send_message", {data: JSON.stringify({
       api: "KillSound",
@@ -1170,6 +1252,34 @@ function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
       icon={isPlaying && playingPath === path ? "stop" : "play"} 
       intent={isPlaying && playingPath === path ? "primary" : "none"}
       onClick={onClick}/>
+  )
+}
+
+function ParamSlider(props: {name: string, range: [number, number]}) {
+  const {name, range} = props
+  const [fmod_param_value, setParam] = useLocalStorage("fmod_param_value")
+  const {[name]: percent = 0.5} = fmod_param_value
+  const SFX_ID = "PREVIEW_SFX"
+
+  const onChange = useCallback((percent: number)=> {
+    const value = range[0] + (range[1]-range[0])* percent
+    setParam({...fmod_param_value, [name]: percent})
+    invoke("fmod_send_message", { data: JSON.stringify({
+      api: "SetParameter",
+      args: [SFX_ID, name, value],
+    })})
+  }, [name, range, fmod_param_value, setParam])
+  return (
+    <Popover2 minimal placement="top" 
+      content={<div style={{width: 100}}>
+        <TinySlider min={0} max={1} stepSize={0.01}
+          value={percent}
+          onChange={onChange}/>
+      </div>}>
+      <Tag key={name} minimal interactive style={{marginBottom: 3}}>
+        {name}
+      </Tag>
+    </Popover2>
   )
 }
 
@@ -1415,7 +1525,6 @@ function BankPage(props: BankPageProps) {
   return (
     <div>
       <H3>{resolved ? bankName : bankName_Hash} <AssetType type="bank"/></H3>
-      <H5>动画列表</H5>
       {
         isLoading ? <p>正在加载...</p> : <>
           <p>总共包含{animationList.length}个动画。

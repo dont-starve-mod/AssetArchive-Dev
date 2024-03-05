@@ -78,7 +78,6 @@ export function addDocuments(index: IndexName, doc: any[], options?: DocumentOpt
         .then(
           response=> {
             console.log("Updated meiliseach documents: " + index + "(" + doc.length + ")")
-            console.log(doc)
             // console.log(response)
           },
           error=> {

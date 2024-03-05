@@ -23,6 +23,7 @@ export interface LocalStorage {
   bank_filter_strategy: BankFilter[],
   fev_sort_strategy: FevSort[],
   fev_filter_strategy: FevFilter[],
+  fmod_param_value: {[K: string]: number}, // 0-1 percent
   toast_max_num: number,
   toast_alive_time: number,
 }
@@ -46,6 +47,14 @@ const savePersistant = (data: LocalStorage)=> {
     JSON.stringify(data))
 }
 
+const defaultFmodParam = {
+  intensity: 1,
+  nightmare: 1,
+  sanity: 1,
+  size: 1,
+  pitch: 0,
+}
+
 const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>({
   name: "localstorage",
   initialState: ()=> ({
@@ -62,6 +71,7 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     bank_filter_strategy: [],
     fev_sort_strategy: [],
     fev_filter_strategy: [],
+    fmod_param_value: defaultFmodParam,
     toast_max_num: 5,
     toast_alive_time: 7,
     ...loadPersistant()

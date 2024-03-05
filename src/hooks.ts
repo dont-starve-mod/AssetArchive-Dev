@@ -1,4 +1,3 @@
-/* eslint-disabled */
 import { invoke } from "@tauri-apps/api"
 import { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { appWindow } from "@tauri-apps/api/window"
@@ -10,6 +9,7 @@ import { useDispatch, useSelector } from "./redux/store"
 import { FmodPlayingInfo } from "./components/AppFmodHandler"
 import { LocalStorage } from "./redux/reducers/localstorage"
 
+/* eslint-disable */
 
 const DYN_ENCRYPT = "DYN_ENCRYPT"
 
