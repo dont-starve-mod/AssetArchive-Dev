@@ -134,7 +134,7 @@ function SearchResultDisplay({result}: {result: Response}) {
 
   useEffect(()=> {
     setTabScroll(tab)
-  }, [tab])
+  }, [tab, setTabScroll])
 
   useEffect(()=> {
     let unlisten = appWindow.listen<any>("restore_cache", ({payload: {cacheId}})=> {
@@ -143,7 +143,7 @@ function SearchResultDisplay({result}: {result: Response}) {
       }
     })
     return ()=> { unlisten.then(f=> f()) }
-  }, [tab, query])
+  }, [tab, query, setTabScroll])
 
   useEffect(()=> {
     let unlisten = appWindow.listen<any>("unmount_cache", ({payload: {cacheId}})=> {
@@ -230,7 +230,7 @@ function ResultPagesView({items, currentPage, numResultsPerPage, totalPage, setC
   const nextPage = useCallback(()=> {
     setCurrentPage(Math.min(totalPage - 1, pageIndex + 1))
     scrollZero()
-  }, [pageIndex, setCurrentPage, scrollZero])
+  }, [pageIndex, setCurrentPage, scrollZero, totalPage])
 
   const prevPage = useCallback(()=> {
     setCurrentPage(Math.max(0, pageIndex - 1))

@@ -134,11 +134,11 @@ export default function AnimListPage() {
 
   const onChangeTitle = useCallback(({id, title}: {[K: string]: string})=> {
     change({id, title})
-  }, [])
+  }, [change])
   
   const onChangeDescription = useCallback(({id, description}: {[K: string]: string})=> {
     change({id, description})
-  }, [])
+  }, [change])
 
   const onCreate = useCallback(({title, description}: NewAnimProject)=> {
     dispatch({type: "reset"})
@@ -412,7 +412,7 @@ function AnimPreview(props: {cmds: Api[]}){
     animstate.addEventListener("changerect", onChangeRect)
     animstate.clear().runCmds(cmds)
     return ()=> animstate.removeEventListener("changerect", onChangeRect)
-  }, [cmds])
+  }, [cmds, animstate])
 
   const renderRef = useCallback((v: any)=> {
     render.current = v
@@ -454,14 +454,15 @@ function Template(props: AnimProject & {onClick: Function}){
   useEffect(()=> {
     animstate.clear().runCmds(cmds)
     animstate.pause()
-  }, [cmds])
+  }, [cmds, animstate])
 
   const [onMouseDown, onMouseUp, isDragClick] = useMouseDragClick()
+  const onClickProp = props.onClick
   const onClick = useCallback(()=> {
     if (!isDragClick()){
-      props.onClick()
+      onClickProp()
     }
-  }, [props.onClick, isDragClick])
+  }, [onClickProp, isDragClick])
   
   return <div className={style["template-card"]} 
     onMouseEnter={()=> animstate.resume()}

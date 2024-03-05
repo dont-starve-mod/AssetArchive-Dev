@@ -3,11 +3,15 @@ import { Popover2, Popover2Props } from '@blueprintjs/popover2'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import style from './index.module.css'
+import { useCopySuccess } from '../../hooks'
+import { writeText } from '@tauri-apps/api/clipboard'
 
 type PopoverMenuProps = {
   menu: Array<({
     key?: string,
     text: string,
+    /** copy text to clipboard */
+    copyText?: string,
     /** setting direct url for a menu item 
      * makes it trigger instantly when user pressing ctrl/cmd and left click */
     directURL?: string,
@@ -20,6 +24,7 @@ type PopoverMenuProps = {
 export default function PopoverMenu(props: PopoverMenuProps) {
   const {placement = "top", menu} = props
   const nagivate = useNavigate()
+  const onCopySuccess = useCopySuccess()
   const directURL = useMemo(()=> {
     for (let v of menu) {
       if (typeof v.directURL === "string")
@@ -46,7 +51,11 @@ export default function PopoverMenu(props: PopoverMenuProps) {
         menu.map((v, i)=> 
           v.visible !== false && <MenuItem 
             key={v.key || v.icon as string || i}
-            onClick={v.directURL ? ()=> nagivate(v.directURL) : undefined}
+            onClick={
+              v.directURL ? ()=> nagivate(v.directURL) :
+              v.copyText ? ()=> writeText(v.copyText).then(onCopySuccess) :
+              undefined
+            }
             {...v}/>)
       }
     </Menu>}>

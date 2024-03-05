@@ -10,7 +10,7 @@ export interface KeepAlivePageProps {
   cacheProfile?: capacityChoice,
   cacheDependency?: React.DependencyList,
   cacheId?: string,
-  children: any,
+  children: JSX.Element,
 }
 
 export default function KeepAlivePage(props: KeepAlivePageProps): React.JSX.Element {

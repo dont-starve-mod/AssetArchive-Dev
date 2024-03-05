@@ -5,6 +5,9 @@ import { LRUCache } from "lru-cache"
 
 export type Result = Hit<any>
 export const maxTotalHits = 5000
+type IndexName = "assets" | "anims"
+
+// TODO: fix failed to search on app launching
 
 type State = {
   addr?: string,
@@ -20,12 +23,18 @@ export function setAddr(addr: string) {
   //@ts-ignore
   window.client = state.client
 
-  // state.client.createIndex("assets")
   state.client.index("assets").updateSettings({
     filterableAttributes: ["type"],
     searchableAttributes: ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text", "animationList"],
     separatorTokens: ["/"],
     synonyms: SYNONYMS_MAP,
+    pagination: {
+      maxTotalHits,
+    }
+  })
+  state.client.index("anims").updateSettings({
+    filterableAttributes: ["type", "bank"],
+    searchableAttributes: ["name", "assetpath"],
     pagination: {
       maxTotalHits,
     }
@@ -45,14 +54,11 @@ function checkValid() {
     throw Error("Meilisearch client not valided")
 }
 
-type IndexName = "assets" | "assets_update"
-
 export function addDocuments(index: IndexName, doc: any[], options?: DocumentOptions) {
   if (!isValid()){
     let pos = queuedDocs.findIndex(v=> {
       if (v.index === index && v.doc.length === doc.length){
         if (JSON.stringify(v.doc.slice(0, 10)) === JSON.stringify(doc.slice(0, 10))){
-          console.log("Find old", v)
           return true
         }
       }
@@ -67,26 +73,20 @@ export function addDocuments(index: IndexName, doc: any[], options?: DocumentOpt
   else {
     queuedDocs.push({index, doc, options})
     queuedDocs.forEach(({index, doc, options})=> {
-      if (index.endsWith("_update")){
-        state.client.index(index.replace("_update", ""))
-          .updateDocuments(doc, options)
-          .catch(error=> {
+      state.client.index(index)
+        .updateDocuments(doc, options)
+        .then(
+          response=> {
+            console.log("Updated meiliseach documents: " + index + "(" + doc.length + ")")
+            console.log(doc)
+            // console.log(response)
+          },
+          error=> {
             console.error("Error in updating documents\n", error)
             appWindow.emit("runtime_error", error)
-          })
-      }
-      else{
-        state.client.index(index)
-          .updateDocuments(doc, options)
-          .then(
-            ()=> {},
-            error=> {
-              console.error("Error in adding documents\n", error)
-              appWindow.emit("runtime_error", error)
-            }
-          )
-      }
-    })
+          }
+        )
+      })
     queuedDocs.splice(0, queuedDocs.length)
   }
 }

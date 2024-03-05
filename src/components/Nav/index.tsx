@@ -10,6 +10,7 @@ import { Popover2 } from '@blueprintjs/popover2'
 import { search } from '../../global_meilisearch'
 import TinySlider from '../TinySlider'
 import { formatAlias } from '../AliasTitle'
+import Hash, { useHashToString } from '../HumanHash'
 
 export default function Nav() {
   let { isWindows, isMacOS, isLinux } = useOS()
@@ -310,6 +311,7 @@ function QuickSearchItem(props: ArchiveItem &
   { onClickItem: Function, matches: Matches, selected?: boolean, itemRef: any }) {
   const {type, id, matches, selected} = props
   const navigate = useNavigate()
+  const hashToString = useHashToString()
 
   return (
     <div
@@ -336,6 +338,8 @@ function QuickSearchItem(props: ArchiveItem &
           <MatchText text={props.file} match={matches["file"]}/> :
         (type === "shader") ?
           <MatchText text={props.file} match={matches["file"]}/> :
+        (type === "bank") ? 
+          <MatchText text={hashToString(props.bank)}/> :
         (type === "fmodevent") ? 
           <MatchText text={props.path} match={matches["path"]}/> :
         (type === "fmodproject") ?

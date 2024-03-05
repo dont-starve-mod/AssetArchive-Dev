@@ -11,6 +11,7 @@ type FevFilter = "-empty"
 
 export interface LocalStorage {
   num_search_results_per_page: number,
+  xml_display_mode: "grid" | "list" | "atlas",
   atlas_view_show_border: boolean,
   atlas_view_show_uvbox: boolean,
   tex_maximized: boolean,
@@ -49,6 +50,7 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
   name: "localstorage",
   initialState: ()=> ({
     num_search_results_per_page: 200,
+    xml_display_mode: "grid",
     atlas_view_show_border: true,
     atlas_view_show_uvbox: true,
     tex_maximized: false,

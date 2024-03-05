@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, InputGroup, Tag, RadioGroup, Radio, Checkbox } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
-import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage } from '../../hooks'
+import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage, usePagingHandler } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
 import { writeText } from '@tauri-apps/api/clipboard'
 import style from './index.module.css'
@@ -21,13 +21,16 @@ import { AccessableItem } from '../../components/AccessableItem'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import Code from '../../components/Code'
 import AssetDesc from '../../components/AssetDesc'
-import { search } from '../../global_meilisearch'
+import { addDocuments, search } from '../../global_meilisearch'
 import AnimQuickLook from '../../components/AnimQuickLook'
 import { formatAlias, sortedAlias } from '../../components/AliasTitle'
 import { byte2facing } from '../../facing'
 import PopoverMenu from '../../components/PopoverMenu'
 import smallhash from '../../smallhash'
 import SortableField from '../../components/SortableField'
+import store, { useSelector } from '../../redux/store'
+import { invoke } from '@tauri-apps/api'
+import PageTurner from '../../components/PageTurner'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -139,7 +142,7 @@ function TexPage({id, xml, tex}) {
   const [resolution, setResolution] = useState([0, 0])
   const [loading, setLoading] = useState(true)
   const [resizable, setResizeable] = useState(true)
-  const [isMaximized, setMaximised] = useLocalStorage("tex_maximized")
+  const [isMaximized, setMaximized] = useLocalStorage("tex_maximized")
   const [gridBackground, setGridBackground] = useLocalStorage("tex_use_grid_background")
 
   useLuaCallOnce<number[]>("load", result=> {
@@ -175,8 +178,8 @@ function TexPage({id, xml, tex}) {
     if (isMaximized) {
       // TODO: reset article scroll
     }
-    setMaximised(!isMaximized)
-  }, [isMaximized])
+    setMaximized(!isMaximized)
+  }, [isMaximized, setMaximized])
 
   return <div>
     <H3>{tex} <AssetType type="tex"/></H3>
@@ -217,7 +220,7 @@ function TexNoRefPage({id, file, is_cc}: {id: string, file: string, is_cc?: bool
   const [resolution, setResolution] = useState([0, 0])
   const [loading, setLoading] = useState(true)
   const [url, setURL] = useState("")
-  const [isMaximized, setMaximised] = useLocalStorage("tex_maximized")
+  const [isMaximized, setMaximized] = useLocalStorage("tex_maximized")
   const [resizable, setResizeable] = useState(true)
   
   const onImgLoad = ({target})=> {
@@ -259,7 +262,7 @@ function TexNoRefPage({id, file, is_cc}: {id: string, file: string, is_cc?: bool
         maxHeight: "80vh", display: loading ? "none" : null
       }} 
         className='bp4-elevation-1' src={url} onLoad={onImgLoad}
-        onClick={()=> setMaximised(!isMaximized)}/>
+        onClick={()=> setMaximized(!isMaximized)}/>
       <div style={{height: 20}}></div>
       <Button icon="duplicate" onClick={()=> copy()} disabled={loading}>
         拷贝
@@ -297,7 +300,7 @@ export type XmlData = {
 }
 
 function XmlPage({id, file, texpath, _numtex}) {
-  const [display, setDisplay] = useState<"grid"|"list"|"atlas">("grid") // TODO: 应该是可保存的config
+  const [display, setDisplay] = useLocalStorage("xml_display_mode")
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<XmlData>()
 
@@ -463,7 +466,7 @@ function ZipPage({type, file, id}) {
   const hashToString = useHashToString()
 
   useLuaCallOnce<string>("load", result=> {
-    if (result == "false") {
+    if (result === "false") {
       // `build.bin` not exists
       setBuildData(false)
     }
@@ -670,20 +673,20 @@ function ZipPage({type, file, id}) {
               animList.map(({name, facing, bankhash, numframes})=> {
               const reposition = {} as any
               return <tr>
-                <td className='bp4-monospace-text'>
-                  <Popover2 minimal placement="top" content={<Menu>
-                    <MenuItem text="拷贝库名" icon="duplicate" 
-                      onClick={()=> writeText(hashToString(bankhash)).then(onSuccess)}/>
-                    <MenuItem text="查看动画库详情" icon="link"
-                      onClick={()=> navigate("/asset?id=bank-"+bankhash)}/>
-                  </Menu>}>
-                    <span style={{cursor: "pointer"}}>
-                      <Hash hash={bankhash}/>
-                    </span>
-                  </Popover2>
+                <td>
+                  <PopoverMenu menu={[
+                    {text: "拷贝库名", icon: "duplicate", copyText: hashToString(bankhash)},
+                    {text: "查看动画库详情", icon: "link", directURL: "/asset?id=bank-"+bankhash}
+                  ]}>
+                    <Hash hash={bankhash}/>
+                  </PopoverMenu>
                 </td>
-                <td className='bp4-monospace-text'>
-                  {name}
+                <td>
+                  <PopoverMenu menu={[
+                    {text: "拷贝动画名", icon: "duplicate", copyText: name}
+                  ]}>
+                    {name}
+                  </PopoverMenu>
                 </td>
                 <td>
                   <FacingString facing={facing}/>
@@ -821,8 +824,6 @@ function FmodEventPage(props: FmodEvent) {
 
 function SoundRefList(props: {data: FevRefFileList, path: string}) {
   const {data, path} = props
-  if (data.length === 0)
-    return <p>什么都没有 ¯\_(ツ)_/¯ </p>
 
   const formatLength = useCallback((lengthms: number)=> {
     if (lengthms < 1000) {
@@ -847,6 +848,9 @@ function SoundRefList(props: {data: FevRefFileList, path: string}) {
 
   const success = useCopySuccess("path")
   const showFsb = useLuaCall<string>("load", ()=> {}, {type: "show"})
+
+  if (data.length === 0)
+    return <p>什么都没有 ¯\_(ツ)_/¯ </p>
 
   return (
     <>
@@ -914,7 +918,7 @@ function FmodProjectPage(props: FmodProject) {
     return window.assets.allfmodevent
       .filter(v=> v.project_name === name)
       .sort((a, b)=> a.path.toLowerCase() < b.path.toLowerCase() ? -1 : 1)
-  }, [name, queryResult])
+  }, [name])
 
   const filterEventList = useMemo(()=> {
     return Array.isArray(queryResult) && 
@@ -949,7 +953,7 @@ function FmodProjectPage(props: FmodProject) {
         }
       )
     }
-  }, [name])
+  }, [])
 
   const [abstract, setAbstract] = useState<{
     [path: string]: {has_sounddef: boolean},
@@ -1104,7 +1108,7 @@ function FmodProjectPage(props: FmodProject) {
               <td>{formatSoundCategory(v.category)}</td>
               <td>{formatSoundLength(v.lengthms)}</td>
               <td>
-                <Button icon="play"/>
+                <PlayIcon path={v.path} param_list={v.param_list}/>
               </td>
               <td>
                 {v.param_list.length === 0 && "-"}
@@ -1119,6 +1123,53 @@ function FmodProjectPage(props: FmodProject) {
       <H5>基本信息</H5>
       <AssetFilePath type="fev" path={name}/>
     </div>
+  )
+}
+
+function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
+  const SFX_ID = "PREVIEW_SFX"
+  const {path} = props
+  const isPlaying = useSelector(({appstates})=> 
+    (appstates.fmod_playing_info[SFX_ID] || {}).playing)
+  const playingPath = useSelector(({appstates})=> 
+    (appstates.fmod_playing_info[SFX_ID] || {}).path)
+  const play = useCallback(()=> {
+    // don't use `useSelector` for performance issue
+    const param_value = store.getState().appstates.fmod_param_value
+    const params = Object.fromEntries(
+      props.param_list.map(({name, range})=> {
+        const percent = param_value[name] || 0
+        return [name, range[0] + (range[1]-range[0])*percent]
+      })
+    )
+    invoke("fmod_send_message", {data: JSON.stringify({
+      api: "PlaySoundWithParams",
+      args: [path, SFX_ID, params],
+    })})
+  }, [path, props.param_list])
+  const stop = useCallback(()=> {
+    invoke("fmod_send_message", {data: JSON.stringify({
+      api: "KillSound",
+      args: [SFX_ID],
+    })})
+  }, [])
+  const onClick = useCallback((e: React.MouseEvent)=> {
+    if (isPlaying) {
+      stop()
+      if (playingPath !== path) {
+        play()
+      }
+    }
+    else {
+      play()
+    }
+    e.stopPropagation()
+  }, [play, stop, isPlaying, playingPath, path])
+  return (
+    <Button
+      icon={isPlaying && playingPath === path ? "stop" : "play"} 
+      intent={isPlaying && playingPath === path ? "primary" : "none"}
+      onClick={onClick}/>
   )
 }
 
@@ -1201,6 +1252,15 @@ type BankPageProps = {
   bank: number,
 }
 
+const DUMMY_ANIMATION_LIST = [...Array(4).keys()].map((i)=> ({
+  id: "dummy" + i,
+  name: "dummy_animation",
+  numframes: 0,
+  framerate: 30,
+  facing: 0,
+  assetpath: "anim/dummy.zip",
+}))
+
 function BankPage(props: BankPageProps) {
   const {bank} = props
   const hashToString = useHashToString()
@@ -1212,8 +1272,8 @@ function BankPage(props: BankPageProps) {
     // idle_loop    34   255   [30]    anim/player_idles.zip
     // ext: is_pre is_pst is_lag
     {name: string, numframes: number, framerate: number, facing: number, assetpath: string,
-      isPre: boolean, isPst: boolean, isLag: boolean}[]
-  >([])
+      isPre?: boolean, isPst?: boolean, isLag?: boolean, id?: string}[]
+  >(DUMMY_ANIMATION_LIST)
 
   useLuaCallOnce<string>("load", response=> {
     const list = JSON.parse(response) as typeof animationList
@@ -1223,29 +1283,22 @@ function BankPage(props: BankPageProps) {
       v.isLag = v.name.endsWith("_lag")
     })
     setList(list)
+    // push animation list to search engine
+    addDocuments("anims", list.map(({id, name, facing, assetpath})=> 
+      ({ id, bank, name, facing, assetpath}))
+    )
   }, {type: "bank", bank}, [bank])
 
   const [sort, setSort] = useLocalStorage("bank_sort_strategy")
   const [filter, setFilter] = useLocalStorage("bank_filter_strategy")
 
+  const [query, onChangeQuery] = useState("")
+  const [queryResult, setQueryResult] = useState<{[id: string]: boolean}>({})
+  const hasQuery = query.trim().length > 0
+
   const setFirstElementInList = useCallback((value: string, list: string[])=> 
     [value, ...list.filter(v=> v !== value)]
   , [])
-
-  const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
-    setSort(setFirstElementInList(e.currentTarget.value, sort))
-  }, [setFirstElementInList, sort, setSort])
-
-  const getFirstElementInList = useCallback((choice: string[], list: string[])=> 
-    list.find(v=> choice.indexOf(v) !== -1) || choice[0]
-  , [])
-
-  const onChangeFilter = useCallback((value: string, e: React.FormEvent<HTMLInputElement>)=> {
-    if (e.currentTarget.checked)
-      setFilter([...filter, value] as any)
-    else
-      setFilter(filter.filter(v=> v !== value))
-  }, [filter, setFilter])
 
   const facingList = useMemo(()=> {
     const facings = new Set<number>()
@@ -1283,11 +1336,18 @@ function BankPage(props: BankPageProps) {
     })
   }, [animationList, noPrePst, noLag])
 
+  const numFiltered = animationList.length - filteredAnimationList.length
+
+  const queryAnimationList = useMemo(()=> {
+    return filteredAnimationList.filter(({id})=> 
+      !hasQuery || queryResult[id] 
+    )
+  }, [hasQuery, queryResult, filteredAnimationList])
+
   const sortedAnimationList = useMemo(()=> {
-    return filteredAnimationList.toSorted((a, b)=> {
+    return queryAnimationList.toSorted((a, b)=> {
       // check sort rule from start to end
       for (let s of sort) {
-        // console.log("S=", s)
         switch (s) {
           case "name.a-z":
           case "name.z-a":
@@ -1312,21 +1372,56 @@ function BankPage(props: BankPageProps) {
       }
       return 0
     })
-  }, [filteredAnimationList, sort])
+  }, [queryAnimationList, sort])
 
-  const hasFilter = false
-  const onSuccess = useCopySuccess()
+  const isLoading = animationList === DUMMY_ANIMATION_LIST
+
+  const resetScroll = useCallback(()=> {
+    document.getElementById("app-article").scrollTop = 1
+  }, [])
+
+  const handler = usePagingHandler(sortedAnimationList, {resetScroll})
+  const {first, range} = handler
+  const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
+    setSort(setFirstElementInList(e.currentTarget.value, sort))
+    first()
+  }, [setFirstElementInList, sort, setSort, first])
+
+  const onChangeFilter = useCallback((value: string, e: React.FormEvent<HTMLInputElement>)=> {
+    if (e.currentTarget.checked)
+      setFilter([...filter, value] as any)
+    else
+      setFilter(filter.filter(v=> v !== value))
+    // first()
+  }, [filter, setFilter, /*first*/])
+
+  useEffect(()=> {
+    if (!hasQuery) return
+    search("anims", query, {
+      limit: 1000,
+      filter: `bank = ${bank}`,
+      showMatchesPosition: true,
+    }).then(
+      response=> {
+        if (response.query !== query) return
+        const result = {}
+        response.hits.forEach(({id})=> result[id] = true)
+        setQueryResult(result)
+        first()
+      }
+    )
+  }, [bank, query, hasQuery, first])
 
   return (
     <div>
       <H3>{resolved ? bankName : bankName_Hash} <AssetType type="bank"/></H3>
       <H5>动画列表</H5>
       {
-        Array.isArray(animationList) && <>
+        isLoading ? <p>正在加载...</p> : <>
           <p>总共包含{animationList.length}个动画。
           {
-            hasFilter && 
-            `筛选出${222}个动画。` + `其中${8}个动画被过滤`
+            numFiltered > 0 &&
+            <span style={{color: "#999"}}>（{numFiltered}个被隐藏）</span>
           }
           </p>
         </>
@@ -1339,7 +1434,8 @@ function BankPage(props: BankPageProps) {
           leftIcon="filter"
           small
           style={{maxWidth: 200}}
-          // onChange={e=> onFilterChange(e.currentTarget.value)}
+          value={query}
+          onChange={e=> onChangeQuery(e.currentTarget.value)}
         />
         <Checkbox style={{margin: 5}} className="no-select"
           checked={filter.indexOf("-pre/pst") !== -1}
@@ -1354,7 +1450,7 @@ function BankPage(props: BankPageProps) {
         </Checkbox>
       </div>
       <br/>
-      <table className={style["compact-table"] + " bp4-html-table"}>
+      <table className={style["compact-table"] + " bp4-html-table " + (isLoading ? "bp4-skeleton" : "")}>
         <thead>
           <th>
             <Popover2 minimal placement="right" content={<div className="sort-popover">
@@ -1424,13 +1520,13 @@ function BankPage(props: BankPageProps) {
         </thead>
         <tbody>
           {
-            sortedAnimationList.map(v=> {
+            sortedAnimationList.map((v, i)=> {
               const reposition = {} as any
-              return <tr>
+              if (i < range[0] || i > range[1]) return
+              return <tr key={v.id}>
                 <td>
                   <PopoverMenu placement="top" menu={[
-                    {key: "copy", text: "拷贝名字", icon: "duplicate", onClick: ()=>
-                      writeText(v.name).then(onSuccess)},
+                    {text: "拷贝名字", icon: "duplicate", copyText: v.name},
                   ]}>
                     {v.name}
                   </PopoverMenu>
@@ -1455,9 +1551,8 @@ function BankPage(props: BankPageProps) {
                 </td>
                 <td>
                   <PopoverMenu placement="top" menu={[
-                    {key: "copy", text: "拷贝路径", icon: "duplicate", onClick: ()=>
-                      writeText(v.assetpath).then(onSuccess)},
-                    {key: "link", text: "查看动画包详情", icon: "link", directURL: "/asset?id=z-"+smallhash(v.assetpath)}
+                    {text: "拷贝路径", icon: "duplicate", copyText: v.assetpath},
+                    {text: "查看动画包详情", icon: "link", directURL: "/asset?id=z-"+smallhash(v.assetpath)}
                   ]}>
                     {v.assetpath}
                   </PopoverMenu>
@@ -1467,6 +1562,7 @@ function BankPage(props: BankPageProps) {
           }
         </tbody>
       </table>
+      <PageTurner {...handler} style={{marginTop: 10, marginBottom: 100}}/>
     </div>
   )
 }
@@ -1488,7 +1584,7 @@ function AssetInvalidPage(props: AssetInvalidPageProps) {
       }
     }, 500)
     return ()=> clearInterval(token)
-  }, [type])
+  }, [type, forceUpdate])
 
   if (type === "waiting"){
     return <NonIdealState title="正在加载" layout='vertical'>

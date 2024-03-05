@@ -1,3 +1,4 @@
+/* eslint-disabled */
 import { invoke } from "@tauri-apps/api"
 import { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { appWindow } from "@tauri-apps/api/window"
@@ -8,6 +9,7 @@ import { update as UpdateLocal } from "./redux/reducers/localstorage"
 import { useDispatch, useSelector } from "./redux/store"
 import { FmodPlayingInfo } from "./components/AppFmodHandler"
 import { LocalStorage } from "./redux/reducers/localstorage"
+
 
 const DYN_ENCRYPT = "DYN_ENCRYPT"
 
@@ -41,7 +43,7 @@ export function useMouseDrag(onMoveCb: (x: number, y: number, px: number, py: nu
       const {movementX: x, movementY: y, clientX: px, clientY: py} = e
       onMoveCb(x, y, px, py)
     }
-  }, [])
+  }, [onMoveCb])
   const onMouseUp = useCallback(()=> {
     down.current = false
   }, [])
@@ -82,7 +84,7 @@ export function useMouseScroll(onScrollCb: (y: number, e?: React.WheelEvent)=> v
   
     nodes.forEach(({style})=> style.overflow = hover ? "hidden" : null)
     return ()=> nodes.forEach(({style})=> style.overflow = null)
-  }, [hover])
+  }, [hover, lockGlobal])
 
   return [onScroll, onMouseEnter, onMouseLeave]
 }
@@ -266,7 +268,7 @@ export function useBatchDownloadDialog(type: "xml" | "build" | "fev_ref", data?:
       title: ""
     })
     call({type, ...data, target_dir: dirpath})
-  }, [call])
+  }, [type, call])
   return fn
 }
 
@@ -381,20 +383,20 @@ type PageOptions = {
   numItemsPerPage?: number,
   resetScroll?: ()=> void,
 }
-export function usePagingHandler<T>(items: Array<T>, options: PageOptions) {
-  const {numItemsPerPage = 100, resetScroll} = options
+export function usePagingHandler<T>(items: Array<T>, options?: PageOptions) {
+  const {numItemsPerPage = 100, resetScroll} = options || {}
   const [page, setPage] = useState(0)
   const totalPage = Math.ceil(items.length / numItemsPerPage)
   const clampedPage = Math.max(0, Math.min(page, totalPage - 1))
-  const range = [page* numItemsPerPage, (page + 1)* numItemsPerPage - 1]
+  const range = [clampedPage* numItemsPerPage, (clampedPage + 1)* numItemsPerPage - 1]
   const next = useCallback(()=> {
-    setPage(Math.min(totalPage - 1, page + 1))
+    setPage(Math.min(totalPage - 1, clampedPage + 1))
     resetScroll?.()
   }, [clampedPage, totalPage, resetScroll])
   const prev = useCallback(()=> {
     setPage(Math.max(0, clampedPage - 1))
     resetScroll?.()
-  }, [clampedPage, totalPage, resetScroll])
+  }, [clampedPage, resetScroll])
   const first = useCallback(()=> {
     setPage(0)
     resetScroll?.()
@@ -405,6 +407,6 @@ export function usePagingHandler<T>(items: Array<T>, options: PageOptions) {
   }, [totalPage, resetScroll])
 
   return {
-    prev, next, first, last, page: clampedPage, range
+    prev, next, first, last, page: clampedPage, totalPage, range
   }
 }

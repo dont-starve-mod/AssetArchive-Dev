@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
-import { appWindow, getCurrent } from '@tauri-apps/api/window'
+import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
-import { Alert, AlertProps, Button, H3, useHotkeys } from '@blueprintjs/core'
+import { Alert, AlertProps, H3, useHotkeys } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
 import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
@@ -101,7 +101,7 @@ export default function AppInit() {
         if (v.type !== "entry" && typeof v.plain_desc === "string")
           doc.push({ id, plain_desc: v.plain_desc })
       })
-      addDocuments("assets_update", doc)
+      addDocuments("assets", doc)
     })
     return ()=> { unlisten.then(f=> f()) }
   }, [])
@@ -116,7 +116,7 @@ export default function AppInit() {
           plain_desc: "TODO: fix this",
         })
       })
-      addDocuments("assets_update", doc)
+      addDocuments("assets", doc)
     })
     return ()=> { unlisten.then(f=> f()) }
   }, [])

@@ -616,19 +616,24 @@ function Provider:GetBank(args)
 				all_paths[k] = true
 			end
 		end
-		local result = {}
 		-- iter all assetpath and collect animation with bank
-		for k in pairs(all_paths)do
-			local anim = self:LoadAnim(k)
+		local result = {}
+		all_paths = ToArray(all_paths)
+		table.sort(all_paths)
+		local index = 0
+		for _, path in ipairs(all_paths)do
+			local anim = self:LoadAnim(path)
 			if anim then
 				for _,v in ipairs(anim.animlist)do
 					if v.bankhash == bank then
+						index = index + 1
 						table.insert(result, {
+							id = v.bankhash.."-"..index,
 							name = v.name,
 							facing = v.facing,
 							framerate = v.framerate,
 							numframes = v.numframes,
-							assetpath = k, -- anim/xxxx.zip
+							assetpath = path, -- anim/xxxx.zip
 						})
 					end
 				end
@@ -690,7 +695,6 @@ function Provider:LoadAnim(path)
 	local fs = self.root:Open(path)
 	if fs ~= nil then
 		local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ANIM)
-		print("zip decompressed")
 		if not zip.error then
 			local anim_raw = zip:Get("anim.bin")
 			if anim_raw == nil then
@@ -698,7 +702,6 @@ function Provider:LoadAnim(path)
 				return false
 			end
 			local anim = AnimLoader(CreateBytesReader(anim_raw))
-			print("Loaded")
 			if anim and not anim.error then
 				self.loaders.animbin[path] = anim
 				return anim
