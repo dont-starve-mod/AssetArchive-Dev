@@ -199,13 +199,13 @@ function elementLoader({build, imghash, index}:
   async function load(){
     try {
       elementLoading[id] = true
-      const response = await get<number[]>({type: "symbol_element", build, imghash, index, format: "png"})
+      const response = await get<number[]>({type: "symbol_element", build, imghash, index, format: "png", fill_gap: true})
       if (response.length > 0){
         const array = Uint8Array.from(response)
         const blob = new Blob([array])
         const img = await createImageBitmap(blob)
         delete elementLoading[id]
-        console.log("Load element success: " + id)
+        console.log("Load element success: " + id + ` (${img.width}✕${img.height})`)
         elementData[id] = img
       }
       else {
@@ -295,7 +295,7 @@ function onUpdate(time: number){
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
           if (anim.DEV_usingElementLoader && anim.elementLoader){
-            const element = anim.elementLoader({build: sourceBuild.name, imghash: symbol, index})
+            const element = anim.elementLoader({build: sourceBuild.name, imghash: symbol, index: img.index})
             if (!element) return
             const {width: WIDTH, height: HEIGHT} = element
             // const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
@@ -384,6 +384,14 @@ function addAnimState(
   (<AnimState>animstate).registerLoaders({...defaultLoaders, ...loaders} as any)
   canvas.anims.push(<AnimState>animstate)
 }
+
+// const getImgIndex = (imgList: ImageData[], index: number): number=> {
+//   let result = 0
+//   imgList.forEach((img, i)=> {
+//     if (img.index <= index) result = i
+//   })
+//   return result
+// }
 
 /** bisearch the actual image index to render */
 const getImgIndex = (imgList: ImageData[], index: number): number=> {
