@@ -8,6 +8,7 @@ import { update as UpdateLocal } from "./redux/reducers/localstorage"
 import { useDispatch, useSelector } from "./redux/store"
 import { FmodPlayingInfo } from "./components/AppFmodHandler"
 import { LocalStorage } from "./redux/reducers/localstorage"
+import { useSearchParams } from "react-router-dom"
 
 /* eslint-disable */
 
@@ -409,4 +410,11 @@ export function usePagingHandler<T>(items: Array<T>, options?: PageOptions) {
   return {
     prev, next, first, last, page: clampedPage, totalPage, range
   }
+}
+
+export function useChangeParams() {
+  const [params, setParams] = useSearchParams()
+  console.log(params, setParams)
+  return [params, setParams]
+
 }

@@ -1,7 +1,6 @@
 import React, { useCallback, useState, useMemo } from 'react'
-import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
-import { Button, Dialog, DialogBody, Icon, Menu, MenuItem } from '@blueprintjs/core'
+import { Button, Dialog, DialogBody, Menu, MenuItem } from '@blueprintjs/core'
 import { Popover2 } from '@blueprintjs/popover2'
 import { useCopySuccess, useLuaCall } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
@@ -13,17 +12,10 @@ type AssetFilePathProps = {
 }
 
 export default function AssetFilePath(props: AssetFilePathProps) {
-  let {type, path, name} = props
+  let {type, path} = props
   const success = useCopySuccess("path")
   const navigate = useNavigate()
   const [bundleInfo, setBundleInfo] = useState<{zippath: string}>()
-
-  const toXmlLink = useCallback(()=> {
-    const asset = window.assets.allxmlfile.find(item=> item.type === "xml" && item.file === path)
-    if (asset){
-      navigate("/asset?id=" + asset.id)
-    }
-  }, [path])
 
   const fevData = useMemo(()=> {
     if (type === "fev" || type === "fev_link") {
@@ -36,11 +28,25 @@ export default function AssetFilePath(props: AssetFilePathProps) {
     path = fevData ? fevData.file : "/"
   }
 
-  const toFevLink = useCallback(()=> {
-    if (fevData && fevData.id) {
-      navigate("/asset?id=" + fevData.id)
+  const xmlLink = useMemo(()=> {
+    if (type === "xml_link") {
+      const asset = window.assets.allxmlfile.find(item=> item.type === "xml" && item.file === path)
+      return asset && asset.id && "/asset?id=" + asset.id
     }
-  }, [fevData])
+  }, [path, type])
+
+  const fevLink = useMemo(()=> {
+    return type === "fev_link" && fevData && fevData.id && "/asset?id=" + fevData.id
+  }, [fevData, type])
+
+  const directURL = xmlLink || fevLink
+  const [open, setOpen] = useState(false)
+  const onInteraction = useCallback((open: boolean)=> {
+    if (open && directURL && window.keystate["ctrl"])
+      navigate(directURL)
+    else
+      setOpen(open)
+  }, [setOpen, directURL, navigate])
 
   const call = useLuaCall<string>("load", (result)=> {
     const data: any = JSON.parse(result)
@@ -51,7 +57,7 @@ export default function AssetFilePath(props: AssetFilePathProps) {
 
   const requestOpeningFolder = useCallback((select_databundle: boolean)=> {
     call({select_databundle})
-  }, [type, path, call])
+  }, [call])
 
   return (
     <div>
@@ -63,16 +69,21 @@ export default function AssetFilePath(props: AssetFilePathProps) {
           type === "fev" ? "文件路径：" :
           ""
         }
-        <Popover2 minimal placement="top" content={<Menu>
+        <Popover2 
+          minimal 
+          placement="top" 
+          isOpen={open}
+          onInteraction={onInteraction}
+          content={<Menu>
           <MenuItem text="拷贝路径" icon="duplicate" onClick={()=> writeText(path).then(()=> success())}/>
           {
             type !== "source" && <MenuItem text="打开文件位置" icon="folder-open" onClick={()=> requestOpeningFolder(false)}/>
           }
           {
-            type === "xml_link" && <MenuItem text="跳转到图集" icon="link" onClick={toXmlLink}/>
+            type === "xml_link" && <MenuItem text="跳转到图集" icon="link" onClick={()=> navigate(directURL)}/>
           }
           {
-            type === "fev_link" && Boolean(fevData) && <MenuItem text="跳转到音效包" icon="link" onClick={toFevLink}/>
+            type === "fev_link" && Boolean(fevData) && <MenuItem text="跳转到音效包" icon="link" onClick={()=> navigate(directURL)}/>
           }
         </Menu>}>
           <a 

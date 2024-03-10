@@ -83,7 +83,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://lw-0x4eb1a.github.io/AssetArchivePage/manifest/"
+        "https://asset-archive-page-dont-starve3-88a0c46a24df5a45ae1a89244d0837e.gitlab.io/manifest/"
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc5NTQ3NzUxOEE4QkQwQzMKUldURDBJdUtVWGRVZVdlRzdleC9Na0ZObytVOFhKcU5rM0NjSGpzdThiYTkzeC92bHViYTRlbjIK"

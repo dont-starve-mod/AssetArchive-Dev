@@ -95,7 +95,9 @@ export default function AssetPage() {
           <TexNoRefPage {...asset} key={id}/>
         </KeepAlive>
     case "shader":
-      return <ShaderPage {...asset} key={id}/>
+      return <KeepAlive key={id}>
+        <ShaderPage {...asset} key={id}/>
+      </KeepAlive>
     case "fmodevent":
       return <FmodEventPage {...asset} key={id}/>
     case "fmodproject":
@@ -274,9 +276,7 @@ function TexNoRefPage({id, file, is_cc}: {id: string, file: string, is_cc?: bool
       </Button>
       <H5>基本信息</H5>
       <p>分辨率: {resolution[0]}✕{resolution[1]}</p>
-      <p>资源路径: {file} &nbsp;
-        <Button icon="document-open" minimal={true}/>
-      </p>
+      <AssetFilePath type="tex" path={file}/>
       {
         is_cc && url.length > 0 && <CCMiniPlayground cc={url}/>
       }

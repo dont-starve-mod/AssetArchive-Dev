@@ -16,5 +16,5 @@ export default function smallhash(s: number | string): number {
   return m.get(s)
 }
 
-// console.log(smallhash("DontStarve"))
-// console.log(smallhash("老王天天写Bug"))
+//@ts-ignore
+window.smallhash = smallhash

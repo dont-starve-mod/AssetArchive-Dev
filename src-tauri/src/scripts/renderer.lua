@@ -292,6 +292,9 @@ function Render:Run()
 			if self.current_frame == nil then
 				error("self.current_frame not provided")
 			end
+			if not path:check_extention("png") then
+				path = path:with_extension("png")
+			end
 		elseif not FFmpegManager:IsAvailable() then
 			IpcEmitEvent("render_event", json.encode_compliant{
 				session_id = self.session_id,
@@ -450,11 +453,6 @@ function Render:Run()
 				})
 			end
 		end
-		-- IpcEmitEvent("render_event", json.encode_compliant({
-		-- 	session_id = self.session_id,
-		-- 	state = "render_element",
-		-- 	progress = index / #frame_list
-		-- }))
 	end
 
 	-- loop 2.1: run the multithreaded renderer

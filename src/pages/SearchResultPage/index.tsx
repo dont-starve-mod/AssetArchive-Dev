@@ -1,6 +1,6 @@
 import { Button, H3, H6, Icon, MenuItem, NumericInput, Radio, RadioGroup, Spinner, TabId, Tag } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
 import { AllAssetTypes } from "../../searchengine"
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
@@ -12,7 +12,7 @@ import { killPreviewSfx } from '../../components/Preview'
 import { useSelector } from '../../redux/store'
 import { Select2 } from '@blueprintjs/select'
 import { Classes, Popover2 } from '@blueprintjs/popover2'
-import { useLocalStorage } from '../../hooks'
+import { useChangeParams, useLocalStorage } from '../../hooks'
 import PageTurner from '../../components/PageTurner'
 
 // TODO: 该组件的保活机制还有一些问题，需要深入测试
@@ -27,6 +27,7 @@ const SEARCH_RESULT_TYPE_ALL = [
 export default function SearchResultPage() {
   const [param] = useSearchParams()
   const query = param.get("q")
+  const tab = param.get("tab")
 
   const [flag, forceUpdate] = useReducer(v=> v + 1, 0)
   const [loading, setLoading] = useState(true)
@@ -92,7 +93,16 @@ export default function SearchResultPage() {
 
 function SearchResultDisplay({result}: {result: Response}) {
   const {query, hits} = result
-  const [tab, selectTab] = useState<TabId>("all")
+  const [params, setParams] = useSearchParams()
+  const tabQ = params.get("tab") as TabId
+  const selectTab = useCallback((tab: TabId)=> {
+    setParams(v=> {
+      v.set("tab", tab as string)
+      return v
+    })
+  }, [setParams])
+  const tab = (SEARCH_RESULT_TYPE_ALL.find(v=> v.key === tabQ) || {key: "all"}).key
+  // const [tab, selectTab] = useState<TabId>("all")
   const [currentPages, setTabCurrentPages] = useState(
     Object.fromEntries(SEARCH_RESULT_TYPE_ALL.map(({key})=> [key, 0])))
   const numResultsPerPage = useSelector(({localstorage})=> localstorage.num_search_results_per_page)

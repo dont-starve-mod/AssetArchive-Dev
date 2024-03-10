@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { appWindow, getCurrent } from '@tauri-apps/api/window'
 import { FocusStyleManager } from "@blueprintjs/core"
 import "./App.css"
@@ -16,12 +16,14 @@ import { useAppSetting } from './hooks'
 import type { ArchiveItem, Bank, Entry, Shader } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import type { DefinedPresetGroup } from './components/AnimQuickLook/preset'
+import { invoke } from '@tauri-apps/api'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 // https://zhuanlan.zhihu.com/p/573735645 TODO:
 
 declare global {
 	interface Window {
+		meta: {debug: boolean},
 		app_init?: boolean,
 		keystate: {[key: string]: boolean},
 		assets: {
@@ -56,8 +58,18 @@ window.entry = []
 window.entry_map = {}
 
 export default function App() {
+	const [metaLoaded, setMetaLoaded] = useState(false)
+	useEffect(()=> {
+		async function load() {
+			// @ts-ignore
+			window.meta = {}
+			window.meta.debug = await invoke("get_is_debug")
+		}
+		load().then(()=> setMetaLoaded(true))
+	}, [])
+
 	const isSubwindow = getCurrent().label !== "main"
-	return !isSubwindow ? <AppMain/> : <AppSub/>
+	return metaLoaded && (!isSubwindow ? <AppMain/> : <AppSub/>)
 }
 
 function AppMain() {

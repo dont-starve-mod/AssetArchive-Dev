@@ -23,6 +23,11 @@ export function setAddr(addr: string) {
   //@ts-ignore
   window.client = state.client
 
+  if (false) {
+    state.client.index("assets").deleteAllDocuments()
+    state.client.index("anims").deleteAllDocuments()
+  }
+
   state.client.index("assets").updateSettings({
     filterableAttributes: ["type"],
     searchableAttributes: ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text", "animationList"],
@@ -54,30 +59,37 @@ function checkValid() {
     throw Error("Meilisearch client not valided")
 }
 
-export function addDocuments(index: IndexName, doc: any[], options?: DocumentOptions) {
+export function addDocuments(index: IndexName, docs: any[], options?: DocumentOptions) {
+  // check docs
+  let invalidDoc = docs.find(v=> !v.id)
+  if (invalidDoc){
+    console.error("Find invalid doc: ", invalidDoc)
+    window.alert("Find invalid doc\n" + JSON.stringify(invalidDoc))
+  }
   if (!isValid()){
     let pos = queuedDocs.findIndex(v=> {
-      if (v.index === index && v.doc.length === doc.length){
-        if (JSON.stringify(v.doc.slice(0, 10)) === JSON.stringify(doc.slice(0, 10))){
+      if (v.index === index && v.docs.length === docs.length){
+        if (JSON.stringify(v.docs.slice(0, 10)) === JSON.stringify(docs.slice(0, 10))){
           return true
         }
       }
+      return false
     })
     if (pos !== -1){
-      queuedDocs.push({index, doc, options})
+      queuedDocs.push({index, docs, options})
     }
     else {
-      queuedDocs.splice(pos, 1, {index, doc, options})
+      queuedDocs.splice(pos, 1, {index, docs, options})
     }
   }
   else {
-    queuedDocs.push({index, doc, options})
-    queuedDocs.forEach(({index, doc, options})=> {
+    queuedDocs.push({index, docs, options})
+    queuedDocs.forEach(({index, docs, options})=> {
       state.client.index(index)
-        .updateDocuments(doc, options)
+        .updateDocuments(docs, options)
         .then(
           response=> {
-            console.log("Updated meiliseach documents: " + index + "(" + doc.length + ")")
+            console.log("Updated meiliseach documents: " + index + "(" + docs.length + ")")
             // console.log(response)
           },
           error=> {

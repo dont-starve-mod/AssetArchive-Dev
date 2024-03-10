@@ -46,14 +46,23 @@ export default function KeepAlivePage(props: KeepAlivePageProps): React.JSX.Elem
       }
       appWindow.emit("unmount_cache", {cacheId, scrollTop})
     }
-  }, [mount, cache, props, cacheStates, cacheId])
+  }, [mount, cache, props, cacheStates, cacheId, addRecord, cacheNamespace])
 
   useEffect(()=> {
     let articleRef: HTMLElement | undefined = cacheStates["@widget"]
     articleRef?.addEventListener("scroll", ({target})=> {
       scroll.current = (target as HTMLElement).scrollTop
     })
-  }, [])
+  }, [cacheStates])
 
   return <div id={cacheId} ref={ref}/>
 }
+
+// no keepalive behavior in debug mode
+function KeepAlivePage_NoDev(props: KeepAlivePageProps) {
+  return window.meta.debug ?
+    props.children :
+    <KeepAlivePage {...props}>{props.children}</KeepAlivePage>
+}
+
+KeepAlivePage.NoDev = KeepAlivePage_NoDev

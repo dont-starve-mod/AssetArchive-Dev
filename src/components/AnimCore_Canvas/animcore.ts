@@ -381,8 +381,8 @@ function addAnimState(
     animstate = new AnimState(animstate)
   }
   // object type is consumed
-  (<AnimState>animstate).registerLoaders({...defaultLoaders, ...loaders} as any)
-  canvas.anims.push(<AnimState>animstate)
+  (animstate as AnimState).registerLoaders({...defaultLoaders, ...loaders} as any)
+  canvas.anims.push(animstate as AnimState)
 }
 
 // const getImgIndex = (imgList: ImageData[], index: number): number=> {
