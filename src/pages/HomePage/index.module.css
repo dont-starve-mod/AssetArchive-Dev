@@ -1,0 +1,49 @@
+.home {
+
+}
+
+.card-box {
+  max-width: 900px;
+}
+
+.card-box :global(.bp4-card) {
+  display: inline-flex;
+  position: relative;
+  min-width: 200px;
+  min-height: 80px;
+  padding: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+.card-box :global(.bp4-card) h6 {
+  margin: 0;
+}
+
+.card-box :global(.bp4-card) .clip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  /* border: 1px solid black; */
+  height: 95px;
+  filter: url(#grey);
+  opacity: .75;
+  /* transition: all .5s; */
+}
+
+.card-box :global(.bp4-card):hover .clip {
+  filter: none;
+  opacity: 1;
+}
+
+.hidden-hint {
+  position: absolute;
+  bottom: 15px;
+  left: 10px;
+  color: #999;
+  opacity: 0;
+}
+
+.card-box :global(.bp4-card):hover .hidden-hint {
+  opacity: 1;
+}
