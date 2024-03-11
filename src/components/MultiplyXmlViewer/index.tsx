@@ -1,0 +1,243 @@
+import { Button, Checkbox, InputGroup, Spinner, Tag } from '@blueprintjs/core'
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import SortableField from '../SortableField'
+import { search } from '../../global_meilisearch'
+import { useCopyTexElement, useLocalStorage, useLuaCallOnce, usePagingHandler, useSaveFileCall } from '../../hooks'
+import Preview from '../Preview'
+import style from './index.module.css'
+import PageTurner from '../PageTurner'
+import PopoverMenu from '../PopoverMenu'
+
+type MultiplyXmlViewerProps = {
+  xml?: string,
+  xmlList?: string[] | (()=> string[]),
+  deprecatedXmlList?: string[],
+}
+
+export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
+  const {xml, xmlList, deprecatedXmlList = []} = props
+  const [_, forceUpdate] = useReducer(v => v + 1, 0)
+  const [resData, setResData] = useState<{[id: string]: {width: number, height: number}}>({})
+  const assetLoaded = Array.isArray(window.assets.alltexelement) && window.assets.alltexelement.length > 0
+
+  useEffect(()=> {
+    let timer = setInterval(()=> {
+      if (!assetLoaded) forceUpdate()
+    }, 500)
+    return ()=> clearInterval(timer)
+  }, [assetLoaded, forceUpdate])
+
+  const listStr = assetLoaded && (JSON.stringify(
+    Array.isArray(xmlList) ? xmlList : 
+    typeof xmlList === "function" ? xmlList() :
+    typeof xml === "string" ? [xml] :
+    []))
+  const allTex = useMemo(()=> {
+    return assetLoaded && window.assets.alltexelement.filter(
+      v=> listStr.indexOf(v.xml) !== -1
+    ).toSorted()
+  }, [listStr, assetLoaded])
+
+  useLuaCallOnce<string>("load", response=> {
+    const xmlData = JSON.parse(response)
+    const resData = {}
+    // @ts-ignore
+    Object.values(xmlData).forEach(({elements})=> {
+      elements.forEach(({id, width, height})=> {
+        resData[id] = {
+          width, height
+        }
+      })
+    })
+    setResData(resData)
+  }, {type: "xml", file_list: listStr}, [listStr], [typeof listStr === "string"])
+
+  const [query, setQuery] = useState("")
+  const hasQuery = query.trim() !== ""
+  const [queryResult, setQueryResult] = useState<{[id: string]: true}>({})
+
+  useEffect(()=> {
+    if (!hasQuery) return
+    search("assets", query, {
+      filter: "type = tex AND xml IN " + listStr,
+    }).then(response=> {
+      if (response.query === query){
+        let result = {}
+        response.hits.forEach(v=> result[v.id] = true)
+        setQueryResult(result)
+      }
+    })
+  }, [query, hasQuery, listStr])
+
+  const [sort, setSort] = useLocalStorage("multiple_xml_sort_strategy")
+  const [filter, setFilter] = useLocalStorage("multiple_xml_filter_strategy")
+  const filterDeprecated = filter.indexOf("-deprecated") !== -1
+
+  const items = useMemo(()=> {
+    if (!assetLoaded) return []
+    const queryItems = hasQuery ? allTex.filter(v=> queryResult[v.id]) : allTex
+    const filteredItems = filterDeprecated ? queryItems.filter(v=> deprecatedXmlList.indexOf(v.xml) === -1) : queryItems
+    const getWidth = (id: string)=> resData[id] ? resData[id].width : 0
+    const getHeight = (id: string)=> resData[id] ? resData[id].height : 0
+    const sortedItems = filteredItems.sort((a, b)=> {
+      for (let s of sort){
+        switch(s){
+          case "name.a-z":
+          case "name.z-a":
+            return (s === "name.a-z" ? 1 : -1) * a.tex.localeCompare(b.tex)
+          case "res.width.0-9":
+          case "res.width.9-0":
+            return (s === "res.width.0-9") === (getWidth(a.id) < getWidth(b.id)) ? -1 : 1
+          case "res.height.0-9":
+          case "res.height.9-0":
+            return (s === "res.height.0-9") === (getHeight(a.id) < getHeight(b.id)) ? -1 : 1
+          default:
+            if (s.startsWith("xml-")){
+              const ax = ("xml-" + a.xml) === s
+              const bx = ("xml-" + b.xml) === s
+              if (ax !== bx) return ax ? -1 : 1
+            }
+        }
+      }
+      return 0
+    })
+    return sortedItems
+  }, [assetLoaded, hasQuery, filterDeprecated, allTex, queryResult, sort, deprecatedXmlList, resData])
+
+  const handler = usePagingHandler(items)
+  const {range, first} = handler
+
+  const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
+    const value = e.currentTarget.value
+    setSort([value, ...sort.filter(v=> v !== value && !v.startsWith("xml-"))])
+    first()
+  }, [sort, setSort, first])
+
+  const copy = useCopyTexElement(null, null)
+  const download = useSaveFileCall(
+    {type: "image"},
+    "image",
+    "image.png", [])
+
+  if (!assetLoaded) {
+    return (
+      <div>
+        <p>正在加载...</p>
+        <Spinner style={{justifyContent: "left"}}/>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div style={{display: "flex", alignContent: "center", marginBottom: 5}}>
+        <InputGroup
+          placeholder= "筛选"
+          spellCheck="false"
+          autoComplete="off"
+          leftIcon="filter"
+          small
+          style={{maxWidth: 200}}
+          value={query}
+          onChange={e=> setQuery(e.currentTarget.value)}
+        />
+        {
+          deprecatedXmlList.length > 0 && 
+          <Checkbox 
+            checked={filterDeprecated}
+            onChange={e=> setFilter(e.currentTarget.checked ? ["-deprecated"] : [])}
+            style={{marginLeft: 10}}>
+            隐藏弃用的图集（{deprecatedXmlList}）
+          </Checkbox>
+        }
+      </div>
+      <div style={{marginBottom: 5}}>
+        <Button style={{marginRight: 4}} onClick={()=> window.alert("TODO:")}>
+          导出全部 <Tag minimal>{allTex.length}</Tag>
+        </Button>
+        <Button disabled={items.length === 0} onClick={()=> window.alert("TODO:")}>
+          导出筛选结果<Tag minimal>{items.length}</Tag>
+        </Button>
+      </div>
+      <table className={`bp4-html-table ${style["compact-table"]}`}>
+        <thead>
+          <tr>
+            <th>
+              <SortableField text="图片名" selectedValue={sort[0]} onChange={onChangeSort} choices={[
+                {label: "按图片名排序（a–z）", value: "name.a-z"},
+                {label: "按图片名排序（z–a）", value: "name.z-a"},
+              ]}
+              />
+            </th>
+            <th style={{minWidth: 120}}>
+              <SortableField text="分辨率" selectedValue={sort[0]} onChange={onChangeSort} choices={[
+                {label: "按宽度排序（从大到小）", value: "res.width.9-0"},
+                {label: "按宽度排序（从小到大）", value: "res.width.0-9"},
+                {label: "按高度排序（从大到小）", value: "res.height.9-0"},
+                {label: "按高度排序（从小到大）", value: "res.height.0-9"},
+              ]}
+              />
+            </th>
+            <th>
+              <SortableField.NoSort text="预览"/>
+            </th>
+            <th>
+              <SortableField.NoSort text="操作"/>
+            </th>
+            <th>
+              <SortableField text="所属图集" selectedValue={sort[0]} onChange={onChangeSort} choices={
+                typeof listStr === "string" ?
+                  JSON.parse(listStr).map(
+                    (v: string)=> ({label: `将${v}置顶`, value: "xml-" + v})) : []
+              }
+              />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            items.map(({id, xml, tex}, i)=> {
+              return i >= range[0] && i <= range[1] && 
+              <tr key={id}>
+                <td>
+                  <PopoverMenu menu={[
+                    {icon: "duplicate", text: "拷贝路径", copyText: xml},
+                    {icon: "link", text: "查看详情", directURL: `/asset?id=${id}`},
+                  ]}>
+                    {tex}
+                  </PopoverMenu>
+                </td>
+                <td>{resData[id] ? `${resData[id].width}✕${resData[id].height}` : "-"}</td>
+                <td>
+                  <Preview.Image xml={xml} tex={tex} width={40} height={40}/>
+                </td>
+                <td style={{minWidth: 100}}>
+                  <Button icon="duplicate" style={{marginRight: 4}}  onClick={()=> {
+                    copy({xml, tex})
+                  }}/>
+                  <Button icon="download" onClick={()=> {
+                    download({xml, tex, defaultPath: tex})
+                  }}/>
+                </td>
+                <td>
+                  <PopoverMenu menu={[
+                    {icon: "duplicate", text: "拷贝路径", copyText: xml},
+                  ]}>
+                    {xml}
+                  </PopoverMenu>
+                  </td>
+              </tr>
+            })
+          }
+        </tbody>
+      </table>
+      <PageTurner {...handler}/>
+    </div>
+  )
+}
+
+function XmlViewer(props: {xml: string}) {
+  return <MultiplyXmlViewer xml={props.xml} />
+}
+
+MultiplyXmlViewer.Single = XmlViewer

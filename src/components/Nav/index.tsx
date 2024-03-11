@@ -7,7 +7,7 @@ import { useAppSetting, useLocalStorage, useOS } from '../../hooks'
 import style from './style.module.css'
 import { AllAssetTypes, ArchiveItem } from '../../searchengine'
 import { Popover2 } from '@blueprintjs/popover2'
-import { search } from '../../global_meilisearch'
+import { SEARCHABLE_FIELDS, search } from '../../global_meilisearch'
 import TinySlider from '../TinySlider'
 import { formatAlias } from '../AliasTitle'
 import Hash, { useHashToString } from '../HumanHash'
@@ -30,7 +30,11 @@ export default function Nav() {
   useEffect(()=> {
     if (showResult && !isCompisiting) {
       setLoading(true)
-      search("assets", query, {limit: 1000, showMatchesPosition: true}).then(
+      search("assets", query, {
+        limit: 1000,
+        showMatchesPosition: true,
+        attributesToSearchOn: SEARCHABLE_FIELDS.filter(v=> v!== "animationList")
+      }).then(
         result=> {
           if (result.query !== query) return
           setSearchResult(result.hits.map(({id, _matchesPosition})=> {

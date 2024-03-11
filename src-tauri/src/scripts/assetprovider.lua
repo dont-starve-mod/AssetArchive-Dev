@@ -1158,6 +1158,15 @@ function Provider:GetXml(args)
 			end
 			return result
 		end
+	elseif args.file_list ~= nil then
+		if type(args.file_list) == "string" then
+			args.file_list = json.decode(args.file_list)
+		end
+		local result = {}
+		for _,v in ipairs(args.file_list)do
+			result[v] = self:GetXml({file = v})
+		end
+		return result
 	end
 end
 

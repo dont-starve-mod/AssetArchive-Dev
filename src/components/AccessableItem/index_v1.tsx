@@ -2,20 +2,37 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import MatchText from '../../components/MatchText'
 import Preview from '../../components/Preview'
-import { H3 } from '@blueprintjs/core'
+import { Card, H3, H5 } from '@blueprintjs/core'
 import style from "./index.module.css"
 import { Hit } from 'meilisearch'
 import { ArchiveItem } from '../../searchengine'
 import AliasTitle, { formatAlias } from '../AliasTitle'
 import { useHashToString } from '../HumanHash'
-import ClickableTag from '../ClickableTag'
 
 const PREIVEW_SIZE = { width: 50, height: 50 }
 const MARK_STYLE: React.CSSProperties = { fontWeight: 800 }
 
 type Result = Hit & ArchiveItem
 
-export function AccessableItem(props: Result){
+export function AccessableItem(props: Result) {
+  const {type, id, plain_desc} = props
+  const match = props._matchesPosition || {}
+  const navigate = useNavigate()
+  const hashToString = useHashToString()
+  return (
+    <Card 
+      interactive 
+      className={style["box"]}
+      onClick={()=> navigate("/asset?id=" + encodeURIComponent(id))}
+    >
+      <H5>{props.file || props.tex || props.xml} </H5>
+
+
+    </Card>
+  )
+}
+
+function AccessableItem_(props: Result){
   const {type, id, plain_desc} = props
   const match = props._matchesPosition || {}
   const navigate = useNavigate()
@@ -27,40 +44,6 @@ export function AccessableItem(props: Result){
         // props.onClickItem()
         navigate("/asset?id=" + encodeURIComponent(id))
       }}>
-      <div className={style["left"]}>
-        <H3>
-          {
-            (type === "animzip" || type === "animdyn") ? 
-              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
-            type === "xml" ? 
-              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
-            type === "tex" ?
-              <MatchText text={props.tex} match={match["tex"]} style={MARK_STYLE}/> :
-            type === "tex_no_ref" ?
-              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
-            type === "shader" ?
-              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
-            type === "fmodevent" ? 
-              <MatchText text={props.path} match={match["path"]} style={MARK_STYLE}/> :
-            type === "fmodproject" ?
-              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
-            type === "bank" ?
-              <MatchText text={hashToString(props.bank)} style={MARK_STYLE}/> :
-            type === "entry" ?
-              <MatchText text={props.plain_alias} match={match["alias"]} style={MARK_STYLE}/> :
-            <></>
-          }
-          <ClickableTag type={type} minimal/>
-        </H3>
-        
-        <p>
-          {/* {
-            desc &&
-            <AssetDescFormatter.PlainText desc={plain_desc}/>
-          } */}
-          {plain_desc}
-        </p>
-      </div>
       <div className={style["preview-box"] + " bp4-elevation-1"} style={{...PREIVEW_SIZE}}>
         {
           type === "tex" ? 
@@ -87,6 +70,38 @@ export function AccessableItem(props: Result){
             // <Preview.Entry/> :
           <></>
         }
+      </div>
+      <div className={style["left"]}>
+        <H3>
+          {
+            (type === "animzip" || type === "animdyn") ? 
+              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "xml" ? 
+              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "tex" ?
+              <MatchText text={props.tex} match={match["tex"]} style={MARK_STYLE}/> :
+            type === "tex_no_ref" ?
+              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "shader" ?
+              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "fmodevent" ? 
+              <MatchText text={props.path} match={match["path"]} style={MARK_STYLE}/> :
+            type === "fmodproject" ?
+              <MatchText text={props.file} match={match["file"]} style={MARK_STYLE}/> :
+            type === "bank" ?
+              <MatchText text={hashToString(props.bank)} style={MARK_STYLE}/> :
+            type === "entry" ?
+              <MatchText text={props.plain_alias} match={match["alias"]} style={MARK_STYLE}/> :
+            <></>
+          }
+        </H3>
+        <p>
+          {/* {
+            desc &&
+            <AssetDescFormatter.PlainText desc={plain_desc}/>
+          } */}
+          {plain_desc}
+        </p>
       </div>
       
     </div>

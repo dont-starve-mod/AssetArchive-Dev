@@ -5,7 +5,7 @@ import { SEARCH_RESULT_TYPE } from '../../strings'
 import { AllAssetTypes } from "../../searchengine"
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import style from "./index.module.css"
-import { maxTotalHits, Response, isValid, searchWithCache } from '../../global_meilisearch'
+import { maxTotalHits, Response, isValid, searchWithCache, SEARCHABLE_FIELDS } from '../../global_meilisearch'
 import { AccessableItem } from '../../components/AccessableItem'
 import { appWindow } from '@tauri-apps/api/window'
 import { killPreviewSfx } from '../../components/Preview'
@@ -45,6 +45,8 @@ export default function SearchResultPage() {
     searchWithCache("assets", query, {
       limit: maxTotalHits,
       showMatchesPosition: true,
+      // animationList is removed from searchable fields to make bank result accurate
+      attributesToSearchOn: SEARCHABLE_FIELDS.filter(v=> v !== "animationList"),
     }).then(
       result=> {
         setSearchResult({

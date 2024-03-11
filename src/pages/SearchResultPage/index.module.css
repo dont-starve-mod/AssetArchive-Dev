@@ -1,5 +1,5 @@
 .result-list {
-  overflow: visible auto;
+  /* overflow-y: auto; */
   max-height: calc(100vh - 160px);
 }
 

@@ -105,7 +105,7 @@ export default function HomePage() {
           <SubCard title="人物立绘" imgSrc={clips.bigportrait}/>
           <SubCard title="壁纸" imgSrc={clips.wallpaper}/>
           <SubCard title="物品栏图标" imgSrc={clips.inv}/>
-          <SubCard title="小地图图标" imgSrc={clips.minimap}/>
+          <SubCard title="小地图图标" imgSrc={clips.minimap} onClick={()=> navigate("/asset?id=x-3601866999-3307425600")}/>
           <SubCard title="图鉴" imgSrc={clips.scrapbook}/>
           <SubCard title="技能树" imgSrc={clips.skilltree}/>
           <SubCard title="UI" imgSrc={clips.ui}/>
@@ -120,7 +120,7 @@ export default function HomePage() {
           <SubCard title="音乐" imgSrc={clips.music}/>
           <SubCard title="人物语音" imgSrc={clips.voice}/>
           <SubCard title="环境声" imgSrc={clips.amb}/>
-          <SubCard title="所有音效包" imgSrc={clips.allfev}/>
+          <SubCard title="所有音效包" imgSrc={clips.allfev} onClick={()=> navigate("/search?q=.fev&tab=fmodproject")}/>
         </div>
         <H5>虫洞</H5>
         <p>这是一个神秘的虫洞，它的另一端可以通向任何地方...</p>

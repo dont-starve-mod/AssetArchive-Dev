@@ -17,6 +17,8 @@ type State = {
 const state: State = {}
 const queuedDocs: any[] = []
 
+export const SEARCHABLE_FIELDS = ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text"]
+
 export function setAddr(addr: string) {
   state.addr = addr
   state.client = new MeiliSearch({host: addr})
@@ -29,8 +31,8 @@ export function setAddr(addr: string) {
   }
 
   state.client.index("assets").updateSettings({
-    filterableAttributes: ["type"],
-    searchableAttributes: ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text", "animationList"],
+    filterableAttributes: ["type", "xml"],
+    searchableAttributes: SEARCHABLE_FIELDS,
     separatorTokens: ["/"],
     synonyms: SYNONYMS_MAP,
     pagination: {

@@ -8,6 +8,9 @@ type BankFilter = "-pre" | "-pst" | "-pre/pst" |  "-lag"
 type FevSort = "path.a-z" | "path.z-a" | "len.0-9" | "len.9-0" | "len.loop" | 
   "category.sfx" | "category.music" | "category.amb" | "no-param" | (string & {}) // param-xxx|yyyy
 type FevFilter = "-empty"
+type MultipleXmlSort = "name.a-z" | "name.z-a" | 
+  "res.width.9-0" | "res.width.0-9" | "res.height.9-0" | "res.height.0-9" | (string & {}) // xml-path/to/xml
+type MultipleXmlFilter = "-deprecated"
 
 export interface LocalStorage {
   num_search_results_per_page: number,
@@ -23,6 +26,8 @@ export interface LocalStorage {
   bank_filter_strategy: BankFilter[],
   fev_sort_strategy: FevSort[],
   fev_filter_strategy: FevFilter[],
+  multiple_xml_sort_strategy: MultipleXmlSort[],
+  multiple_xml_filter_strategy: MultipleXmlFilter[],
   fmod_param_value: {[K: string]: number}, // 0-1 percent
   toast_max_num: number,
   toast_alive_time: number,
@@ -71,6 +76,8 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     bank_filter_strategy: [],
     fev_sort_strategy: [],
     fev_filter_strategy: [],
+    multiple_xml_sort_strategy: [],
+    multiple_xml_filter_strategy: [],
     fmod_param_value: defaultFmodParam,
     toast_max_num: 5,
     toast_alive_time: 7,

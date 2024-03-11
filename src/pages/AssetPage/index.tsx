@@ -1421,10 +1421,10 @@ function BankPage(props: BankPageProps) {
 
   const filterCounts = useMemo(()=> {
     const counts = {
-      // ["-pre"]: 0,
-      // ["-pst"]: 0,
-      ["-pre/pst"]: 0,
-      ["-lag"]: 0,
+      // "-pre": 0,
+      // "-pst": 0,
+      "-pre/pst": 0,
+      "-lag": 0,
     }
     animationList.forEach(({isPre, isPst, isLag})=> {
       if (isPre || isPst)

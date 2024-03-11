@@ -1,67 +1,63 @@
 import { AnimState, Api, ApiArgType } from "./animstate"
-import { useCallback, useEffect, useReducer } from "react"
+import { useEffect, useMemo, useReducer } from "react"
 
 export function useAnimStateHook(animstate: AnimState) {
   const [_, forceUpdate] = useReducer(v=> v > 1000 ? 0 : v + 1, 0)
-
-  const insertApi = useCallback((name: Api["name"], args: ApiArgType[], index?: number)=> {
-    //@ts-ignore
-    animstate.insert({name, args}, index)
-    forceUpdate()
-  }, [])
-
-  const enableApi = useCallback((index: number)=> {
-    animstate.enableApi(index)
-    forceUpdate()
-  }, [])
-
-  const disableApi = useCallback((index: number)=> {
-    animstate.disableApi(index)
-    forceUpdate()
-  }, [])
-
-  const deleteApi = useCallback((index: number)=> {
-    animstate.deleteApi(index)
-    forceUpdate()
-  }, [])
-
-  const changeApiArg = useCallback((index: number, args: ApiArgType[])=> {
-    animstate.changeApiArg(index, args)
-    forceUpdate()
-  }, [])
-
-  const rearrange = useCallback((from: number, to: number)=> {
-    animstate.rearrange(from, to)
-    forceUpdate()
-  }, [])
-
-  const toggleFoldApi = useCallback((index: number)=> {
-    const unfold = animstate.toggleFoldApi(index)
-    forceUpdate()
-    return unfold
-  }, [])
 
   useEffect(()=> {
     const onRebuild = ()=> forceUpdate()
     animstate.addEventListener("rebuildsymbolsource", onRebuild)
     return ()=> animstate.removeEventListener("rebuildsymbolsource", onRebuild)
-  }, [])
+  }, [animstate])
 
-  const getLatestApi = useCallback(()=> {
-    const list = animstate.getApiList()
-    return list.length > 0 && list[list.length - 1]
-  }, [])
+  const animHandlers = useMemo(()=> {
+    const insertApi = (name: Api["name"], args: ApiArgType[], index?: number)=> {
+      //@ts-ignore
+      animstate.insert({name, args}, index)
+      forceUpdate()
+    }
+    const enableApi = (index: number)=> {
+      animstate.enableApi(index)
+      forceUpdate()
+    }
+    const disableApi = (index: number)=> {
+      animstate.disableApi(index)
+      forceUpdate()
+    }
+    const deleteApi = (index: number)=> {
+      animstate.deleteApi(index)
+      forceUpdate()
+    }
+    const changeApiArg = (index: number, args: ApiArgType[])=> {
+      animstate.changeApiArg(index, args)
+      forceUpdate()
+    }
+    const rearrange = (from: number, to: number)=> {
+      animstate.rearrange(from, to)
+      forceUpdate()
+    }
+    const toggleFoldApi = (index: number)=> {
+      const unfold = animstate.toggleFoldApi(index)
+      forceUpdate()
+      return unfold
+    }
+    const getLatestApi = ()=> {
+      const list = animstate.getApiList()
+      return list.length > 0 && list[list.length - 1]
+    }
+  
+    return {
+      insertApi,
+      enableApi,
+      disableApi,
+      deleteApi,
+      changeApiArg,
+      rearrange,
+      toggleFoldApi,
+      getLatestApi,
+      forceUpdate
+    }
+  }, [animstate])
 
-  return {
-    insertApi,
-    enableApi,
-    disableApi,
-    deleteApi,
-    changeApiArg,
-    rearrange,
-    toggleFoldApi,
-    getLatestApi,
-
-    forceUpdate,
-  }
+  return animHandlers
 }

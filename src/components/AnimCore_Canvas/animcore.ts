@@ -284,19 +284,20 @@ function onUpdate(time: number){
         if (canvas.render.axis === "back") renderAxis()
 
         ctx.save()
-        ctx.transform(...canvas.render.transform) /* 渲染参数矩阵 */
-        frame.forEach(({imghash, imgindex, layerhash, matrix})=> {
-          if (!anim.shouldRender({imghash, layerhash})) return
+        ctx.transform(...canvas.render.transform)
+        for (let element of frame){
+          const {imghash, imgindex, layerhash, matrix} = element
+          if (!anim.shouldRender({imghash, layerhash})) continue
           const [sourceBuild, symbol] = anim.getSourceBuild(imghash)
           const imgList = sourceBuild && sourceBuild.symbolMap[symbol]
-          if (!imgList || imgList.length === 0) return
+          if (!imgList || imgList.length === 0) continue
           const index = getImgIndex(imgList, imgindex)
           const img = imgList[index]
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
           if (anim.DEV_usingElementLoader && anim.elementLoader){
             const element = anim.elementLoader({build: sourceBuild.name, imghash: symbol, index: img.index})
-            if (!element) return
+            if (!element) continue
             const {width: WIDTH, height: HEIGHT} = element
             // const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
             const x_scale = 1, y_scale = 1 // TODO: fix symbol resize
@@ -307,7 +308,7 @@ function onUpdate(time: number){
           }
           else {
             const atlas = anim.atlasLoader({build: sourceBuild.name, sampler})
-            if (!atlas) return
+            if (!atlas) continue
             const {width: WIDTH, height: HEIGHT} = atlas // Atlas image
             const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
             ctx.save()
@@ -316,7 +317,7 @@ function onUpdate(time: number){
               x-w/2, y-h/2, w, h) /* bbox & anchor */
             ctx.restore()
           }
-        })
+        }
         ctx.restore()
         if (canvas.render.axis === "front") renderAxis()
         ctx.restore()

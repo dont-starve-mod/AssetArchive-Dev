@@ -32,3 +32,14 @@ export default function SortableField(props: SortableFieldProps) {
     </Popover2>
   )
 }
+
+function NoSort(props: {text: string}) {
+  return (
+    <div style={{cursor: "pointer", display: "block"}}>
+      {props.text}
+      <Button minimal icon="blank" disabled style={{cursor: "default"}}/>
+    </div>
+  )
+}
+
+SortableField.NoSort = NoSort

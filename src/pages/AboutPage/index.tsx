@@ -1,9 +1,8 @@
-import React, { 
-  useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { H3, H5, Icon, Tag } from "@blueprintjs/core"
 import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api'
-import MiniAnimPlayerWidget from '../../components/MiniAnimPlayerWidget'
+import MultiplyXmlViewer from '../../components/MultiplyXmlViewer'
 
 function openURL(url: string) {
   invoke("open_url", { url })
@@ -11,12 +10,17 @@ function openURL(url: string) {
 
 export default function About() {
   const [version, setVersion] = useState("")
-
   useEffect(()=> {
     getVersion().then(v=> setVersion(v))
-  })
+  }, [])
+
   return (
     <div className="bp4-running-text">
+      <MultiplyXmlViewer
+        xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
+          v=> v.indexOf("images/inventoryimages") !== -1)}
+        deprecatedXmlList={["images/inventoryimages.xml"]}
+        />
       <H3 style={{marginTop: 15}}>
         饥荒资源档案
         <Tag minimal style={{marginBottom: 2, marginLeft: 4, verticalAlign: "middle"}}>
@@ -40,6 +44,12 @@ export default function About() {
       <H5>
         友情链接
       </H5>
+      <p>
+        <SimpleLink url="https://www.klei.com/games/dont-starve-together">《饥荒联机版》游戏官网</SimpleLink>
+      </p>
+      <p>
+        <SimpleLink url="https://dontstarve.huijiwiki.com/wiki/首页">饥荒维基</SimpleLink>
+      </p>
       <p>
         <SimpleLink url="https://github.com/kleientertainment/ds_mod_tools">Don't Starve Mod Tools</SimpleLink>
         （官方提供的模组制作和发布工具包）

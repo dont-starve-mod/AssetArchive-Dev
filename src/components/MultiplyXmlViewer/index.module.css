@@ -1,0 +1,20 @@
+.compact-table {
+  /* background-color: pink; */
+}
+
+.compact-table th {
+  text-align: left;
+}
+
+.compact-table td, .compact-table th {
+  padding: 2px 8px!important;
+  min-width: 80px;
+}
+
+.compact-table tr td {
+  padding: 4px!important;
+}
+
+.compact-table tr:hover {
+  background-color: #eee;
+}

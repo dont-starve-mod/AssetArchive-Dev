@@ -268,22 +268,20 @@ pub mod lua_image {
         fn merge_color(c1: Option<Rgba<u8>>, c2: Option<Rgba<u8>>, percent: f64) -> Option<Rgba<u8>> {
             match (c1, c2) {
                 (Some(c1), Some(c2))=> {
-                    let (a1, a2) = (c1[3] as f64, c2[3] as f64);
-                    let alpha = Self::normalize(a1 * percent + a2 * (1.0 - percent));
-                    let mut result = c1.map2(&c2, |v1, v2| Self::normalize(
-                        (v1 as f64 * a1* percent + v2 as f64 * a2* (1.0 - percent))/alpha as f64));
-                    result[3] = alpha;
-                    Some(result)
+                    let (a1, a2) = (c1[3] as f64 * percent, c2[3] as f64 * (1.0 - percent));
+                    let alpha = a1 + a2;
+                    Some(Rgba::from([
+                        Self::normalize((c1[0] as f64 * a1 + c2[0] as f64 * a2)/alpha),
+                        Self::normalize((c1[1] as f64 * a1 + c2[1] as f64 * a2)/alpha),
+                        Self::normalize((c1[2] as f64 * a1 + c2[2] as f64 * a2)/alpha),
+                        Self::normalize(alpha)
+                    ]))
                 },
                 (Some(c1), None)=> {
-                    let mut c1 = c1;
-                    c1[3]= Self::normalize(c1[3] as f64 * percent);
-                    Some(c1)
+                    Some(Rgba::from([c1[0], c1[1], c1[2], Self::normalize(c1[3] as f64 * percent)]))
                 },
                 (None, Some(c2))=> {
-                    let mut c2 = c2;
-                    c2[3]= Self::normalize(c2[3] as f64 * (1.0 - percent));
-                    Some(c2)
+                    Some(Rgba::from([c2[0], c2[1], c2[2], Self::normalize(c2[3] as f64 * (1.0 - percent))]))
                 },
                 (None, None)=> None,
             }

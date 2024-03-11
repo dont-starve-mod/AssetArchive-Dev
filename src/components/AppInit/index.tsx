@@ -57,7 +57,7 @@ function generateDocument(data: {[K: string]: ArchiveItem[]}) {
     else if (type === "bank") {
       const {bank, animationList} = item
       const bankName = window.hash.get(bank)
-      result.push({id, type, plain_text: `${bankName} ${bank.toString()}`, animationList})
+      result.push({id, type, plain_desc: bankName, animationList})
     }
     else {
       console.warn("Invalid asset type", item)
