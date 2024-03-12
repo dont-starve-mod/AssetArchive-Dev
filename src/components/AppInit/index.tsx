@@ -15,6 +15,7 @@ import { setAddr, addDocuments, search } from '../../global_meilisearch'
 import { useOS } from '../../hooks'
 import { formatAlias } from '../AliasTitle'
 import RenderProgress from '../RenderProgress'
+import { initStaticPageData } from '../../pages/AssetPage/static'
 
 // shutdown app if main window is closed. (so that all sub windows will be closed, too)
 globalListen("tauri://destroyed", (e)=> {
@@ -142,6 +143,7 @@ export default function AppInit() {
         await globalListen<string>("assets", ({payload})=> {
           const assets = JSON.parse(payload)
           window.assets = {...window.assets, ...assets}
+          initStaticPageData()
           Object.values(assets).forEach((list: AllAssetTypes[])=> {
             list.forEach(item=> window.assets_map[item.id] = item)
           })

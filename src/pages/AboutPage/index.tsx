@@ -16,11 +16,7 @@ export default function About() {
 
   return (
     <div className="bp4-running-text">
-      <MultiplyXmlViewer
-        xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
-          v=> v.indexOf("images/inventoryimages") !== -1)}
-        deprecatedXmlList={["images/inventoryimages.xml"]}
-        />
+      <MultiplyXmlViewer.Scrapbooks/>
       <H3 style={{marginTop: 15}}>
         饥荒资源档案
         <Tag minimal style={{marginBottom: 2, marginLeft: 4, verticalAlign: "middle"}}>

@@ -1224,6 +1224,45 @@ function Provider:BatchDownload(args)
 		end
 		IpcEmitEvent("progress", json.encode_compliant{ done = true })
 		return json.encode_compliant{ success = true, output_dir_path = output_dir_path:as_string() }
+	elseif type == "tex" then
+		local tex_list = assert(args.tex_list)
+		-- check name confliction
+		local names = {}
+		local xmls = {}
+		local create_sub_dir = false
+		for _,v in ipairs(tex_list)do
+			xmls[v.xml] = true
+			local name = NameOf(v.tex)
+			if names[name] ~= nil then
+				create_sub_dir = true
+			else
+				names[name] = true
+			end
+		end
+		local dir = CreateOutputDir(args.folder_name)
+		if create_sub_dir then
+			for k in pairs(xmls)do
+				local sub_dir = dir/Filenamify(k:gsub(".xml", ""))
+				assert(sub_dir:create_dir(), "Failed to create directory: "..tostring(sub_dir))
+				xmls[k] = sub_dir
+			end
+		end
+		local select_path = nil
+		for _,v in ipairs(tex_list)do
+			local xml, tex = v.xml, v.tex
+			local img = self:GetImage({xml = xml, tex = tex, format = "img"})
+			if img ~= nil then
+				if create_sub_dir then
+					-- save to sub directory
+					img:save(xmls[xml]/(NameOf(tex)..".png"))
+					select_path = select_path or xmls[xml]
+				else
+					img:save(dir/(NameOf(tex)..".png"))
+					select_path = select_path or dir/(NameOf(tex)..".png")
+				end
+			end
+		end
+		return json.encode_compliant{ success = true, output_dir_path = select_path:as_string() }
 	elseif type == "build" then
 		local file = args.build or args.file
 		local build = self:LoadBuild(self.index:GetBuildFile(file))

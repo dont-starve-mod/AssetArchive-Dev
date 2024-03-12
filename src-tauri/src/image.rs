@@ -163,6 +163,8 @@ pub mod lua_image {
     use rlua::Value;
     use rlua::{Function, MetaMethod, UserData, UserDataMethods, Variadic, Table};
 
+    use crate::filesystem::lua_filesystem::ConvertArgToString;
+
     use super::*;
     pub struct Image {
         pub width: u32, 
@@ -601,8 +603,12 @@ pub mod lua_image {
                 }
             });
             // save image to path
-            _methods.add_method("save", |_, img: &Self, path: String|{
-                if let Err(err) = img.save(&path) {
+            _methods.add_method("save", |_, img: &Self, path: Value|{
+                let path = match path.to_string() {
+                    Ok(s)=> s,
+                    Err(_)=> return Err(LuaError::ToLuaConversionError { from: "(lua)", to: "Path | string", message: None }),
+                };
+                if let Err(err) = img.save(path.as_str()) {
                     eprintln!("Failed to save image `{}` because of Error: {}", path, err);
                     Ok(false)
                 }

@@ -17,6 +17,7 @@ export function useBasicPredicter(
   const predict_ready = useSelector(({appstates})=> appstates.predict_init_flag)
   useEffect(()=> {
     if (!predict_ready) return
+    console.log(field, payload)
     let unmountFlag = false
     let session = predict.search(field, payload)
     session.then(
@@ -26,7 +27,7 @@ export function useBasicPredicter(
       predict.terminate(session.id)
       unmountFlag = true 
     }
-  }, [payload, predict_ready])
+  }, [payload, predict_ready, field])
 
   const hasPredicted = result !== undefined
   const bestMatch = result && result.length && result[0].matches[0].value

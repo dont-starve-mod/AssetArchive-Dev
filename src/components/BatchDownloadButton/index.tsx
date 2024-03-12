@@ -36,7 +36,7 @@ export default function BatchDownloadButton(props: BatchDownloadButtonProps) {
       setLoading(true)
       call({...props, target_dir: dirpath})
     }
-  }, [call])
+  }, [call, props])
 
   return (
     <Button loading={loading} icon="download" onClick={()=> fn()}>

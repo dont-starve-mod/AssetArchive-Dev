@@ -28,10 +28,11 @@ import { byte2facing } from '../../facing'
 import PopoverMenu from '../../components/PopoverMenu'
 import smallhash from '../../smallhash'
 import SortableField from '../../components/SortableField'
-import store, { useSelector } from '../../redux/store'
+import { useSelector } from '../../redux/store'
 import { invoke } from '@tauri-apps/api'
 import PageTurner from '../../components/PageTurner'
 import TinySlider from '../../components/TinySlider'
+import StaticPage from './static'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -48,6 +49,7 @@ function getTypeKeyById(id: string): string {
     case "f": return id.startsWith("fev") ? "allfmodproject" : "allfmodevent"
     case "e": return "entry"
     case "b": return id.startsWith("bank-") ? "allbank" : "unknown"
+    case "S": return id.startsWith("STATIC-") ? "allstaticpage" : "unknown"
   }
   throw Error("Failed to get type key: " + id)
 }
@@ -111,6 +113,10 @@ export default function AssetPage() {
     case "bank":
       return <KeepAlive key={id}>
         <BankPage key={id} bank={Number(id.substring(("bank-".length)))}/>
+      </KeepAlive>
+    case "multi_xml":
+      return <KeepAlive key={id}>
+        <StaticPage {...asset} key={id}/>
       </KeepAlive>
     default:
       return <AssetInvalidPage type="invalid-type" typeName={type}/>

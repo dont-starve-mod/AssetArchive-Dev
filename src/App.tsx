@@ -13,7 +13,7 @@ import cacheContext from './components/KeepAlive/cacheContext'
 import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import { useAppSetting } from './hooks'
-import type { ArchiveItem, Bank, Entry, Shader } from './searchengine'
+import type { ArchiveItem, Bank, Entry, Shader, StaticArchiveItem } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import type { DefinedPresetGroup } from './components/AnimQuickLook/preset'
 import { invoke } from '@tauri-apps/api'
@@ -35,6 +35,7 @@ declare global {
 			allkshfile: Shader[],
 			allfmodevent: FmodEvent[],
 			allfmodproject: FmodProject[],
+			allstaticpage: StaticArchiveItem[],
 
 			allbank: Bank[],
 		}

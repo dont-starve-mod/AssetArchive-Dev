@@ -2,20 +2,64 @@ import { Button, Checkbox, InputGroup, Spinner, Tag } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import SortableField from '../SortableField'
 import { search } from '../../global_meilisearch'
-import { useCopyTexElement, useLocalStorage, useLuaCallOnce, usePagingHandler, useSaveFileCall } from '../../hooks'
+import { useCopyTexElement, useLocalStorage, useLuaCall, useLuaCallOnce, usePagingHandler, useSaveFileCall } from '../../hooks'
 import Preview from '../Preview'
 import style from './index.module.css'
 import PageTurner from '../PageTurner'
 import PopoverMenu from '../PopoverMenu'
+import { open } from '@tauri-apps/api/dialog'
+import { Tex } from '../../searchengine'
+import { appWindow } from '@tauri-apps/api/window'
 
 type MultiplyXmlViewerProps = {
   xml?: string,
   xmlList?: string[] | (()=> string[]),
-  deprecatedXmlList?: string[],
+  deprecatedXmlList?: string[] | ((v: string)=> boolean),
+  hideXmlSource?: true,
+  exportFolderName?: string,
+}
+
+function BatchExportingButton(props: {text: string, items: Tex[], buttonStyle?: React.CSSProperties}) {
+  // @ts-ignore TODO: fix export folder
+  const {exportFolderName = "export", items, text, buttonStyle} = props
+  const [loading, setLoading] = useState(false)
+  const exportImages = useLuaCall<string>("batch_download", response=> {
+    const data = JSON.parse(response)
+    setLoading(false)
+    if (data.success)
+      appWindow.emit("toast", {
+        message: "导出成功",
+        icon: "saved", 
+        intent: "success",
+        savepath: data.output_dir_path 
+      })
+  }, {type: "tex"}, [])
+
+  const onClickExport = useCallback(async(items: Tex[])=> {
+    const dirpath = await open({
+      directory: true,
+      multiple: false,
+      title: ""
+    })
+    if (typeof dirpath === "string"){
+      setLoading(true)
+      exportImages({
+        target_dir: dirpath,
+        tex_list: items.map(({xml, tex})=> ({xml, tex})),
+        folder_name: exportFolderName,
+      })
+    }
+  }, [exportImages, exportFolderName])
+
+  return (
+    <Button loading={loading} style={buttonStyle} onClick={()=> onClickExport(items)}>
+      {text} <Tag minimal>{items.length}</Tag>
+    </Button>
+  )
 }
 
 export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
-  const {xml, xmlList, deprecatedXmlList = []} = props
+  const {xml, xmlList, hideXmlSource = false, exportFolderName = "export"} = props
   const [_, forceUpdate] = useReducer(v => v + 1, 0)
   const [resData, setResData] = useState<{[id: string]: {width: number, height: number}}>({})
   const assetLoaded = Array.isArray(window.assets.alltexelement) && window.assets.alltexelement.length > 0
@@ -27,16 +71,30 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
     return ()=> clearInterval(timer)
   }, [assetLoaded, forceUpdate])
 
-  const listStr = assetLoaded && (JSON.stringify(
+  const listStr = assetLoaded ? (JSON.stringify(
     Array.isArray(xmlList) ? xmlList : 
     typeof xmlList === "function" ? xmlList() :
     typeof xml === "string" ? [xml] :
-    []))
+    [])) : "[]"
+
   const allTex = useMemo(()=> {
     return assetLoaded && window.assets.alltexelement.filter(
       v=> listStr.indexOf(v.xml) !== -1
     ).toSorted()
   }, [listStr, assetLoaded])
+
+  const deprecatedXmlList = useMemo(()=> {
+    if (typeof props.deprecatedXmlList === "function") 
+      return JSON.parse(listStr).filter(props.deprecatedXmlList)
+    else if (Array.isArray(props.deprecatedXmlList))
+      return props.deprecatedXmlList
+    else 
+      return []
+  }, [props.deprecatedXmlList, listStr])
+
+  const deprecatedXmlListStr = deprecatedXmlList.length === 1 ?
+    deprecatedXmlList[0] : 
+    `${deprecatedXmlList[0]}等${deprecatedXmlList.length}个图集`
 
   useLuaCallOnce<string>("load", response=> {
     const xmlData = JSON.parse(response)
@@ -64,6 +122,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
       if (response.query === query){
         let result = {}
         response.hits.forEach(v=> result[v.id] = true)
+        console.log(response.hits)
         setQueryResult(result)
       }
     })
@@ -104,7 +163,9 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
     return sortedItems
   }, [assetLoaded, hasQuery, filterDeprecated, allTex, queryResult, sort, deprecatedXmlList, resData])
 
-  const handler = usePagingHandler(items)
+  const handler = usePagingHandler(items, {
+    resetScroll: ()=> document.getElementById("app-article")?.scrollTo(0, 1)
+  })
   const {range, first} = handler
 
   const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
@@ -147,17 +208,19 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
             checked={filterDeprecated}
             onChange={e=> setFilter(e.currentTarget.checked ? ["-deprecated"] : [])}
             style={{marginLeft: 10}}>
-            隐藏弃用的图集（{deprecatedXmlList}）
+            隐藏弃用的图集（{deprecatedXmlListStr}）
           </Checkbox>
         }
       </div>
       <div style={{marginBottom: 5}}>
-        <Button style={{marginRight: 4}} onClick={()=> window.alert("TODO:")}>
+        {/* <Button style={{marginRight: 4}} onClick={()=> onClickExport(allTex)}>
           导出全部 <Tag minimal>{allTex.length}</Tag>
         </Button>
-        <Button disabled={items.length === 0} onClick={()=> window.alert("TODO:")}>
+        <Button disabled={items.length === 0} onClick={()=> onClickExport(items)}>
           导出筛选结果<Tag minimal>{items.length}</Tag>
-        </Button>
+        </Button> */}
+        <BatchExportingButton text="导出全部" items={allTex} buttonStyle={{marginRight: 4}}/>
+        <BatchExportingButton text="导出筛选结果" items={items}/>
       </div>
       <table className={`bp4-html-table ${style["compact-table"]}`}>
         <thead>
@@ -184,19 +247,22 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
             <th>
               <SortableField.NoSort text="操作"/>
             </th>
-            <th>
-              <SortableField text="所属图集" selectedValue={sort[0]} onChange={onChangeSort} choices={
-                typeof listStr === "string" ?
-                  JSON.parse(listStr).map(
-                    (v: string)=> ({label: `将${v}置顶`, value: "xml-" + v})) : []
-              }
-              />
-            </th>
+            {
+              !hideXmlSource && 
+              <th>
+                <SortableField text="所属图集" selectedValue={sort[0]} onChange={onChangeSort} choices={
+                  typeof listStr === "string" ?
+                    JSON.parse(listStr).map(
+                      (v: string)=> ({label: `将${v}置顶`, value: "xml-" + v})) : []
+                }
+                />
+              </th>
+            }
           </tr>
         </thead>
         <tbody>
           {
-            items.map(({id, xml, tex}, i)=> {
+            items.map(({id, xml, tex, plain_desc}, i)=> {
               return i >= range[0] && i <= range[1] && 
               <tr key={id}>
                 <td>
@@ -206,6 +272,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
                   ]}>
                     {tex}
                   </PopoverMenu>
+                  <p style={{color: "#aaa"}}>{plain_desc}</p>
                 </td>
                 <td>{resData[id] ? `${resData[id].width}✕${resData[id].height}` : "-"}</td>
                 <td>
@@ -219,13 +286,16 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
                     download({xml, tex, defaultPath: tex})
                   }}/>
                 </td>
-                <td>
-                  <PopoverMenu menu={[
-                    {icon: "duplicate", text: "拷贝路径", copyText: xml},
-                  ]}>
-                    {xml}
-                  </PopoverMenu>
+                {
+                  !hideXmlSource && 
+                  <td>
+                    <PopoverMenu menu={[
+                      {icon: "duplicate", text: "拷贝路径", copyText: xml},
+                    ]}>
+                      {xml}
+                    </PopoverMenu>
                   </td>
+                }
               </tr>
             })
           }
@@ -236,8 +306,79 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
   )
 }
 
-function XmlViewer(props: {xml: string}) {
-  return <MultiplyXmlViewer xml={props.xml} />
+function getIndex(xml: string) {
+  return parseInt(xml.match(/\d+/)?.[0] || "99999")
 }
 
-MultiplyXmlViewer.Single = XmlViewer
+MultiplyXmlViewer.InventoryImages = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={()=> window.assets.allxmlfile
+        .map(v=> v.file)
+        .filter(v=> v.indexOf("images/inventoryimages") !== -1)
+        .toSorted((a, b)=> getIndex(a) - getIndex(b))}
+      deprecatedXmlList={["images/inventoryimages.xml"]}
+    />
+  )
+}
+
+MultiplyXmlViewer.Wallpapers = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
+        v=> v.indexOf("images/bg_loading_loading") !== -1)}
+    />
+  )
+}
+
+MultiplyXmlViewer.CharacterPortraits = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
+        v=> v.indexOf("bigportraits/") !== -1)}
+      deprecatedXmlList={v=> v.indexOf("_") === -1}
+    />
+  )
+}
+
+MultiplyXmlViewer.Minimaps = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
+        v=> v.indexOf("minimap/minimap_data") !== -1)}
+    />
+  )
+}
+
+MultiplyXmlViewer.UI = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={[
+        "images/ui.xml",
+        "images/global_redux.xml",
+        "images/hud.xml",
+        "images/hud2.xml",
+        "images/button_icons.xml",
+        "images/button_icons2.xml",
+      ]}
+    />
+  )
+}
+
+MultiplyXmlViewer.Skilltrees = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
+        v=> v.indexOf("images/skilltree") !== -1)}
+    />
+  )
+}
+
+MultiplyXmlViewer.Scrapbooks = ()=> {
+  return (
+    <MultiplyXmlViewer
+      xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
+        v=> v.indexOf("images/scrapbook") !== -1)}
+    />
+  )
+}

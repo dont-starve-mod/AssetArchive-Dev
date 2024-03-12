@@ -4,7 +4,7 @@ import { useAppSetting, useOS } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
 import * as clips from './clips'
 import style from './index.module.css'
-import { ArchiveItem, TexNoRef } from '../../searchengine'
+import { ArchiveItem, StaticArchiveItem, TexNoRef } from '../../searchengine'
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import smallhash from '../../smallhash'
 
@@ -65,6 +65,9 @@ export default function HomePage() {
   ].join(" ")
 
   const randomAsset = useRandomAsset()
+  const toStatic = useCallback((type: StaticArchiveItem["type"], name: string)=> {
+    navigate(`/asset?id=STATIC@${type}.${name}`)
+  }, [navigate])
 
   return (
     <KeepAlivePage.NoDev cacheNamespace="assetPage">
@@ -102,13 +105,13 @@ export default function HomePage() {
         </div>
         <H5>图片</H5>
         <div className={style["card-box"]}>
-          <SubCard title="人物立绘" imgSrc={clips.bigportrait}/>
-          <SubCard title="壁纸" imgSrc={clips.wallpaper}/>
-          <SubCard title="物品栏图标" imgSrc={clips.inv}/>
-          <SubCard title="小地图图标" imgSrc={clips.minimap} onClick={()=> navigate("/asset?id=x-3601866999-3307425600")}/>
-          <SubCard title="图鉴" imgSrc={clips.scrapbook}/>
-          <SubCard title="技能树" imgSrc={clips.skilltree}/>
-          <SubCard title="UI" imgSrc={clips.ui}/>
+          <SubCard title="人物立绘" imgSrc={clips.bigportrait} onClick={()=> toStatic("multi_xml", "CharacterPortraits")}/>
+          <SubCard title="壁纸" imgSrc={clips.wallpaper} onClick={()=> toStatic("multi_xml", "Wallpapers")}/>
+          <SubCard title="物品图标" imgSrc={clips.inv} onClick={()=> toStatic("multi_xml", "InventoryImages")}/>
+          <SubCard title="小地图图标" imgSrc={clips.minimap} onClick={()=> toStatic("multi_xml", "Minimaps")}/>
+          <SubCard title="图鉴" imgSrc={clips.scrapbook} onClick={()=> toStatic("multi_xml", "Scrapbooks")}/>
+          <SubCard title="技能树" imgSrc={clips.skilltree} onClick={()=> toStatic("multi_xml", "Skilltrees")}/>
+          <SubCard title="UI" imgSrc={clips.ui} onClick={()=> toStatic("multi_xml", "UI")}/>
         </div>
         <H5>人物动画</H5>
         <div className={style["card-box"]}>

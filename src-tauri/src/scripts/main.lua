@@ -91,13 +91,6 @@ IpcHandlers.Register("showroot", function()
 end)
 
 IpcHandlers.Register("load", function(param)
-	-- type     build|animation|atlas|image|xml|symbol_element
-	-- rw       <number>
-	-- rh       <number>
-	-- format   rgba|img|png|copy|save
-	-- 
-	-- xml[type=image]
-	-- tex[type=image]
 	assert(type(param) == "table", "Ipc<load> only accept table param")
 	local result = GLOBAL.prov:Load(param)
 	if param.result_type ~= nil and type(result) ~= param.result_type then

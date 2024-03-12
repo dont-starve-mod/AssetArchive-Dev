@@ -26,8 +26,6 @@ export default class Searcher {
     switch (url){
       case "renderer_predict_worker":
         return new Worker(new URL("./renderer_predict_worker", import.meta.url), {type: "module"})
-      case "searchengine_worker":
-        return new Worker(new URL("./searchengine_worker", import.meta.url), {type: "module"})
       case "renderer_fuse_worker":
         return new Worker(new URL("./renderer_fuse_worker", import.meta.url), {type: "module"})
       default:
@@ -53,7 +51,7 @@ export default class Searcher {
     const worker = this.workers[id]
     if (!worker) return this.newWorker(id)
     const {state} = worker
-    if (state === "new" || state == "idle") {
+    if (state === "new" || state === "idle") {
       return worker
     }
     else if (state === "terminated" || state === "error") {

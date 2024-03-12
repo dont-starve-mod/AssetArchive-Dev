@@ -15,6 +15,3 @@ export default function smallhash(s: number | string): number {
   m.set(s, Number(h))
   return m.get(s)
 }
-
-//@ts-ignore
-window.smallhash = smallhash
