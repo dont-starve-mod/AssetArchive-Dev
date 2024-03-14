@@ -27,12 +27,13 @@ import { formatAlias, sortedAlias } from '../../components/AliasTitle'
 import { byte2facing } from '../../facing'
 import PopoverMenu from '../../components/PopoverMenu'
 import smallhash from '../../smallhash'
-import SortableField from '../../components/SortableField'
+import SortableField, { useSoundSorter } from '../../components/SortableField'
 import { useSelector } from '../../redux/store'
 import { invoke } from '@tauri-apps/api'
 import PageTurner from '../../components/PageTurner'
 import TinySlider from '../../components/TinySlider'
 import StaticPage from './static'
+import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../format'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -761,35 +762,6 @@ type FevRefFileList = Array<{
   }
 }>
 
-enum CategoryPrefix {
-  SFX = "master/set_sfx/",
-  MUSIC = "master/set_music/",
-  AMB = "master/set_ambience/",
-}
-
-const formatSoundCategory = (category: string)=> {
-  if (category.startsWith(CategoryPrefix.SFX))
-    return "音效" 
-  else if (category.startsWith(CategoryPrefix.MUSIC))
-    return "音乐"
-  else if (category.startsWith(CategoryPrefix.AMB))
-    return "环境声"
-  else
-    return category
-}
-
-const formatSoundLength = (lengthms: number)=> {
-  if (lengthms < 0) {
-    return "无限循环"
-  }
-  else if (lengthms < 1000) {
-    return `${lengthms}毫秒`
-  }
-  else {
-    return `${(lengthms/1000).toFixed(2)}秒`
-  }
-}
-
 function FmodEventPage(props: FmodEvent) {
   const {id, path, project, lengthms, category, param_list} = props
   const typeStr = formatSoundCategory(category)
@@ -942,7 +914,7 @@ function FmodProjectPage(props: FmodProject) {
 
   const allEventList = useMemo(()=> {
     return window.assets.allfmodevent
-      .filter(v=> v.project_name === name)
+      .filter(v=> v.project === name)
       .sort((a, b)=> a.path.toLowerCase() < b.path.toLowerCase() ? -1 : 1)
   }, [name])
 
@@ -958,7 +930,6 @@ function FmodProjectPage(props: FmodProject) {
     }).then(response=> {
       if (response.query !== query) return
       const result = {}
-      console.log(response.hits)
       response.hits.forEach(({fmodpath})=> result[fmodpath] = true)
       setQueryResult(result)
     })
@@ -989,7 +960,6 @@ function FmodProjectPage(props: FmodProject) {
     if (noEmpty) {
       list = allEventList.filter(v=> abstract[v.path] && abstract[v.path].has_sounddef)
       numFiltered = allEventList.length - list.length
-      console.log(list.length)
     }
     else {
       list = allEventList
@@ -1000,51 +970,8 @@ function FmodProjectPage(props: FmodProject) {
     return [list, numFiltered]
   }, [noEmpty, abstract, queryResult, allEventList])
 
-  const sortedItems = useMemo(()=> items.toSorted((a, b)=> {
-    for (let s of sort) {
-      let prefix = "" // test prefix for category
-      let loopIs = Infinity // always place loop to bottom, unless sort by `len.loop`
-      switch (s) {
-        case "path.a-z":
-        case "path.z-a":
-          if (a.path !== b.path)
-            return (a.path < b.path) === (s === "path.a-z") ? -1 : 1
-        
-        case "category.amb":
-          prefix = prefix || CategoryPrefix.AMB
-        case "category.music":
-          prefix = prefix || CategoryPrefix.MUSIC
-        case "category.sfx":
-          prefix = prefix || CategoryPrefix.SFX
-          const ac = a.category.startsWith(prefix)
-          const bc = b.category.startsWith(prefix)
-          if (ac !== bc)
-            return ac ? -1 : 1
-        
-        case "len.loop":
-        case "len.9-0":
-          loopIs = -1
-        case "len.0-9":
-          const al = a.lengthms < 0 ? loopIs : a.lengthms
-          const bl = b.lengthms < 0 ? loopIs : b.lengthms
-          if (al !== bl)
-            return (al < bl) === (s === "len.0-9" || s === "len.loop") ? -1 : 1
-
-        case "no-param":
-          const anp = a.param_list.length === 0
-          const bnp = b.param_list.length === 0
-          if (anp !== bnp)
-            return anp ? -1 : 1
-        default:
-          // param-xxxxx
-          const ap = Boolean(a.param_list.find(({name})=> `param-${name}` === s))
-          const bp = Boolean(b.param_list.find(({name})=> `param-${name}` === s))
-          if (ap !== bp)
-            return ap ? -1 : 1
-      }
-    }
-    return 0
-  }), [items, sort])
+  const compareFn = useSoundSorter(sort)
+  const sortedItems = useMemo(()=> items.toSorted(compareFn), [items, compareFn])
 
   // collect sort data
   const sortData = useMemo(()=> {
@@ -1214,7 +1141,7 @@ function FmodProjectPage(props: FmodProject) {
 }
 // TODO: 轮播模式
 
-function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
+export function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
   const SFX_ID = "PREVIEW_SFX"
   const {path, param_list} = props
   const isPlaying = useSelector(({appstates})=> 
@@ -1261,7 +1188,7 @@ function PlayIcon(props: {path: string, param_list: FmodEvent["param_list"]}) {
   )
 }
 
-function ParamSlider(props: {name: string, range: [number, number]}) {
+export function ParamSlider(props: {name: string, range: [number, number]}) {
   const {name, range} = props
   const [fmod_param_value, setParam] = useLocalStorage("fmod_param_value")
   const {[name]: percent = 0.5} = fmod_param_value
@@ -1276,16 +1203,21 @@ function ParamSlider(props: {name: string, range: [number, number]}) {
     })})
   }, [name, range, fmod_param_value, setParam])
   return (
-    <Popover2 minimal placement="top" 
-      content={<div style={{width: 100}}>
-        <TinySlider min={0} max={1} stepSize={0.01}
-          value={percent}
-          onChange={onChange}/>
-      </div>}>
-      <Tag key={name} minimal interactive style={{marginBottom: 3}}>
-        {name}
-      </Tag>
-    </Popover2>
+    <div style={{display: "block"}}>
+      <Popover2 
+        minimal 
+        placement="top" 
+        content={
+        <div style={{width: 100}}>
+          <TinySlider min={0} max={1} stepSize={0.01}
+            value={percent}
+            onChange={onChange}/>
+        </div>}>
+        <Tag key={name} minimal interactive style={{marginBottom: 3}}>
+          {name}
+        </Tag>
+      </Popover2>
+    </div>
   )
 }
 

@@ -25,45 +25,52 @@ globalListen("tauri://destroyed", (e)=> {
 
 function generateDocument(data: {[K: string]: ArchiveItem[]}) {
   const result = []
-  Object.values(data).forEach(v=> v.forEach(item=> {
-    const {id, type} = item
-    if (type === "animdyn" || type === "animzip"){
-      const {file} = item
-      result.push({id, type, file})
+  Object.entries(data).forEach(([k, v])=> {
+    console.log("generate for key: " + k, Array.isArray(v))
+    if (!Array.isArray(v)) return
+    for (let item of v){
+      const {id, type} = item
+      if (type === "animdyn" || type === "animzip"){
+        const {file} = item
+        result.push({id, type, file})
+      }
+      else if (type === "tex"){
+        const {xml, tex} = item
+        result.push({id, type, xml, tex})
+      }
+      else if (type === "tex_no_ref"){
+        const {file} = item
+        result.push({id, type, file})
+      }
+      else if (type === "xml"){
+        const {file, texpath} = item
+        result.push({id, type, file,texpath})
+      }
+      else if (type === "fmodevent"){
+        const {path} = item
+        result.push({id, type, fmodpath: path})
+      }
+      else if (type === "fmodproject"){
+        const {file} = item
+        result.push({id, type, file})
+      }
+      else if (type === "shader") {
+        const {file, _vs, _ps} = item
+        result.push({id, type, file})
+      }
+      else if (type === "bank") {
+        const {bank, animationList} = item
+        const bankName = window.hash.get(bank)
+        result.push({id, type, plain_desc: bankName, animationList})
+      }
+      else if (type === "multi_xml"){
+        // TODO: push static entry to meilisearch?
+      }
+      else {
+        console.warn("Invalid asset type", item)
+      }
     }
-    else if (type === "tex"){
-      const {xml, tex} = item
-      result.push({id, type, xml, tex})
-    }
-    else if (type === "tex_no_ref"){
-      const {file} = item
-      result.push({id, type, file})
-    }
-    else if (type === "xml"){
-      const {file, texpath} = item
-      result.push({id, type, file,texpath})
-    }
-    else if (type === "fmodevent"){
-      const {path} = item
-      result.push({id, type, fmodpath: path})
-    }
-    else if (type === "fmodproject"){
-      const {file} = item
-      result.push({id, type, file})
-    }
-    else if (type === "shader") {
-      const {file, _vs, _ps} = item
-      result.push({id, type, file})
-    }
-    else if (type === "bank") {
-      const {bank, animationList} = item
-      const bankName = window.hash.get(bank)
-      result.push({id, type, plain_desc: bankName, animationList})
-    }
-    else {
-      console.warn("Invalid asset type", item)
-    }
-  }))
+  })
   const ids = new Set()
   result.forEach(item=> {
     if (!item.id) {
@@ -102,6 +109,7 @@ export default function AppInit() {
         if (v.type !== "entry" && typeof v.plain_desc === "string")
           doc.push({ id, plain_desc: v.plain_desc })
       })
+      console.log(doc)
       addDocuments("assets", doc)
     })
     return ()=> { unlisten.then(f=> f()) }
@@ -151,34 +159,29 @@ export default function AppInit() {
           searchengine.initPayload = ()=> window.assets
         }),
         await globalListen<string>("assetdesc", async ({payload})=> {
-          // Hook: fetch local data for dev
-          try {
-            let host = await invoke("dev_host")
-            if (host !== ""){
-              console.log("Load assetdesc from " + host)
-              let response = await fetch(host + "/assetdesc.lua")
-              payload = await response.text()
-              payload = JSON.parse(payload.substring(7))
-              console.log("Success")
-            }
-          }
-          catch(e){
-            // console.log("Failed to fetch, skip...")
-          }
-          // End of hook
           const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
           Object.entries(assetdesc).forEach(([k, v])=> {
-            let desc = []
-            for (let i = 1; i < 1000; ++i) {
-              const d = v[i.toString()]
-              if (d){
-                desc.push(d)
-              }
-              else{
-                break
-              }
+            if (window.assets_map[k] === undefined){
+              return console.log("Warning: cannot assign desc for " + k)
             }
+
+            let desc = []
+            for (let i = 1; i < 100; ++i) {
+              const d = v[i.toString()]
+              if (d) {
+                desc.push(d)
+                if (d.startsWith("#")){
+                  window.assets_tag[d] = window.assets_tag[d] || {}
+                  window.assets_tag[d][k] = window.assets_map[k]
+                }
+              }
+              else
+                break
+            }
+            // @ts-ignore
             window.assets_map[k].desc = desc
+            // @ts-ignore
+            // TODO: 也许需要一个更好的写法来避免屎山
             window.assets_map[k].plain_desc = v.plain_desc
           })
           appWindow.emit("update_assets_desc")

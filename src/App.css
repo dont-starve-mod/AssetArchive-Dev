@@ -130,3 +130,36 @@ footer a:hover {
   user-select: none;
   -webkit-user-select: none;
 }
+
+.compact-table th {
+  text-align: left;
+}
+
+.compact-table td, .compact-table th {
+  padding: 2px 8px!important;
+  min-width: 80px;
+}
+
+.compact-table tr td {
+  padding: 4px!important;
+}
+
+.compact-table tr:hover {
+  background-color: #eee;
+}
+
+.bp4-dark .compact-table tr:hover {
+  background-color: #fff3;
+}
+
+.compact-table td.max-width-400 {
+  max-width: 400px;
+  /* overflow: hidden; */
+  /* text-overflow: ellipsis; */
+}
+
+.compact-table td.max-width-400 .bp4-popover2-target {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -39,7 +39,8 @@ declare global {
 
 			allbank: Bank[],
 		}
-		assets_map: {[K: string]: ArchiveItem},
+		assets_map: {[id: string]: ArchiveItem},
+		assets_tag: {[tag: string]: {[id: string]: ArchiveItem}},
 		entry: Entry[],
 		entry_map: {[K: string]: Entry},
 		animpreset: {
@@ -55,6 +56,7 @@ declare global {
 }
 
 window.assets_map = {}
+window.assets_tag = {}
 window.entry = []
 window.entry_map = {}
 

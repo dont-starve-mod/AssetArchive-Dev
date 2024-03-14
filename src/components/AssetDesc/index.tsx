@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import type { RichText, AssetDescLine } from '../../assetdesc'
 import style from './index.module.css'
+import { useNavigate } from 'react-router-dom'
 
 type AssetDescProps = {
   id: string,
@@ -13,6 +14,23 @@ function addPunc(s: string) {
   }
   return s
 }
+export type AssetTag = "#music" | "#ambient_sound" | "#character_voice" 
+
+function TagLink(props: {tag: string}) {
+  const {tag} = props
+  const link = useMemo(()=> {
+    switch (tag as AssetTag) {
+      case "#music": return "STATIC@sound.music"
+      case "#ambient_sound": return "STATIC@sound.ambient"
+      case "#character_voice": return "STATIC@sound.character_voice"
+      default: return ""
+    }
+  }, [tag])
+  const navigate = useNavigate()
+  return (
+    <a onClick={()=> navigate("/asset?id="+link)}>{tag}</a>
+  )
+}
 
 export default function AssetDesc(props: AssetDescProps) {
   const asset = window.assets_map[props.id || ""]
@@ -23,10 +41,15 @@ export default function AssetDesc(props: AssetDescProps) {
     <div className={style["box"]}>
       {
         Array.isArray(desc) && desc.length > 0 ? desc.map(v=> {
-          if (typeof v === "string")
-            return <p style={{wordWrap: "break-word", whiteSpace: "pre-line"}}>
-              {addPunc(v)}
-            </p>
+          if (typeof v === "string") {
+            return !v.startsWith("#") ?
+              <p style={{wordWrap: "break-word", whiteSpace: "pre-line"}}>
+                {addPunc(v)}
+              </p> :
+              <p>
+                <TagLink tag={v}/>
+              </p>
+          }
           else
             return <RichTextFormatter desc={v as RichText}/>
         }) :

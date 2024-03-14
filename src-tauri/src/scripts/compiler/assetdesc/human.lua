@@ -241,9 +241,18 @@ function HumanAnnotator:Music(data)
 	end
 
 	for path, desc in pairs(data)do
+		print(path)
 		path_collction[path] = nil
+		local asset = Asset("fmodevent", {path = path})
 		-- no need to check, it's ok that sound path not exists
-		self:AddDesc(Asset("fmodevent", {path = path}), desc, {check_exists = false})
+		self:AddDesc(asset, desc, {check_exists = false})
+		-- tags
+		if path:find("dontstarve/cave/nightmare") then
+			self:AddDesc(asset, "#ambient_sound", {check_exists = false, append = true})
+		else
+			self:AddDesc(asset, "#music", {check_exists = false, append = true})
+		end
+
 	end
 
 	for path, v in pairs(path_collction)do

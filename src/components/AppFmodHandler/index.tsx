@@ -80,8 +80,6 @@ export default function AppFmodHandler() {
             data.id = `f-${data.hash}`
             //@ts-ignore
             data.type = "fmodevent"
-            //@ts-ignore
-            data.project_name = name
             allfmodevent.push(data)
           })
           allfmodproject.push({

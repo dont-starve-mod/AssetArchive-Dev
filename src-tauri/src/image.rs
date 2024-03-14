@@ -1,4 +1,5 @@
 use image::io::Reader as ImageReader;
+use once_cell::sync::Lazy;
 use rlua::{Value, FromLua, Context};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 use std::hash::Hash;
@@ -166,6 +167,63 @@ pub mod lua_image {
     use crate::filesystem::lua_filesystem::ConvertArgToString;
 
     use super::*;
+
+    struct AsyncEncoder {
+        condvar: Arc<Condvar>,
+        tasks: Arc<Mutex<Vec<(Image, String)>>>,
+    }
+
+    impl AsyncEncoder {
+        fn new() -> Self {
+            let num_threads = num_cpus::get().min(16);
+            let condvar = Arc::new(Condvar::new());
+            let tasks = Arc::new(Mutex::new(Vec::<(Image, String)>::new()));
+            let _workers = (0..num_threads).map(|_|{
+                let condvar = Arc::clone(&condvar);
+                let tasks = Arc::clone(&tasks);
+                spawn(move ||{
+                    loop {
+                        let (img, path) = {
+                            let mut tasks = tasks.lock().unwrap();
+                            while tasks.is_empty() {
+                                tasks = condvar.wait(tasks).unwrap();
+                            }
+                            tasks.pop().unwrap()
+                        };
+                        if let Err(err) = img.save(path.as_str()) {
+                            eprintln!("Failed to save image `{}` because of Error: {}", path, err);
+                        }
+                        condvar.notify_all(); // notify main thread to check if tasks cleared
+                    }
+                })
+            }).collect::<Vec<_>>();
+    
+            Self {
+                condvar,
+                tasks,
+            }
+        }
+
+        /// add a new image encoding task to thread pool
+        fn add_task(&self, img: Image, path: String) {
+            let mut tasks = self.tasks.lock().unwrap();
+            tasks.push((img, path));
+            self.condvar.notify_all();
+        }
+
+        /// block until all tasks finished
+        fn wait(&self) {
+            let mut tasks = self.tasks.lock().unwrap();
+            while !tasks.is_empty() {
+                tasks = self.condvar.wait(tasks).unwrap();
+            }
+        }
+    }
+
+    static ASYNC_SAVER: Lazy<Mutex<AsyncEncoder>> = Lazy::new(||{
+        Mutex::new(AsyncEncoder::new())
+    });
+
     pub struct Image {
         pub width: u32, 
         pub height: u32,
@@ -419,6 +477,14 @@ pub mod lua_image {
             self.inner.save(path)
         }
 
+        #[inline]
+        pub fn save_async(&self, path: &str) {
+            ASYNC_SAVER.lock().unwrap().add_task(
+                self.clone(),
+                path.to_string()
+            );
+        }
+
         pub fn save_png_bytes(&self) -> Vec<u8> {
             let mut writer = std::io::Cursor::new(Vec::<u8>::with_capacity(10000));
             image::write_buffer_with_format(&mut writer, 
@@ -615,6 +681,15 @@ pub mod lua_image {
                 else {
                     Ok(true)
                 }
+            });
+            // async save image to path
+            _methods.add_method("save_async", |_, img: &Self, path: Value|{
+                let path = match path.to_string() {
+                    Ok(s)=> s,
+                    Err(_)=> return Err(LuaError::ToLuaConversionError { from: "(lua)", to: "Path | string", message: None }),
+                };
+                img.save_async(path.as_str());
+                Ok(())
             });
             // get png file bytes of image
             _methods.add_method("save_png_bytes", |lua: Context, img: &Self, ()|{
@@ -948,6 +1023,11 @@ pub mod lua_image {
                 fns.get(3)?,
                 fns.get(4)?
             )
+        })?)?;
+
+        table.set("Wait", lua_ctx.create_function(|_, _: ()|{
+            ASYNC_SAVER.lock().unwrap().wait();
+            Ok(())
         })?)?;
 
         let globals = lua_ctx.globals();

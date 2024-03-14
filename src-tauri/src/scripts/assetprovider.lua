@@ -1254,14 +1254,15 @@ function Provider:BatchDownload(args)
 			if img ~= nil then
 				if create_sub_dir then
 					-- save to sub directory
-					img:save(xmls[xml]/(NameOf(tex)..".png"))
+					img:save_async(xmls[xml]/(NameOf(tex)..".png"))
 					select_path = select_path or xmls[xml]
 				else
-					img:save(dir/(NameOf(tex)..".png"))
+					img:save_async(dir/(NameOf(tex)..".png"))
 					select_path = select_path or dir/(NameOf(tex)..".png")
 				end
 			end
 		end
+		Image.Wait()
 		return json.encode_compliant{ success = true, output_dir_path = select_path:as_string() }
 	elseif type == "build" then
 		local file = args.build or args.file

@@ -1,5 +1,6 @@
 import type { AssetDesc, AssetDescLine } from './assetdesc'
 import type { FmodEventInfo, FmodProjectInfo } from './components/AppFmodHandler'
+import { AssetTag } from './components/AssetDesc'
 // import Fuse from 'fuse.js'
 // export type FuseResult<T> = Fuse.FuseResult<T>
 
@@ -64,7 +65,6 @@ export interface Shader extends IBasicAsset {
 export interface FmodEvent extends IBasicAsset, FmodEventInfo {
   type: "fmodevent",
   path: string,
-  project_name: string,
 }
 
 /** *.fev file */
@@ -77,7 +77,6 @@ export interface FmodProject extends IBasicAsset, FmodProjectInfo {
 type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef | Shader | FmodEvent | FmodProject
 export type AllAssetTypes = Asset
 export type Matches = Array<{indices: Array<[number, number]>, key: string}>
-// export type Result = AllAssetTypes & FuseResult<AllAssetTypes> & { matches: Matches }
 
 export type Entry = {
   id: string,
@@ -109,10 +108,21 @@ export type MultiXml = {
   title: string,
   type: "multi_xml",
   desc?: string | JSX.Element,
+  plain_desc?: string,
   element?: JSX.Element,
   // xmlList: string[], dynamic defined by js function
 }
 
-export type StaticArchiveItem = MultiXml
+export type MultiSound = {
+  id: string, // STATIC@multi-sound.Music
+  title: string,
+  type: "multi_sound",
+  tag?: AssetTag,
+  desc?: string | JSX.Element,
+  plain_desc?: string,
+  element?: JSX.Element,
+}
+
+export type StaticArchiveItem = MultiXml | MultiSound
 export type ArchiveItem = Asset | Entry | Bank | StaticArchiveItem
 

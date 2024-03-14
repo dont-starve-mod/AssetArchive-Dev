@@ -73,7 +73,6 @@ local function main(GLOBAL)
 	-- run animation preset
 	local run = require "compiler.animpreset.pmain"
 	run(GLOBAL)
-	exit()
 	-- run asset annotator
 	local run = require "compiler.assetdesc.dmain"
 	run(GLOBAL)

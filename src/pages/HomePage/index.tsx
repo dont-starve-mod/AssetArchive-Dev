@@ -126,7 +126,7 @@ export default function HomePage() {
           <SubCard title="所有音效包" imgSrc={clips.allfev} onClick={()=> navigate("/search?q=.fev&tab=fmodproject")}/>
         </div>
         <H5>虫洞</H5>
-        <p>这是一个神秘的虫洞，它的另一端可以通向任何地方...</p>
+        <p>这是一个神秘的虫洞，它可以通向任何地方...</p>
         <div className={style["card-box"]}>
           <SubCard title="随机动画包" imgSrc={clips.ran} onClick={()=> randomAsset("animzip")}/>
           <SubCard title="随机动画库" imgSrc={clips.ran} onClick={()=> randomAsset("bank")}/>

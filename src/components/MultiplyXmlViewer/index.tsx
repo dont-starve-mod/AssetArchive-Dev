@@ -4,7 +4,6 @@ import SortableField from '../SortableField'
 import { search } from '../../global_meilisearch'
 import { useCopyTexElement, useLocalStorage, useLuaCall, useLuaCallOnce, usePagingHandler, useSaveFileCall } from '../../hooks'
 import Preview from '../Preview'
-import style from './index.module.css'
 import PageTurner from '../PageTurner'
 import PopoverMenu from '../PopoverMenu'
 import { open } from '@tauri-apps/api/dialog'
@@ -122,7 +121,6 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
       if (response.query === query){
         let result = {}
         response.hits.forEach(v=> result[v.id] = true)
-        console.log(response.hits)
         setQueryResult(result)
       }
     })
@@ -213,16 +211,10 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
         }
       </div>
       <div style={{marginBottom: 5}}>
-        {/* <Button style={{marginRight: 4}} onClick={()=> onClickExport(allTex)}>
-          导出全部 <Tag minimal>{allTex.length}</Tag>
-        </Button>
-        <Button disabled={items.length === 0} onClick={()=> onClickExport(items)}>
-          导出筛选结果<Tag minimal>{items.length}</Tag>
-        </Button> */}
         <BatchExportingButton text="导出全部" items={allTex} buttonStyle={{marginRight: 4}}/>
         <BatchExportingButton text="导出筛选结果" items={items}/>
       </div>
-      <table className={`bp4-html-table ${style["compact-table"]}`}>
+      <table className={`bp4-html-table compact-table`}>
         <thead>
           <tr>
             <th>

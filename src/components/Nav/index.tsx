@@ -270,7 +270,7 @@ function QuickSearchResult({result, estimatedTotalHits, resultRef, onClickItem, 
     }
     window.addEventListener("keydown", onKeyDown)
     return ()=> window.removeEventListener("keydown", onKeyDown)
-  }, [setSelectedIndex, maxIndex, selectedIndex, onClickMore, scrollActiveItemIntoView])
+  }, [setSelectedIndex, maxIndex, selectedIndex, onClickMore, scrollActiveItemIntoView, navigate])
 
   return (
     <div className={style["quick-search-result"]} ref={resultRef} onMouseDown={e=> e.preventDefault()}>

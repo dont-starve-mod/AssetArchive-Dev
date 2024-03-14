@@ -3,9 +3,9 @@ import { createSlice } from "@reduxjs/toolkit"
 import type { PayloadAction, SliceCaseReducers } from "@reduxjs/toolkit"
 
 
-type BankSort = "name.a-z" | "name.z-a" | "0-9" | "9-0" | "path.a-z" | "path.z-a" | (string & {}) // facing-0|1|..255
+export type BankSort = "name.a-z" | "name.z-a" | "0-9" | "9-0" | "path.a-z" | "path.z-a" | (string & {}) // facing-0|1|..255
 type BankFilter = "-pre" | "-pst" | "-pre/pst" |  "-lag"
-type FevSort = "path.a-z" | "path.z-a" | "len.0-9" | "len.9-0" | "len.loop" | 
+export type FevSort = "path.a-z" | "path.z-a" | "project.a-z" | "project.z-a" | "len.0-9" | "len.9-0" | "len.loop" | 
   "category.sfx" | "category.music" | "category.amb" | "no-param" | (string & {}) // param-xxx|yyyy
 type FevFilter = "-empty"
 type MultipleXmlSort = "name.a-z" | "name.z-a" | 
