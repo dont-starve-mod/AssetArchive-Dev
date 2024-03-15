@@ -233,6 +233,7 @@ local AssetAnnotator = {
 				self:AddDesc(v, "物品栏图片（已弃用）")
 			elseif v.xml:startswith("images/inventoryimages") then
 				local name = NameOf(v.tex)
+				local name2, desc_template = self.human:GetInventoryImageRedirect(name)
 				local label = self.po:GetName(name)
 				local skin_label = self.po:GetSkinName(name)
 				if label then
@@ -347,8 +348,8 @@ local AssetAnnotator = {
 
 	Music = function(self)
 		local nightmare = self.src_hash("components/nightmareclock", 0x7b24b46f)
-		local ambient = self.src_hash("components/ambientsound", 0xa57a07a2)
-		local music = self.src_hash("components/dynamicmusic", 0x26a9d222)
+		local ambient   = self.src_hash("components/ambientsound", 0xa57a07a2)
+		local music     = self.src_hash("components/dynamicmusic", 0x26a9d222)
 		local function CollectFmodPath(s)
 			-- NOTE: only match double quotation marks
 			--	    "path/to/sound" √
@@ -370,14 +371,53 @@ local AssetAnnotator = {
 		end
 		
 		nightmare = CollectFmodPath(nightmare)
-		ambient = CollectFmodPath(ambient)
-		music = CollectFmodPath(music)
+		ambient   = CollectFmodPath(ambient)
+		music     = CollectFmodPath(music)
 
 		self.human:Music({
 			nightmare = nightmare,
-			-- ambient = ambient,
+			ambient = ambient,
 			music = music,
 		})
+	end,
+
+	CharacterVoice = function(self)
+		local names = self.human:GetCharacterVoiceName()
+		for _,v in ipairs(self.assets.allfevfile)do
+			for k, event in pairs(v.event_map)do
+				if k:startswith("characters") and event.has_sounddef then
+					local asset = Asset("fmodevent", {path = v.project_name.."/"..k --[[ full path ]]})
+					self:AddDesc(asset, "#character_voice", {check_exists = false})
+					local desc = names.others(k)
+					if desc then
+						self.human:AddDesc(asset, desc, {check_exists = false, append = true})
+					else
+						local _, _, prefab, type = k:find("/([^/]+)/(.+)$")
+						if prefab ~= nil then
+							if prefab ~= "skincollector" and prefab ~= "lava_arena" 
+								and prefab ~= "wilton" and prefab ~= "winnie" 
+								and prefab ~= "wallace" and prefab ~= "wyro"
+								and prefab ~= "corvus" and prefab ~= "crowkid"
+								then
+								-- TODO: fix anno for non players
+
+								local cname = assert(self.po:GetName(prefab), "Failed to get name: "..prefab)
+								local action = names[type]
+								if not action then
+									print(">>>>>", type)
+									self.human:AddDesc(asset, cname.."的语音", {check_exists = false, append = true})
+								else
+									self.human:AddDesc(asset, cname.."的语音 - "..action, {check_exists = false, append = true})
+								end							
+							end
+						else
+							print("Failed to parse character voice: "..k)
+						end
+					end
+				end
+				--
+			end
+		end
 	end,
 
 	CC = function(self)
@@ -431,6 +471,7 @@ local function run(env)
 	annotator:Scrapbook()
 	annotator:ImagePostLink()
 	annotator:Music()
+	annotator:CharacterVoice()
 	annotator:CC()
 	annotator:Deprecated()
 
@@ -442,6 +483,17 @@ local function run(env)
 	for id,v in pairs(annotator.data)do
 		data[id] = v
 		local plain_desc = {}
+
+		table.sort(v, function(a, b)
+			-- move tags to bottom 
+			local a_is_tag = type(a) == "string" and a:startswith("#")
+			local b_is_tag = type(b) == "string" and b:startswith("#")
+			if a_is_tag ~= b_is_tag then
+				return b_is_tag
+			else
+				return false
+			end
+		end)
 
 		for i, desc in ipairs(v)do
 			if desc == DUMMY_DESC then
@@ -461,6 +513,7 @@ local function run(env)
 			end
 			v[i] = desc
 		end
+
 		data[id].plain_desc = table.concat(plain_desc, " ")
 	end
 

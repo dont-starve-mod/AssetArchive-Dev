@@ -39,6 +39,13 @@ function Po:__call(key)
 end
 
 function Po:GetName(name)
+	if name == "wagstaff" then
+		-- TODO: move to external file
+		return "瓦格斯塔夫"
+	elseif name == "hermit" then
+		return self:GetName("HERMITCRAB")
+	end
+
 	return self("STRINGS.NAMES."..name:upper())
 end
 
@@ -91,6 +98,8 @@ local function main(GLOBAL)
 		"return "..
 		json.encode(FileSystem.GetString("entry.dat"))
 	)
+
+	print("compile done")
 end
 
 return {

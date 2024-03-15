@@ -34,6 +34,7 @@ import PageTurner from '../../components/PageTurner'
 import TinySlider from '../../components/TinySlider'
 import StaticPage from './static'
 import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../format'
+import MultiplySoundViewer from '../../components/MultiplySoundViewer'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -116,6 +117,7 @@ export default function AssetPage() {
         <BankPage key={id} bank={Number(id.substring(("bank-".length)))}/>
       </KeepAlive>
     case "multi_xml":
+    case "multi_sound":
       return <KeepAlive key={id}>
         <StaticPage {...asset} key={id}/>
       </KeepAlive>
@@ -896,7 +898,8 @@ function SoundRefList(props: {data: FevRefFileList, path: string}) {
   )
 }
 
-function FmodProjectPage(props: FmodProject) {
+/** remove, keep source code temporarily */
+function FmodProjectPage_(props: FmodProject) {
   const {file, name} = props
 
   useEffect(()=> {
@@ -1133,6 +1136,23 @@ function FmodProjectPage(props: FmodProject) {
         </tbody>
       </table>
       <PageTurner {...handler} style={{marginTop: 10, marginBottom: 40}}/>
+      <H5>基本信息</H5>
+      <AssetFilePath type="fev" path={name}/>
+      <div style={{height: 50}}/>
+    </div>
+  )
+}
+
+function FmodProjectPage(props: FmodProject) {
+  const {file, name} = props
+
+  return (
+    <div>
+      <H3>{file}<AssetType type="fmodproject"/></H3>
+      {/* <H5>描述</H5>
+      <AssetDesc id={id}/> */}
+      <MultiplySoundViewer.FmodProject project={name}/>
+      <div className="mt-5"/>
       <H5>基本信息</H5>
       <AssetFilePath type="fev" path={name}/>
       <div style={{height: 50}}/>

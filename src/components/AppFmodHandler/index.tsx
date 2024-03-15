@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from '../../redux/store'
 import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
-import { useAppSetting, useLocalStorage } from '../../hooks'
+import { useAppSetting } from '../../hooks'
 import { setState } from '../../redux/reducers/appstates'
 
 export type FmodEventInfo = {
@@ -106,7 +106,7 @@ export default function AppFmodHandler() {
         }
       }
     })
-  }, [])
+  }, [dispatch])
 
   const onGetDataError = useCallback((error: string)=> {
     appWindow.emit("fmod_call_error", error)

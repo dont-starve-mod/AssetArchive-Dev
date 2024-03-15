@@ -69,6 +69,10 @@ export default function HomePage() {
     navigate(`/asset?id=STATIC@${type}.${name}`)
   }, [navigate])
 
+  const toMultiXml = useCallback((name: string)=> {
+    toStatic("multi_xml", name)
+  }, [toStatic])
+
   return (
     <KeepAlivePage.NoDev cacheNamespace="assetPage">
       <div className={'bp4-running-text ' + style["home"]}>
@@ -105,13 +109,13 @@ export default function HomePage() {
         </div>
         <H5>图片</H5>
         <div className={style["card-box"]}>
-          <SubCard title="人物立绘" imgSrc={clips.bigportrait} onClick={()=> toStatic("multi_xml", "CharacterPortraits")}/>
-          <SubCard title="壁纸" imgSrc={clips.wallpaper} onClick={()=> toStatic("multi_xml", "Wallpapers")}/>
-          <SubCard title="物品图标" imgSrc={clips.inv} onClick={()=> toStatic("multi_xml", "InventoryImages")}/>
-          <SubCard title="小地图图标" imgSrc={clips.minimap} onClick={()=> toStatic("multi_xml", "Minimaps")}/>
-          <SubCard title="图鉴" imgSrc={clips.scrapbook} onClick={()=> toStatic("multi_xml", "Scrapbooks")}/>
-          <SubCard title="技能树" imgSrc={clips.skilltree} onClick={()=> toStatic("multi_xml", "Skilltrees")}/>
-          <SubCard title="UI" imgSrc={clips.ui} onClick={()=> toStatic("multi_xml", "UI")}/>
+          <SubCard title="人物立绘" imgSrc={clips.bigportrait} onClick={()=> toMultiXml("CharacterPortraits")}/>
+          <SubCard title="壁纸" imgSrc={clips.wallpaper} onClick={()=> toMultiXml("Wallpapers")}/>
+          <SubCard title="物品图标" imgSrc={clips.inv} onClick={()=> toMultiXml("InventoryImages")}/>
+          <SubCard title="小地图图标" imgSrc={clips.minimap} onClick={()=> toMultiXml("Minimaps")}/>
+          <SubCard title="图鉴" imgSrc={clips.scrapbook} onClick={()=> toMultiXml("Scrapbooks")}/>
+          <SubCard title="技能树" imgSrc={clips.skilltree} onClick={()=> toMultiXml("Skilltrees")}/>
+          <SubCard title="UI" imgSrc={clips.ui} onClick={()=> toMultiXml("UI")}/>
         </div>
         <H5>人物动画</H5>
         <div className={style["card-box"]}>
@@ -120,9 +124,9 @@ export default function HomePage() {
         </div>
         <H5>声音</H5>
         <div className={style["card-box"]}>
-          <SubCard title="音乐" imgSrc={clips.music}/>
-          <SubCard title="人物语音" imgSrc={clips.voice}/>
-          <SubCard title="环境声" imgSrc={clips.amb}/>
+          <SubCard title="音乐" imgSrc={clips.music} onClick={()=> toStatic("multi_sound", "Music")}/>
+          <SubCard title="人物语音" imgSrc={clips.voice} onClick={()=> toStatic("multi_sound", "CharacterVoice")}/>
+          <SubCard title="环境声" imgSrc={clips.amb} onClick={()=> toStatic("multi_sound", "AmbientSound")}/>
           <SubCard title="所有音效包" imgSrc={clips.allfev} onClick={()=> navigate("/search?q=.fev&tab=fmodproject")}/>
         </div>
         <H5>虫洞</H5>

@@ -241,7 +241,6 @@ function HumanAnnotator:Music(data)
 	end
 
 	for path, desc in pairs(data)do
-		print(path)
 		path_collction[path] = nil
 		local asset = Asset("fmodevent", {path = path})
 		-- no need to check, it's ok that sound path not exists
@@ -258,6 +257,48 @@ function HumanAnnotator:Music(data)
 	for path, v in pairs(path_collction)do
 		print("SOUND", path)
 	end
+end
+
+function HumanAnnotator:GetCharacterVoiceName()
+	local data = {		
+		["characters/actions/page_turn"] = "读书翻页声",
+		["characters/trident_attack"] = "三叉戟攻击（炸鱼）",
+		["characters/perd_shride_place"] = "未使用",
+		["characters/player_revive"] = "未使用",
+
+		["^song"] = "战斗歌谣",
+		["^friendship_music"] = "好感度音乐",
+		["^house"] = "隐士小屋相关音效",
+		["^watch"] = "怀表相关音效",
+		["^woby"] = "沃比相关音效",
+		["^abigail"] = "阿比盖尔相关音效",
+		["^slingshot"] = "弹弓相关音效"
+	}
+	return {
+		others = function(path)
+			for _,prefix in ipairs{"song", "friendship_music", "house", "watch", 
+				"woby", "abigail", "slingshot"}do
+
+				if path:find("^characters/[^/]+/"..prefix.."/") then
+					return data["^"..prefix]
+				end
+			end
+			
+			if data[path] ~= nil then
+				return data[path]
+			end
+		end,
+		talk_LP = "说话（循环）",
+		death_voice = "死亡",
+		sinking = "沉没/溺水",
+		ghost_LP = "鬼魂（循环）",
+		yawn = "打哈欠",
+		hurt = "受伤/遭到攻击",
+		pose = "摆姿势",
+		carol = "颂歌",
+		emote = "做表情",
+		eye_rub_vo = " ",
+	}
 end
 
 return HumanAnnotator

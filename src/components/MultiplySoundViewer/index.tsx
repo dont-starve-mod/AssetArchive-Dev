@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { FmodEvent } from '../../searchengine'
-import { InputGroup, Spinner } from '@blueprintjs/core'
+import { Button, InputGroup, Spinner, Tag } from '@blueprintjs/core'
 import { search } from '../../global_meilisearch'
 import SortableField, { useSoundSorter } from '../SortableField'
 import { useLocalStorage, usePagingHandler } from '../../hooks'
 import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../format'
 import { ParamSlider, PlayIcon } from '../../pages/AssetPage'
 import PopoverMenu from '../PopoverMenu'
+import { appWindow } from '@tauri-apps/api/window'
+import { killPreviewSfx } from '../Preview'
+import PageTurner from '../PageTurner'
 
 type MultiplySoundViewerProps = {
   soundList: ()=> FmodEvent[],
@@ -20,6 +23,16 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
   /* eslint-disable react-hooks/exhaustive-deps */
   const sounds = soundList() || []
   const assetLoaded = sounds.length > 0
+
+  useEffect(()=> {
+    // listen for page cache
+    let unlisten = appWindow.listen<any>("unmount_cache", ({payload: {cacheId}})=> {
+      if (cacheId.startsWith("assetPage")) {
+        killPreviewSfx()
+      }
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [])
 
   useEffect(()=> {
     let timer = setInterval(()=> {
@@ -104,8 +117,11 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
   console.log(items)
   // }, [items, abstract])
   
+  const resetScroll = useCallback(()=> {
+    document.getElementById("app-article").scrollTop = 1
+  }, [])
 
-  const handler = usePagingHandler(items, {resetScroll: ()=> {}})
+  const handler = usePagingHandler(items, {resetScroll})
   const {first, range} = handler
 
   const onChangeSort = useCallback((e: React.FormEvent<HTMLInputElement>)=> {
@@ -135,6 +151,12 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
           value={query}
           onChange={e=> setQuery(e.currentTarget.value)}
         />
+      </div>
+      <div>
+        {/* <Button>全部</Button>
+        <Button>筛选</Button> */}
+        <Tag minimal>音效总数 {sounds.length}</Tag>
+        <Tag minimal className="m-1">当前显示 {items.length}</Tag>
       </div>
       <table className={`bp4-html-table compact-table`}>
         <thead>
@@ -167,7 +189,7 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
             />
             </th>
             <th>
-              <SortableField.NoSort text="预览"/>
+              <SortableField.NoSort text="播放"/>
             </th>
             <th>
               <SortableField text="参数" selectedValue={sort[0]} onChange={onChangeSort}
@@ -227,6 +249,7 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
           }
         </tbody>
       </table>
+      <PageTurner {...handler}/>
     </div>
   )
 }
@@ -235,6 +258,19 @@ const getMusic = ()=>
   Object.values(window.assets_tag["#music"] || {}) as FmodEvent[]
 const getAmibentSound = ()=>
   Object.values(window.assets_tag["#ambient_sound"] || {}) as FmodEvent[]
+const getCharacterVoice = ()=>
+  Object.values(window.assets_tag["#character_voice"] || {}) as FmodEvent[]
 
 MultiplySoundViewer.Music = ()=> <MultiplySoundViewer soundList={getMusic}/>
 MultiplySoundViewer.AmbientSound = ()=> <MultiplySoundViewer soundList={getAmibentSound}/>
+MultiplySoundViewer.CharacterVoice = ()=> <MultiplySoundViewer soundList={getCharacterVoice}/>
+
+const FmodProject = (props: {project: string})=> {
+  const {project} = props
+  const soundList = useCallback(()=> 
+    window.assets.allfmodevent.filter(v=> v.project === project)
+  , [project])
+  return <MultiplySoundViewer soundList={soundList} hideProject/>
+}
+
+MultiplySoundViewer.FmodProject = FmodProject

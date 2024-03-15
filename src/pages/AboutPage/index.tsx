@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { H3, H5, Icon, Tag } from "@blueprintjs/core"
 import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api'
-import MultiplySoundViewer from '../../components/MultiplySoundViewer'
 
 function openURL(url: string) {
   invoke("open_url", { url })
@@ -16,8 +15,6 @@ export default function About() {
 
   return (
     <div className="bp4-running-text">
-      <MultiplySoundViewer.AmbientSound/>
-      <MultiplySoundViewer.Music/>
       <H3 style={{marginTop: 15}}>
         饥荒资源档案
         <Tag minimal style={{marginBottom: 2, marginLeft: 4, verticalAlign: "middle"}}>

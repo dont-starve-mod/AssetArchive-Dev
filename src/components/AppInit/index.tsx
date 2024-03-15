@@ -150,6 +150,9 @@ export default function AppInit() {
         }),
         await globalListen<string>("assets", ({payload})=> {
           const assets = JSON.parse(payload)
+          // TODO: fix this
+          delete assets["allfevfile"]
+          delete assets["allfsbfile"]
           window.assets = {...window.assets, ...assets}
           initStaticPageData()
           Object.values(assets).forEach((list: AllAssetTypes[])=> {
@@ -170,7 +173,7 @@ export default function AppInit() {
               const d = v[i.toString()]
               if (d) {
                 desc.push(d)
-                if (d.startsWith("#")){
+                if (typeof d === "string" && d.startsWith("#")){
                   window.assets_tag[d] = window.assets_tag[d] || {}
                   window.assets_tag[d][k] = window.assets_map[k]
                 }

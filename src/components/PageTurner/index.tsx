@@ -14,7 +14,7 @@ type PageTurnerProps = {
 export default function PageTurner(props: PageTurnerProps) {
   const {page, totalPage, style} = props
   return (
-    <div style={style}>
+    <div style={style} className="mt-4">
       <Button icon="step-backward" disabled={page <= 0} onClick={props.first}/>
       <div style={{display: "inline-block", width: 10}}/>
       <Button icon="arrow-left" disabled={page <= 0} onClick={props.prev}>

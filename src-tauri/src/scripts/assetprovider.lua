@@ -429,8 +429,8 @@ function Provider:ListAsset()
 		alltexture = self.alltexture,
 		allkshfile = self.allkshfile,
 		-- NOTE: fev and fsb are lazy loaded (not indexed by search engine)
-		-- allfevfile = self.allfevfile,
-		-- allfsbfile = self.allfsbfile,
+		allfevfile = self.allfevfile,
+		allfsbfile = self.allfsbfile,
 	}
 
 	-- link fev reference to fsb
