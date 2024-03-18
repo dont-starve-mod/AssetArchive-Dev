@@ -64,15 +64,7 @@ export default function AppRendererInit() {
     }
     let handlers = init()
     return ()=> { handlers.then(fns=> fns.forEach(f=> f())) }
-  }, [])
-
-  // useEffect(()=> {
-  //   let unlisten = globalListen("updateconfig", ({payload})=> {
-  //     const {key, value} = JSON.parse(payload as string)
-  //     window.config[key] = value
-  //   })
-  //   return ()=> unlisten.then(f=> f())
-  // }, [])
+  }, [initCall])
 
   return <>
     <ErrorHandler/>

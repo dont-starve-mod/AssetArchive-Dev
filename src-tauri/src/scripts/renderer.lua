@@ -49,6 +49,7 @@ function Render:SetRoot(root)
 	end
 
 	self.provider = Provider(root)
+
 	if self.skip_index and self.provider.root == GLOBAL.prov.root then
 		self.provider.index = GLOBAL.prov.index
 	else
@@ -64,11 +65,10 @@ function Render:SetRenderParam(param)
 	self.scale = param.scale
 	self.skip_index = param.skip_index
 	self.current_frame = param.current_frame
-
 end
 
 function Render:Refine()
-	print("[Render] refine api list: #("..#self.api_list.. ")")
+	print_info("[Render] refine api list: #("..#self.api_list.. ")")
 	local list = {}
 	local ignore_list = {}
 	local bank, build, animation, mult, add
@@ -125,28 +125,68 @@ function Render:Refine()
 			end
 		end
 	end
-	print("[Render] refined, ignore #("..#ignore_list..")")
+	print_info("[Render] refined, ignore #("..#ignore_list..")")
 
 	local builddata = build and self.provider:GetBuild({name = build})
 	if builddata == nil then
-		print("Warning: main build not exists: "..tostring(build))
+		print_warning("Warning: main build not exists: "..tostring(build))
 	end
 	local animlist = bank and animation and self.provider:GetAnimation({bank = bank, name = animation})
 	if animlist == nil then
-		print("Warning: animation not exists: ["..tostring(bank).."]"..tostring(animation))
+		print_warning("Warning: animation not exists: ["..tostring(bank).."]"..tostring(animation))
 		error("runtime error: animation not exists")
 	end
+
 	local anim = nil
-	for i,v in ipairs(animlist)do
-		if v.facing == self.facing or i == self.facing_index then
-			anim = v
-			break
+	local function print_facing_message()
+		print_error("  Animation: ["..bank.."]"..animation)
+		print_error("  Facing List: ")
+		for _,v in ipairs(animlist)do
+			print_error("    "..tostring(Facing(v.facing)))
+		end
+	end
+	if self.facing == "#unique" then
+		if #animlist ~= 1 then
+			print_error("facing is set as `#unique`, but there are multiple animations ("..#animlist..")")
+			print_facing_message()
+			error()
+		end
+		anim = animlist[1]
+	elseif self.facing == "#default" then
+		local b = 1
+		while b < 256 do
+			-- find anim facing that matches byte b
+			for _,v in ipairs(animlist)do
+				if BitAnd(v.facing, b) ~= 0 then
+					anim = v
+					break
+				end
+			end
+			if anim ~= nil then
+				break
+			end
+			b = b * 2
+		end
+		if anim == nil then
+			print_error("Failed to get default animation")
+			print_facing_message()
+			error()
+		end
+	else
+		for i,v in ipairs(animlist)do
+			if BitAnd(v.facing, self.facing) ~= 0 then
+				anim = v
+			elseif v.facing == self.facing or i == self.facing_index then
+				anim = v
+				break
+			end
 		end
 	end
 	if anim == nil then
-		print("Warning: animation facing not exists: "..tostring(self.facing))
-		print("To get animation by facing index, using #1, #2, ...")
-		error("runtime error: animation facing not exists")
+		print_error("Animation facing not exists: "..tostring(self.facing))
+		print_error("To get animation by facing index, using #1, #2, ...")
+		print_facing_message()
+		error()
 	end
 
 	return {
@@ -157,7 +197,7 @@ function Render:Refine()
 end
 
 function Render:BuildSymbolSource()
-	print("[Render] build symbol source")
+	print_info("[Render] build symbol source")
 	local source_map = {}
 	for _,v in ipairs(self.api_list)do
 		local name, args = v.name, v.args
@@ -167,11 +207,11 @@ function Render:BuildSymbolSource()
 			local build = self.provider:GetBuild({name = buildname})
 			local symboldata = nil
 			if build == nil then
-				print("Warning: build not exists: "..format(v))
+				print_warning("Warning: build not exists: "..format(v))
 			else
 				symboldata = build:GetSymbol(symbol)
 				if symboldata == nil then
-					print("Warning: symbol not in build: "..format(v))
+					print_warning("Warning: symbol not in build: "..format(v))
 				end
 			end
 			if symbol ~= nil then
@@ -184,7 +224,7 @@ function Render:BuildSymbolSource()
 			local buildname = args[1]
 			local build = self.provider:GetBuild({name = buildname})
 			if build == nil then
-				print("Warning: build not exists: "..format(v))
+				print_warning("Warning: build not exists: "..format(v))
 			else
 				for k,v in pairs(build.symbol_map)do
 					if name:startswith("Add") then
@@ -201,7 +241,7 @@ function Render:BuildSymbolSource()
 end
 
 function Render:BuildRenderPermission()
-	print("[Render] build render permission")
+	print_info("[Render] build render permission")
 	local skip_render = {
 		symbol = {},
 		layer = {},
@@ -289,7 +329,7 @@ function Render:Run()
 		assert(path:is_dir(), "Error: png sequence must export to a directory")
 	else
 		if format == "snapshot" then
-			if self.current_frame == nil then
+			if self.current_frame == nil and self.current_frame_percent == nil then
 				error("self.current_frame not provided")
 			end
 			if not path:check_extention("png") then
@@ -316,6 +356,10 @@ function Render:Run()
 	local skip_render = self:BuildRenderPermission()
 
 	local frame_list = {}
+	-- convert perccent to frame index [0 to (n-1)]
+	if self.current_frame_percent ~= nil then
+		self.current_frame = math.floor(self.current_frame_percent * (#anim.frame - 1) + 0.1)
+	end
 	for i, v in ipairs(anim.frame)do
 		if format ~= "snapshot" or i == self.current_frame + 1 then
 			table.insert(frame_list, v)
@@ -505,7 +549,7 @@ function Render:Run()
 	-- h264 encoder need even size
 	if width % 2 == 1 then width = width + 1 end
 	if height % 2 == 1 then height = height + 1 end
-	print("[Render] region:", left, top, right, bottom)
+	print_info("[Render] region:", left, top, right, bottom)
 
 	-- loop 4: render the full canvas
 	if #framebuffer == 0 then

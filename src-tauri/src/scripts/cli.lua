@@ -68,7 +68,9 @@ local function compile()
 	if not Args.skip_analyzing then
 		require("compiler.amain").main(env)
 	end
-	require("compiler.cmain").main(env)
+	-- require("compiler.cmain").main(env)
+
+	require("compiler.preview_gen").main(env)
 end
 
 local function install_ffmpeg()

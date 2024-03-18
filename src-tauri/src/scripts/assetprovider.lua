@@ -108,7 +108,6 @@ function DST_DataRoot:SetRoot(path, explicit)
 					zip.filepath = zippath
 					self.databundles[k:gsub("_", "/").."/"] = zip
 				end
-				zip:Close()
 			end
 		end
 	end
@@ -158,6 +157,20 @@ end
 
 function DST_DataRoot:SearchGame()
 	return false
+end
+
+function DST_DataRoot:LoadScript(path, env)
+	local module_path = "scripts/"..path:gsub("[.]", "/")..".lua"
+	if not self:Exists(module_path) then
+		error("module not found: "..module_path)
+	else
+		local content = self:Open(module_path):read_to_end()
+		local f = loadstring(content, path)
+		local env = env or {pairs = pairs, ipairs = ipairs}
+		setfenv(f, env)
+		env.__EXPORT = f()
+		return env.__EXPORT, env
+	end
 end
 
 function DST_DataRoot:Open(path, bundled)
@@ -653,9 +666,7 @@ function Provider:GetAnimation(args)
 		if paths then
 			local result = {}
 			for k in pairs(paths) do
-				print(">")
 				local anim = self:LoadAnim(k)
-				print("Loaded", k)
 				if anim then
 					for _,v in ipairs(anim.animlist)do
 						if v.name == args.name and v.bankhash == bank then
@@ -766,7 +777,7 @@ function Provider:GetAtlas(args)
 				elseif args.format == "img" then
 					return atlas:GetImage(index)
 				elseif args.format == "png_base64" then
-					return atlas:GetImage(index):save_png_base64()
+					return atlas:GetImage(index):save_png_base64()					
 				elseif args.format == "png" then
 					return atlas:GetImage(index):save_png_bytes()
 				elseif args.format == "copy" then
@@ -847,6 +858,7 @@ function Provider:LoadAtlas(name) --> atlaslist
 			end
 		end
 		self.loaders.atlas[name] = atlaslist
+
 		return atlaslist
 	end
 end
@@ -901,6 +913,8 @@ function Provider:GetSymbolElement(args)
 
 				if args.format == "png" then
 					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh):save_png_bytes()
+				elseif args.format == "json" then
+					return Image.EncodeJson(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
 				elseif args.format == "img" then
 					local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
 					if args.resize == true then

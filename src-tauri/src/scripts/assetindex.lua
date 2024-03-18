@@ -80,7 +80,6 @@ function AssetIndex:DoIndex(ignore_cache)
 			self.indexcache:Set(filename, info)
 			self:AddAnim(filename, info.anim)
 			self:AddBuild(filename, info.build)
-			zip:Close()
 		end
 
 		if i % 100 == 0 then

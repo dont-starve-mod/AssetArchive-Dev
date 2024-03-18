@@ -129,14 +129,17 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
   const [sort, setSort] = useLocalStorage("multiple_xml_sort_strategy")
   const [filter, setFilter] = useLocalStorage("multiple_xml_filter_strategy")
   const filterDeprecated = filter.indexOf("-deprecated") !== -1
+  const [filterDesc, setFilterDesc] = useLocalStorage("debug_filter_desc")
 
   const items = useMemo(()=> {
     if (!assetLoaded) return []
-    const queryItems = hasQuery ? allTex.filter(v=> queryResult[v.id]) : allTex
-    const filteredItems = filterDeprecated ? queryItems.filter(v=> deprecatedXmlList.indexOf(v.xml) === -1) : queryItems
+    let items = allTex
+    items = hasQuery ? allTex.filter(v=> queryResult[v.id]) : allTex
+    items = filterDeprecated ? items.filter(v=> deprecatedXmlList.indexOf(v.xml) === -1) : items
+    items = filterDesc ? items.filter(v=> !v.plain_desc) : items
     const getWidth = (id: string)=> resData[id] ? resData[id].width : 0
     const getHeight = (id: string)=> resData[id] ? resData[id].height : 0
-    const sortedItems = filteredItems.sort((a, b)=> {
+    const sortedItems = items.sort((a, b)=> {
       for (let s of sort){
         switch(s){
           case "name.a-z":
@@ -159,7 +162,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
       return 0
     })
     return sortedItems
-  }, [assetLoaded, hasQuery, filterDeprecated, allTex, queryResult, sort, deprecatedXmlList, resData])
+  }, [assetLoaded, hasQuery, filterDeprecated, filterDesc, allTex, queryResult, sort, deprecatedXmlList, resData])
 
   const handler = usePagingHandler(items, {
     resetScroll: ()=> document.getElementById("app-article")?.scrollTo(0, 1)
@@ -177,6 +180,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
     {type: "image"},
     "image",
     "image.png", [])
+
 
   if (!assetLoaded) {
     return (
@@ -209,6 +213,16 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
             隐藏弃用的图集（{deprecatedXmlListStr}）
           </Checkbox>
         }
+        {
+          window.meta.debug &&
+          <Checkbox
+            checked={filterDesc}
+            onChange={e=> setFilterDesc(e.currentTarget.checked)}
+            className="ml-2"
+          >
+            隐藏所有注释（Debug）
+          </Checkbox>
+          }
       </div>
       <div style={{marginBottom: 5}}>
         <BatchExportingButton text="导出全部" items={allTex} buttonStyle={{marginRight: 4}}/>
@@ -259,7 +273,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
               <tr key={id}>
                 <td>
                   <PopoverMenu menu={[
-                    {icon: "duplicate", text: "拷贝路径", copyText: xml},
+                    {icon: "duplicate", text: "拷贝路径", copyText: tex},
                     {icon: "link", text: "查看详情", directURL: `/asset?id=${id}`},
                   ]}>
                     {tex}

@@ -158,7 +158,7 @@ pub mod lua_image {
     use std::sync::{Arc, Condvar, Mutex};
     use std::thread::spawn;
 
-    use image::{DynamicImage, Pixel, Rgba, Rgb, ImageBuffer, GenericImageView, GenericImage};
+    use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgb, Rgba};
     use image::ColorType;
     use rlua::{AnyUserData, Context};
     use rlua::Value;
@@ -477,6 +477,16 @@ pub mod lua_image {
             self.inner.save(path)
         }
 
+        pub fn save_smallest(&self, path: &str) -> image::ImageResult<()> {
+            use image::codecs::png::{PngEncoder, CompressionType, FilterType};
+            let fs = std::fs::File::create(path).map_err(image::ImageError::IoError)?;
+            let encoder = PngEncoder::new_with_quality(
+                fs, 
+                CompressionType::Best, 
+                FilterType::default());
+            encoder.write_image(self.inner.as_bytes(), self.width, self.height, self.inner.color())
+        }
+
         #[inline]
         pub fn save_async(&self, path: &str) {
             ASYNC_SAVER.lock().unwrap().add_task(
@@ -669,12 +679,17 @@ pub mod lua_image {
                 }
             });
             // save image to path
-            _methods.add_method("save", |_, img: &Self, path: Value|{
+            _methods.add_method("save", |_, img: &Self, (path, smallest): (Value, Option<bool>)|{
                 let path = match path.to_string() {
                     Ok(s)=> s,
                     Err(_)=> return Err(LuaError::ToLuaConversionError { from: "(lua)", to: "Path | string", message: None }),
                 };
-                if let Err(err) = img.save(path.as_str()) {
+                if let Err(err) = {
+                    match smallest {
+                        Some(true)=> img.save_smallest(path.as_str()),
+                        _=> img.save(path.as_str())
+                    }
+                } {
                     eprintln!("Failed to save image `{}` because of Error: {}", path, err);
                     Ok(false)
                 }
@@ -699,6 +714,14 @@ pub mod lua_image {
             _methods.add_method("save_png_base64", |_, img: &Self, ()|{
                 use base64::prelude::*;
                 Ok(BASE64_STANDARD.encode(img.save_png_bytes()))
+            });
+            // save to a frontend friendly format
+            _methods.add_method("to_json", |_, img: &Self, ()|{
+                use base64::prelude::*;
+                Ok(format!("{{ \"width\": {}, \"height\": {}, \"data\": \"{}\" }}", 
+                    img.width, 
+                    img.height,
+                    BASE64_STANDARD.encode(img.inner.as_bytes())))
             });
             // convert to rgba sequence
             _methods.add_method("to_bytes", |lua: Context, img: &Self, ()|{
@@ -825,7 +848,7 @@ pub mod lua_image {
             let num_threads = tasks.get::<_, usize>("@thread")
                 .unwrap_or_else(|_|num_cpus::get())
                 .clamp(1, 64);
-            println!("[MultiThreadedTransform] spawn {} threads", num_threads);
+            // println!("[MultiThreadedTransform] spawn {} threads", num_threads);
             let onprogress = tasks.get::<_, Option<Function>>("@progress")?;
             let resampler = tasks.get::<_, Resampler>("@resampler")
                 .unwrap_or(Resampler::Bilinear);
@@ -916,7 +939,7 @@ pub mod lua_image {
             let num_threads = tasks.get::<_, usize>("@thread")
                 .unwrap_or_else(|_|num_cpus::get())
                 .clamp(1, 64);
-            println!("[MultiThreadedCompositeAndRender] spawn {} threads", num_threads);
+            // println!("[MultiThreadedCompositeAndRender] spawn {} threads", num_threads);
             let onprogress = tasks.get::<_, Option<Function>>("@progress")?;
             let encoder = tasks.get::<_, Function>("@encoder")?;
             let canvas = tasks.get::<_, AnyUserData>("@canvas")?;
@@ -1025,6 +1048,14 @@ pub mod lua_image {
             )
         })?)?;
 
+        table.set("EncodeJson", lua_ctx.create_function(|_,
+            (bytes, width, height): (LuaString, u32, u32)|{
+            use base64::prelude::*;
+            Ok(format!("{{ \"width\": {}, \"height\": {}, \"rgba\": \"{}\" }}", 
+                width, 
+                height,
+                BASE64_STANDARD.encode(bytes.as_bytes())))
+        })?)?;
         table.set("Wait", lua_ctx.create_function(|_, _: ()|{
             ASYNC_SAVER.lock().unwrap().wait();
             Ok(())

@@ -707,14 +707,9 @@ ZipLoader = Class(function(self, f, name_filter)
         end
     end
 
-    self.f = f
+    -- 2024.3.17 auto drop fd at the end of ZipLoader
+    f:drop()
 end)
-
-function ZipLoader:Close()
-    if self.f then
-        self.f:drop()
-    end
-end
 
 function ZipLoader:Get(name)
     local data = self.contents[name]

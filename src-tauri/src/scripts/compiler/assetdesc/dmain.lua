@@ -154,12 +154,14 @@ local AssetAnnotator = {
 
 	Character = function(self)
 		local function GetName(prefab)
+			assert(prefab)
 			return prefab == "random" and
 				assert(self.po("STRINGS.UI.LOBBYSCREEN.RANDOMCHAR_BUTTONHINT")) or
 				assert(self.po:GetName(prefab), prefab)
 		end
 
 		local function GetSkinName(prefab)
+			assert(prefab)
 			return prefab == "random_none" and
 				assert(self.po("STRINGS.UI.LOBBYSCREEN.RANDOMCHAR_BUTTONHINT")) or
 				assert(self.po:GetSkinName(prefab), prefab)
@@ -182,7 +184,18 @@ local AssetAnnotator = {
 			elseif xml:startswith("bigportraits/") then
 				local name = xml:sub(14, #xml - 4)
 				if self:IsSkin(name) or name == "random_none" then
-					self:AddDesc(v, GetSkinName(name).."的立绘")
+					local cname = nil
+					if not self.skin_to_prefab[name] then
+						if name ~= "random_none" then
+							error("Failed to get prefab from skinname: "..name)
+						end
+					end
+					local cname = self.skin_to_prefab[name] and GetName(self.skin_to_prefab[name])
+					if cname then
+						self:AddDesc(v, GetSkinName(name).."的立绘（"..cname.."）")
+					else
+						self:AddDesc(v, GetSkinName(name).."的立绘")
+					end
 				elseif name == "locked" then
 					self:AddDesc(v, "未解锁角色的立绘。\n该图片仅在单机版使用。")
 				elseif name == "unknownmod" then
@@ -233,23 +246,29 @@ local AssetAnnotator = {
 				self:AddDesc(v, "物品栏图片（已弃用）")
 			elseif v.xml:startswith("images/inventoryimages") then
 				local name = NameOf(v.tex)
-				local name2, desc_template = self.human:GetInventoryImageRedirect(name)
-				local label = self.po:GetName(name)
-				local skin_label = self.po:GetSkinName(name)
-				if label then
-					self:AddDesc(v, label.."的物品栏图片")
-				elseif skin_label then
-					local prefab = self.skin_to_prefab[name]
-					local prefab_label = prefab and self.po:GetName(prefab)
-					if prefab_label then
-						self:AddDesc(v, skin_label.."的物品栏图片（"..prefab_label.."的皮肤）")
-					else
-						error("Warning: Failed to get skin prefab: "..name.." - "..skin_label)
-						self:AddDesc(v, skin_label.."的物品栏图片（皮肤）")
-					end
+				local name2, extra = self.human:GetInventoryImageRedirect(name)
+				name = name2 or name
+				extra = extra or ""
+				if type(name) == "function" then
+					self:AddDesc(v, name(self.po))
 				else
-					-- print(v.tex) -- TODO:这里也需要手动标注
-					-- break
+					local label = self.po:GetName(name)
+					local skin_label = self.po:GetSkinName(name)
+					if label then
+						self:AddDesc(v, label.."的物品栏图片"..extra)
+					elseif skin_label then
+						local prefab = self.skin_to_prefab[name]
+						local prefab_label = prefab and self.po:GetName(prefab)
+						if prefab_label then
+							self:AddDesc(v, skin_label.."的物品栏图片（"..prefab_label.."的皮肤）"..extra)
+						else
+							error("Warning: Failed to get skin prefab: "..name.." - "..skin_label)
+							self:AddDesc(v, skin_label.."的物品栏图片（皮肤）")
+						end
+					else
+						print(v.tex) -- TODO:这里也需要手动标注
+						-- break
+					end
 				end
 			end
 		end
@@ -289,7 +308,7 @@ local AssetAnnotator = {
 		end
 	end,
 
-	Scrapbook = function(self)
+	ScrapbookIcon = function(self)
 		local xmls = {}
 		local texs = {}
 		for i = 1, math.huge do
@@ -346,10 +365,12 @@ local AssetAnnotator = {
 		end
 	end,
 
+
+
 	Music = function(self)
 		local nightmare = self.src_hash("components/nightmareclock", 0x7b24b46f)
 		local ambient   = self.src_hash("components/ambientsound", 0xa57a07a2)
-		local music     = self.src_hash("components/dynamicmusic", 0x26a9d222)
+		local music     = self.src_hash("components/dynamicmusic", 0x314bb6cf)
 		local function CollectFmodPath(s)
 			-- NOTE: only match double quotation marks
 			--	    "path/to/sound" √
@@ -468,7 +489,7 @@ local function run(env)
 	annotator:Character()
 	annotator:Customization()
 	annotator:InventoryImage()
-	annotator:Scrapbook()
+	annotator:ScrapbookIcon()
 	annotator:ImagePostLink()
 	annotator:Music()
 	annotator:CharacterVoice()

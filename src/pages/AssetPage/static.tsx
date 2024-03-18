@@ -30,7 +30,7 @@ export function initStaticPageData(){
   window.assets.allstaticpage = [
     {
       id: "Wallpapers",
-      title: "所有壁纸（正在加载图像）",
+      title: "所有壁纸（正在加载图片）",
       desc: <>
         <p>在游戏加载过程中显示的图片，文件名均以“loading_”开头。</p>
         <p>在下方输入框内快速筛选，如“温蒂”。</p>

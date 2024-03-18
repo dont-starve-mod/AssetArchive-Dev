@@ -28,6 +28,7 @@ export interface LocalStorage {
   fev_filter_strategy: FevFilter[],
   multiple_xml_sort_strategy: MultipleXmlSort[],
   multiple_xml_filter_strategy: MultipleXmlFilter[],
+  debug_filter_desc: boolean,
   fmod_param_value: {[K: string]: number}, // 0-1 percent
   toast_max_num: number,
   toast_alive_time: number,
@@ -78,6 +79,7 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     fev_filter_strategy: [],
     multiple_xml_sort_strategy: [],
     multiple_xml_filter_strategy: [],
+    debug_filter_desc: false,
     fmod_param_value: defaultFmodParam,
     toast_max_num: 5,
     toast_alive_time: 7,

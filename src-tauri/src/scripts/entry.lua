@@ -3,6 +3,8 @@ Entry = Class(function(self, data)
 
 	self.alias = data.alias or {}   -- list of names (string)
 	self.desc = data.desc or {}     -- list of descrptions (richtext[])
+	self.tags = {}                  -- list of filter tag
+	self.preview_data = {tex = nil, anim = nil} -- entry preview icon / image
 	self.assets = data.assets or {} -- list of relative assets
 	self.deps = data.deps or {}     -- list of relative prefabs/entries
 	self.source = data.source or {} -- list of source file

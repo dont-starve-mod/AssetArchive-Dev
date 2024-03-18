@@ -200,6 +200,247 @@ function EntryManager:AddKey(new_alias)
 	return key
 end
 
+function EntryManager:AddTagFromScrapbook()
+	local data = self.root:LoadScript("screens/redux/scrapbookdata")
+	local other_keys = {}
+
+	-- [base]
+	-- name, prefab, tex, deps, type
+
+	-- [preview]
+	-- bank, build, anim, animpercent, facing, alpha[?]
+	-- overridebuild, overridesymbol, hidesymbol, hide
+
+	-- [tag]
+	-- toolactions    -> tool
+	-- float_range | float_accuracy | lure_charm | lure_dist | lure_radius -> fishing
+	-- craftingprefab -> crafted_by.{player}
+	-- workable       -> workable.{type}
+	-- subcat         -> subcat.{type}
+	-- insulator_type -> insulator.{type}
+	-- foodtype       -> food.{type}
+	-- fueltype       -> fuel.{type}
+	-- * fuelvalue  -> [check tag above]
+	-- fueledtype1 | fueledtype2 -> fueled_by.{type}
+	-- * fueledrate | fueledmax  -> [check tag above]
+	-- armor | absorb_percent -> armor
+	-- armor_planardefense
+	-- planardamage
+	-- finiteuses
+	-- weaponrange > 5 -> ranged
+	-- perishable
+	-- stacksize      -> stackable
+	-- sanityaura
+	-- waterproofer   -> waterproofer | waterproofer_100
+	-- burnable
+	-- fishable
+	-- lightbattery
+	-- notes.shadow_aligned | .lunar_aligned -> shadow_align | lunar_aligned
+	-- picakble       -> pickable
+	-- weapondamage   -> weapon | weapon_0_damage
+	-- sewable [clothes]
+	
+	-- [value-tag] +v -v
+	-- healthvalue  -+
+	-- sanityvalue  -|-- edible
+	-- hungervalue  -+
+	-- dapperness
+
+	-- [ignore]
+	-- speechname
+	-- health
+	-- areadamage
+	-- damage
+	-- fueleduses
+	-- specialinfo
+	-- harvestable
+	-- activatable
+	-- stewer
+	-- oar_velocity
+	-- oar_force
+	-- repairitems
+	-- forgerepairable
+	
+	local BASE_KEYS = {
+		"name", "prefab", "tex", "deps", "type"
+	}
+
+	local PREVIEW_KEYS = {
+		"bank", "build", "anim", "animpercent", "facing", "alpha",
+		"overridebuild", "overridesymbol", "hidesymbol", "hide",
+	}
+
+	local SKIPPED_KEYS = {
+		"speechname", "health", "areadamage", "damage", "fueleduses", 
+		"specialinfo", "harvestable", "activatable", "stewer", 
+		"oar_velocity", "oar_force", "repairitems", "forgerepairable",
+		"animoffsetx", "animoffsety", "animoffsetbgx", "animoffsetbgy", "scale",
+
+	}
+
+	local TAGS = {
+		float_range = "fishing",
+		float_accuracy = "fishing",
+		lure_charm = "fishing",
+		lure_dist = "fishing",
+		lure_radius = "fishing",
+
+		craftingprefab = "crafted_by.{}",
+		workable = "workable.{}",
+		subcat = "subcat.{}",
+		insulator_type = "insulator.{}",
+		foodtype = "food.{}",
+		fueltype = "fuel.{}",
+		fueledtype1 = "fuled_by.{}",
+		fueledtype2 = "fuled_by.{}",
+
+		armor = "armor",
+		absorb_percent = "armor",
+
+		armor_planardefense = true,
+		planardamage = true,
+		finiteuses = true,
+		sanityaura = true,
+		burnable = true,
+		fishable = true,
+		perishable = true,
+		lightbattery = true,
+		sewable = true,
+		toolactions = "tool",
+		stacksize = "stackable",
+		picakble = "pickable",
+
+		["weapondamage"] = function(tags, v)
+			assert(type(v) == "string" or v >= 0, v)
+			tags["weapon"] = true
+			tags["weapon_0_damage"] = v == 0
+		end,
+		["dapperness"] = function(tags, v)
+			assert(v ~= 0)
+			tags[v > 0 and "dapperness+" or "dapperness-"] = true
+		end,
+		["notes"] = function(tags, v)
+			assert(type(v) == "table")
+			tags["shadow_aligned"] = v.shadow_aligned
+			tags["lunar_aligned"] = v.lunar_aligned
+		end,
+		["waterproofer"] = function(tags, v)
+			assert(v > 0)
+			tags["waterproofer"] = true
+			tags["waterproofer_100"] = v >= 1
+		end,
+		["healthvalue"] = function(tags, v)
+			if v ~= 0 then
+				tags[v > 0 and "healthvalue+" or "healthvalue-"] = true
+			end
+		end,
+		["sanityvalue"] = function(tags, v)
+			if v ~= 0 then
+				tags[v > 0 and "sanityvalue+" or "sanityvalue-"] = true
+			end
+		end,
+		["hungervalue"] = function(tags, v)
+			if v ~= 0 then
+				tags[v > 0 and "hungervalue+" or "hungervalue-"] = true
+			end
+		end,
+		["weaponrange"] = function(tags, v)
+			assert(v > 0)
+			if v > 5 then
+				tags["rangedweapon"] = true
+			end
+		end,
+	}
+
+	local function TagsInclude(tags, fn)
+		for t in pairs(tags)do
+			if fn(t) then
+				return true
+			end
+		end
+	end
+
+	local CHECK_TAGS = {
+		insulator = function(tags)
+			return TagsInclude(tags, function(t) return t:startswith("insulator_type.") end)
+		end,
+		fuelvalue = function(tags)
+			return TagsInclude(tags, function(t) return t:startswith("fuel.") end)
+		end,
+		fueledrate = function(tags)
+			return TagsInclude(tags, function(t) return t:startswith("fueled_by.") end)
+		end,
+	}
+
+	CHECK_TAGS.fueledmax = CHECK_TAGS.fueledrate
+
+	local item_list = {}
+	table.foreach(data, function(_, v)
+		for _, k in ipairs(SKIPPED_KEYS)do
+			v[k] = nil
+		end
+
+		local item = {}
+		local preview_data = {}
+		for _, k in ipairs(BASE_KEYS)do
+			item[k] = v[k]
+			v[k] = nil
+		end
+		for _, k in ipairs(PREVIEW_KEYS)do
+			preview_data[k] = v[k]
+			v[k] = nil
+		end
+
+		local tags = {}
+		for tag_name, tag_def in pairs(TAGS)do
+			if v[tag_name] ~= nil then
+				if tag_def == true then
+					tags[tag_name] = true
+				elseif type(tag_def) == "string" then
+					if tag_def:find("{}") then -- template string
+						tags[tag_def:gsub("{}", string.lower(v[tag_name]))] = true
+					else
+						tags[tag_def] = true
+					end
+				elseif type(tag_def) == "function" then
+					tag_def(tags, v[tag_name])
+				end
+
+				v[tag_name] = nil
+			end
+		end
+
+		for tag_name, checker in pairs(CHECK_TAGS)do
+			if tags[tag_name] and not checker(tags) then
+				print("Warning: check failed")
+				print(json.encode(tags))
+			end
+			v[tag_name] = nil
+		end
+
+		item.preview_data = {tex = v.tex, anim = preview_data}
+		item.tags = tags
+		table.insert(item_list, item)
+
+		for k in pairs(v)do
+			other_keys[k] = true
+		end
+	end)
+	
+	if next(other_keys) then
+		print("Unexpected scrapbook data keys: ")
+		table.foreach(other_keys, function(k) print("  "..k) end)
+		exit()
+	end
+
+	self.anim_preview_list = {}
+	for _,v in ipairs(item_list)do
+		self.anim_preview_list[v.prefab] = v.preview_data.anim
+	end
+
+	return item_list
+end
+
 local function run(env)
 	local manager = EntryManager()
 
@@ -210,9 +451,9 @@ local function run(env)
 
 	manager:BuildPredefs()
 	manager:BuildPrefabs()
+	manager:AddTagFromScrapbook()
 
-
-	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler/output/"
+	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output/"
 	local path = output/"entry.dat"
 	local str = json.encode({
 		items = manager.items,
@@ -221,6 +462,9 @@ local function run(env)
 	-- it's only for debug, will always failed in release
 	pcall(function() path:write(str) end)
 	FileSystem.SaveString("entry.dat", str)
+
+	-- write anim preview list
+	env.write_json("anim_preview_list", manager.anim_preview_list)
 end
 
 return run

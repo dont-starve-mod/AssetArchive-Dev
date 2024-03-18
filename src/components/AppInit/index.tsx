@@ -380,7 +380,7 @@ function ThemeHandler() {
       dispatch(updateSetting({key: "systemTheme", value: systemTheme}))
     })
     return ()=> { unlisten.then(f=> f()) }
-  }, [])
+  }, [dispatch])
   return <></>
 }
 

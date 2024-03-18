@@ -144,6 +144,18 @@ function BinSearch(t, fn, i, j)
 	error("Inf loop in binsearch")
 end
 
+function BitAnd(a, b)
+	local p, c = 1, 0 
+	while a > 0 and b > 0 do 
+		local ra, rb = a%2, b%2 
+		if ra + rb > 1 then 
+			c = c + p 
+		end 
+		a,b,p = (a-ra)/2,(b-rb)/2,p*2 
+	end 
+	return c 
+end
+
 function NameOf(path)
 	local name = select(3, path:find("([^/.]+)%.?[a-z]*$"))
 	if name ~= nil then

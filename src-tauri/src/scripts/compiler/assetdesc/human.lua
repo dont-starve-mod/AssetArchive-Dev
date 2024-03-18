@@ -1,5 +1,13 @@
 local r = require "richtext"
 
+local CHINESE_NUMBER = {
+    "一", "二", "三", "四", "五"
+}
+
+local function Bracket(s)
+	return #s == 0 and "" or "（"..s.."）"
+end
+
 local HumanAnnotator = Class(function(self, env)
 	self.env = env
 	self.po = env.po
@@ -66,6 +74,150 @@ function HumanAnnotator:Minimap(dummy_minimaps)
 
 	for k in pairs(dummy_minimaps)do
 		print("Warning: minimap without desc: "..k)
+	end
+end
+
+function HumanAnnotator:GetInventoryImageRedirect(name) --> name2, template
+	-- get redirect info
+	-- eg: heat_rock1, 2, 3... -> heat_rock
+	-- eg: chester_eyebone_closed, chester_eyebone_closed_shadow, ... -> chester_eyebone
+	-- extra info return by template, like `(cold, cool, warm, hot, ...)`
+	if name:startswith("abigail_flower") then
+		local _, _, base, level = name:find("(.+)_level(%d)")
+		if level ~= nil then
+			return base, "（"..CHINESE_NUMBER[math.max(1, tonumber(level))].."阶段）"
+		else
+			return
+		end
+	elseif name:startswith("chester_eyebone") then
+		local words = {}
+		for v in name:sub(#"chester_eyebone" + 2, #name):gmatch("[^_]+")do
+			table.insert(words, v)
+		end
+		local temp = {}
+		local skin = nil
+		for _,v in ipairs(words)do
+			if v == "closed" then 
+				table.insert(temp, "闭眼状态")
+			elseif v == "shadow" then 
+				table.insert(temp, "影切")
+			elseif v == "snow" then 
+				table.insert(temp, "冰切")
+			else
+				skin = v
+			end
+		end
+		if #temp == 0 then
+			table.insert(temp, "常规状态")
+		end
+		local base = skin and "chester_eyebone_"..skin or "chester_eyebone"
+		return base, "（"..table.concat(temp, " ").."）"
+	elseif name:startswith("heat_rock") or name:startswith("heatrock") or name:startswith("dumbbell_heat") then
+		local _, _, base, num = name:find("([^%d]+)([1-5])")
+		local extra = ({
+			"寒冷", "凉爽", "常温", "温热", "炽热",
+		})[tonumber(num) or 3]
+		if base == "heat_rock" then
+			base = "heatrock" -- fix po searching
+		end
+		return base, Bracket(extra)
+	elseif name:startswith("lantern") and name:endswith("_lit") then
+		return name:sub(1, #name - 4), Bracket("点亮状态")
+	elseif name:startswith("skull") then
+		local prefab = name:sub(7, #name)
+		return function(po)
+			return po:GetName(prefab).."的头骨"
+		end
+	elseif name:startswith("chesspiece") then
+		-- chesspiece_anchor_moonglass.tex
+		local _, _, base, type = name:find("^(.*)_([^_]+)$")
+		local extra = ({
+			stone = "石雕塑",
+			moonglass = "月亮碎片雕塑",
+		})[type]
+		if not extra then
+			print(name, type)
+			return
+		end
+		return base, Bracket(extra)
+	elseif name:startswith("gift_large")
+		or name:startswith("gift_medium")
+		or name:startswith("gift_small") then
+		return "gift"
+	elseif name:startswith("redpouch_") then
+		return "redpouch"
+	elseif name:startswith("bundle_") then
+		for _, postfix in ipairs({"large", "medium", "small"})do
+			if name:endswith("_"..postfix) then
+				return name:sub(1, #name - #postfix - 1)
+			end
+		end
+		return nil
+	elseif name:startswith("beefalo_doll") then
+		return "yotb_"..name
+	elseif name:startswith("carrat_") then
+		return "carrat"
+	elseif name:startswith("battlesong") and name:endswith("unavaliable") then
+		return name:sub(1, #name - 12)
+	elseif name:startswith("winter_ornament") then
+		local type = select(3, name:find("^winter_ornament_([a-z]+)"))
+		if type == "fancy" or type == "plain" then
+			return "winter_ornament"
+		elseif type == "light" then
+			return "winter_ornamentlight"
+		elseif type == "festivalevents" then
+			local num = assert(tonumber(name:sub(#name)))
+			return num <= 3 and "winter_ornamentforge" or "winter_ornamentgorge"
+		elseif type == "boss" or type == "shadowthralls" then
+			if name:endswith("_hermithouse") or name:endswith("_pearl") then
+				return "winter_ornamentpearl"
+			else
+				return "winter_ornamentboss"
+			end
+		else
+			error(name.." - "..type)
+		end
+	elseif name:startswith("decor_flowervase_") then
+		local skin = select(3, name:find("^decor_flowervase_([^_]+)"))
+		if skin == "flowers" or skin == "wilted" then
+			return "decor_flowervase"
+		else
+			return "decor_flowervase_"..assert(skin)
+		end
+	elseif name:startswith("decor_pictureframe") and #name > 19 then
+		local skin = select(3, name:find("^decor_pictureframe_([^_]+)"))
+		if skin == "flowers" or skin == "wilted" then
+			return "decor_pictureframe"
+		else
+			return "decor_pictureframe_"..assert(skin)
+		end
+	elseif name:startswith("cursed_beads") then
+		return "cursed_monkey_token"
+	elseif name:startswith("spice") and name:endswith("over") then
+		return name:sub(1, #name - 5), Bracket("覆盖图层")
+	elseif name:endswith("_oversized_rot") then
+		return name.."ten" -- rot --> rotten
+	elseif name:startswith("balloon") and #name == 9
+		or name:startswith("balloonspeed") and #name == 13
+		or name:startswith("singingshell_octave")
+		or name:startswith("deer_antler")
+			then
+		--- xxxxxx1
+		--- yyyyyy_2
+		local num = name:sub(#name)
+		assert(tonumber(num), "Failed to parse: "..name)
+		local underline = name:sub(#name - 1, #name - 1) == "_"
+		local base = name:sub(1, #name - (underline and 2 or 1))
+		return base
+	elseif name:startswith("terrarium_") then
+		local type = select(3, name:find("_(.+)$"))
+		local extra = ({
+			crimson = "猩红",
+			cooldown = "冷却状态",
+		})[type]
+		return "terrarium", Bracket(assert(extra))
+	elseif name:endswith("_oversized_waxed") then
+		return name:sub(1, #name - 6), Bracket("打蜡的")
 	end
 end
 
@@ -142,13 +294,7 @@ function HumanAnnotator:Music(data)
 	end
 
 	local nightmare_str = "梦魇循环-"
-	local data = {
-		-- components/nightmareclock
-		["dontstarve/cave/nightmare_warning"] = nightmare_str.."警告",
-		["dontstarve/cave/nightmare_end"] = nightmare_str.."黎明",
-		["dontstarve/cave/nightmare_full"] = nightmare_str.."狂野",
-		["dontstarve/cave/nightmare"] = nightmare_str.."氛围声",
-
+	local music_data = {
 		-- components/dynamicmusic
 		["dontstarve/music/music_work"] = "秋季工作音乐",
 		["dontstarve/music/music_work_winter"] = "冬季工作音乐",
@@ -208,6 +354,27 @@ function HumanAnnotator:Music(data)
 
 		["summerevent/music/1"] = "狂欢节氛围",
 		["summerevent/music/2"] = "狂欢节小游戏",
+
+		["dontstarve/music/music_boatrace"] = "龙舟比赛",
+	}
+
+	local amb_data = {
+		-- components/nightmareclock
+		["dontstarve/cave/nightmare_warning"] = nightmare_str.."警告",
+		["dontstarve/cave/nightmare_end"] = nightmare_str.."黎明",
+		["dontstarve/cave/nightmare_full"] = nightmare_str.."狂野",
+		["dontstarve/cave/nightmare"] = nightmare_str.."氛围声",
+
+		-- components/ambientsound
+	    ["dontstarve/AMB/waves"] = "秋季海浪声/春季海浪声",
+	    ["dontstarve/AMB/waves_winter"] = "冬季海浪声",
+	    ["dontstarve_DLC001/spring/springwaves"] = "春季海浪声（未使用）",
+	    ["dontstarve_DLC001/AMB/waves_summer"] = "夏季海浪声",
+
+	    ["dontstarve/sanity/sanity"] = "疯狂的声音。\n该环境声的响度和玩家理智值有关。",
+	    ["turnoftides/sanity/lunacy_LP"] = "启蒙的声音。\n该环境声的响度和玩家启蒙值有关（在月岛等月亮阵营的地块上触发）。",
+	    ["dontstarve/AMB/caves/main"] = "洞穴",
+	    ["dontstarve/AMB/quagmire/city_stone"] = "在特殊活动“暴食”中的环境声",
 	}
 
 	local boss_desc = {
@@ -230,32 +397,37 @@ function HumanAnnotator:Music(data)
 		cave = "洞穴",
 	}
 	for path in pairs(music)do
-		if data[path] == nil and path:find("/music_epicfight_") then
+		if music_data[path] == nil and path:find("/music_epicfight_") then
 			local boss_name = path:sub(select(2, path:find("/music_epicfight_"))+1, #path)
 			if boss_desc[boss_name] ~= nil then
-				data[path] = boss_desc[boss_name].."boss战音乐"
+				music_data[path] = boss_desc[boss_name].."boss战音乐"
 			else
 				print("Boss music: "..path)
 			end
 		end
 	end
 
-	for path, desc in pairs(data)do
+	for path, desc in pairs(music_data)do
 		path_collction[path] = nil
 		local asset = Asset("fmodevent", {path = path})
 		-- no need to check, it's ok that sound path not exists
 		self:AddDesc(asset, desc, {check_exists = false})
-		-- tags
-		if path:find("dontstarve/cave/nightmare") then
-			self:AddDesc(asset, "#ambient_sound", {check_exists = false, append = true})
-		else
-			self:AddDesc(asset, "#music", {check_exists = false, append = true})
-		end
+		self:AddDesc(asset, "#music", {check_exists = false, append = true})
+	end
 
+	for path, desc in pairs(amb_data)do
+		path_collction[path] = nil
+		local asset = Asset("fmodevent", {path = path})
+		self:AddDesc(asset, desc, {check_exists = false})
+		self:AddDesc(asset, "#ambient_sound", {check_exists = false, append = true})
 	end
 
 	for path, v in pairs(path_collction)do
+		if path:upper():find("AMB") then
+			self:AddDesc(Asset("fmodevent", {path = path}), "#ambient_sound", {check_exists = false, append = true})
+		else
 		print("SOUND", path)
+		end
 	end
 end
 

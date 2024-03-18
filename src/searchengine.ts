@@ -84,6 +84,7 @@ export type Entry = {
   type: "entry",
   alias: string[],
   plain_alias: string,
+  tags: string[],
   desc: string[], // TODO: 应该是RichText
   plain_desc: string,
   source: string[],
