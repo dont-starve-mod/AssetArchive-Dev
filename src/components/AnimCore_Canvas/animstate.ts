@@ -1,3 +1,4 @@
+import { appWindow } from "@tauri-apps/api/window"
 import { byte2facing, facing2byte } from "../../facing"
 import smallhash from "../../smallhash"
 import { FrameList, AnimationData, BuildData, Rect } from "./animcore"
@@ -182,8 +183,9 @@ export class AnimState {
   private _facing?: number = facing2byte("all")
   private _event: EventTarget
   facingList: number[]
-  autoFacing: boolean
-  autoFacingByBit: boolean
+  autoFacing = true
+  autoFacingByBit = false
+  forceRender = true
   DEV_usingElementLoader: boolean
 
   animLoader: (param: {bank: hash, animation: string})=> AnimationData[] = dummy as any
@@ -213,8 +215,6 @@ export class AnimState {
       symbolMult: {}, symbolAdd: {}
     }
     this.player = new AnimPlayer(this)
-    this.autoFacing = true
-    this.autoFacingByBit = false
     this._event = new EventTarget()
 
     const {bank, build, animation, facing} = data || {}
@@ -410,7 +410,7 @@ export class AnimState {
     for (let i = this.api_list.length - 1; i >= 0; --i){
       const {name, args, disabled} = this.api_list[i]
       if (!disabled){
-        if (name === "SetBuild" || name == "SetSkin")
+        if (name === "SetBuild" || name === "SetSkin")
           return args[0]
       }
     }
@@ -420,7 +420,7 @@ export class AnimState {
     for (let i = this.api_list.length - 1; i >= 0; --i){
       const {name, args, disabled} = this.api_list[i]
       if (!disabled){
-        if (name === "SetBank" || name == "SetBankAndPlayAnimation")
+        if (name === "SetBank" || name === "SetBankAndPlayAnimation")
           return args[0]
       }
     }
@@ -606,7 +606,7 @@ export class AnimState {
           }
         }
       }
-      else if (name == "ClearOverrideSymbol") {
+      else if (name === "ClearOverrideSymbol") {
         const hash = smallhash(args[0])
         this.symbolSource[hash] = [null, -1]
       }
@@ -631,6 +631,19 @@ export class AnimState {
     this.buildLoader = buildLoader
     this.atlasLoader = atlasLoader
     this.elementLoader = elementLoader
+
+    if (elementLoader !== undefined){
+      // register global element loaded listener
+      appWindow.listen<{imghash: number}>("animation_element_loaded", ({payload})=> {
+        if (this.forceRender) return
+        if (this.symbolCollection.has(payload.imghash) ||
+          Object.values(this.symbolSource)
+          .some(([_, hash])=> hash === payload.imghash)){
+          this.forceRender = true
+        }
+      })
+      // TODO: remove this listener on ~AnimState?
+    }
   }
 
   // event

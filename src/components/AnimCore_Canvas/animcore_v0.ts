@@ -3,9 +3,8 @@ import { hash, AnimState } from "./animstate"
 import { RenderParams, IRenderParams } from "./renderparams"
 import { invoke } from "@tauri-apps/api"
 import { base64DecToArr } from "../../base64_util"
-import { appWindow } from "@tauri-apps/api/window"
 
-/* Animation assets */
+/* 动画资源 */
 const buildLoading: {[K: string]: true} = {}
 const buildData: {[K: string]: BuildData} = {}
 const animLoading: {[K: string]: true} = {}
@@ -39,7 +38,6 @@ export interface Element {
 
 export type Frame = Element[]
 export type FrameList = Frame[]
-
 export type Rect = {
   left: number,
   right: number,
@@ -58,7 +56,7 @@ export interface AnimationData {
 }
 
 async function get<T>(param: {[K:string]: string | number | boolean}): Promise<T> {
-  const response = await invoke<T>("lua_call", {
+  const response: T = await invoke("lua_call", {
     api: "load",
     param: JSON.stringify(param),
   })
@@ -84,7 +82,7 @@ function animLoader({bank, animation}: {bank: hash, animation: string}, error): 
       const response = await get<string>({type: "animation", bank: bankhash, name: animation})
       if (response.length > 0){
         const data: AnimationData[] & {allFacings: number[]} = JSON.parse(response)
-        animLoading[id] = undefined
+        delete animLoading[id]
         data.allFacings = []
         data.forEach(anim=> data.allFacings.push(anim.facing))
         data.forEach(anim=> 
@@ -145,7 +143,7 @@ function buildLoader({build}: {build: string}, error): BuildData | undefined{
         data.symbol.forEach(({imghash, imglist})=> {
           data.symbolMap[imghash] = imglist
         })
-        buildLoading[id] = undefined
+        delete buildLoading[id]
         buildData[id] = data
         onNewBuildLoaded()
       }
@@ -175,7 +173,7 @@ function atlasLoader({build, sampler}: {build: string, sampler: number}, error):
         const array = Uint8Array.from(base64DecToArr(response))
         const blob = new Blob([array])
         const atlas = await createImageBitmap(blob)
-        atlasLoading[id] = undefined
+        delete atlasLoading[id]
         console.log("Load atlas success: " + id)
         atlasData[id] = atlas
       }
@@ -201,17 +199,28 @@ function elementLoader({build, imghash, index}:
   async function load(){
     try {
       elementLoading[id] = true
+      // const response = await get<number[]>({type: "symbol_element", build, imghash, index, format: "png", fill_gap: true})
+      // if (response.length > 0){
+      //   const array = Uint8Array.from(response)
+      //   const blob = new Blob([array])
+      //   const img = await createImageBitmap(blob)
+      //   delete elementLoading[id]
+      //   console.log("Load element success: " + id + ` (${img.width}✕${img.height})`)
+      //   elementData[id] = img
+      // }
+      // else {
+      //   pushError(error, "Atlas not exists: " + id)
+      // }
+
       const response = await get<string>({type: "symbol_element", build, imghash, index, format: "json", fill_gap: false})
       if (response.length > 0){
         const {width, height, rgba} = JSON.parse(response)
         const pixels = base64DecToArr(rgba)
         const data = new ImageData(pixels, width, height)
         const img = await createImageBitmap(data)
-        elementLoading[id] = undefined
+        delete elementLoading[id]
         console.log("Load element success: " + id + ` (${img.width}✕${img.height})`)
         elementData[id] = img
-        // fire event after every element loaded
-        appWindow.emit("animation_element_loaded", {imghash})
       }
       else {
         pushError(error, "Atlas not exists: " + id)
@@ -249,15 +258,10 @@ function onUpdate(time: number){
   if (updatingCanvas.size){
     updatingCanvas.forEach(canvas=> {
       const ctx = canvas.ctx
-      let cleared = false
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       canvas.anims.forEach(anim=> {
         const animList: AnimationData[] = anim.animLoader({bank: anim.bank, animation: anim.animation})
         if (!animList || animList.length === 0) return
-        if (anim.isPaused && !anim.forceRender) return console.log("Render blocked")
-        if (!cleared){
-          cleared = true
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
-        }
         const animData = anim.getActualAnimData(animList)
         if (!animData) return
         anim.setRect(animData.rect)
@@ -292,6 +296,7 @@ function onUpdate(time: number){
         }
 
         if (canvas.render.axis === "back") renderAxis()
+
         ctx.save()
         ctx.transform(...canvas.render.transform)
         for (let element of frame){
@@ -330,9 +335,6 @@ function onUpdate(time: number){
         ctx.restore()
         if (canvas.render.axis === "front") renderAxis()
         ctx.restore()
-
-        if (anim.isPaused)
-          anim.forceRender = false // clear force flag
       })
     })
     requestAnimationFrame(onUpdate)
@@ -363,7 +365,6 @@ function onNewBuildLoaded() {
   updatingCanvas.forEach(canvas=> {
     canvas.anims.forEach(anim=> {
       anim.rebuildSymbolSource()
-      anim.forceRender = true
     })
   })
 }

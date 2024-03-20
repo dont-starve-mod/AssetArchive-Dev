@@ -528,7 +528,7 @@ function Zip(props: {file: string} & PreviewProps) {
 
 function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
   const {ref, canvas, appeared, width, height, renderWidth, renderHeight, loadingSize} = useCanvasPreviewSetup(props, [80, 80])
-  const [loadingState, setState] = useState(LoadingState.Loading)
+  // const [loadingState, setState] = useState(LoadingState.Loading)
   const {bank, build, anim, animpercent, facing, alpha, overridebuild, overridesymbol, hidesymbol, hide} = props
   const animstate = useRef(new AnimState()).current
   
@@ -586,7 +586,6 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
       <div ref={ref}>
         {
           appeared && <>
-            <Loading size={loadingSize} loadingState={loadingState}/>
             <AnimCore 
               width={width} 
               height={height} 
