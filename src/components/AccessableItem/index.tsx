@@ -83,7 +83,7 @@ export function AccessableItem(props: Result){
           type === "fmodproject" || type === "bank" ?
             <Preview.SimpleIcon icon="box"/> :
           type === "entry" ? 
-            <></> :
+            props.preview_data && props.preview_data.anim && <Preview.EntryAnim {...props.preview_data.anim} {...PREIVEW_SIZE}/> :
             // <Preview.Entry/> :
           <></>
         }

@@ -72,7 +72,7 @@ pub mod lua_ffmpeg {
     // use std::os::windows::io::{AsRawHandle, OwnedHandle, FromRawHandle};
     
     use rlua::prelude::{LuaResult, LuaContext, LuaError};
-    use rlua::{Value, Table, UserData};
+    use rlua::{Lua, Table, UserData, Value};
     use crate::filesystem::lua_filesystem::ConvertArgToString;
     use crate::image::lua_image::Image;
 
@@ -184,8 +184,10 @@ pub mod lua_ffmpeg {
     //   scale    0.5|1
     //   rate     30
     table.set("Encoder", lua_ctx.create_function(|_, args: Table|{
-        let bin = args.get::<_, String>("bin")?;
-        let path = args.get::<_, String>("path")?;
+        let bin = args.get::<_, String>("bin")
+            .map_err(|_| LuaError::RuntimeError("field `bin` must be string".into()))?;
+        let path = args.get::<_, String>("path")
+            .map_err(|_| LuaError::RuntimeError("field `path` must be string".into()))?;
         let format = args.get::<_, String>("format")?;
         let scale = args.get::<_, f32>("scale").unwrap_or(1.0);
         let rate = args.get::<_, f32>("rate").unwrap_or(30.0);

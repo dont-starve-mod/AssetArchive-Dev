@@ -39,10 +39,11 @@ pub mod lua_args {
                     .action(ArgAction::SetTrue)
                     .help("忽略缓存, 强制进行资源索引, 会显著增加耗时, 不建议使用")
             ];
-            let matches = clap::Command::new("Asset Archive CLI")
+            let cmd = clap::Command::new("Asset Archive CLI")
                 .author("老王天天写bug")
-                .about("饥荒资源档案 - 命令行工具 (Asset Archive CLI)")
-                .subcommand(clap::Command::new("dummy")
+                .about("饥荒资源档案 - 命令行工具 (Asset Archive CLI)");
+            #[cfg(not(feature = "release"))]
+            let cmd = cmd.subcommand(clap::Command::new("dummy")
                     .about("快速测试路径参数")
                     .visible_aliases(["d"])
                     .args(generic_args.clone()))
@@ -58,7 +59,8 @@ pub mod lua_args {
                             .help("跳过prefab loading分析步骤, 缩短总时长")
                     ])
                     .args(index_args.clone())
-                )
+                );
+            let cmd = cmd
                 .subcommand(clap::Command::new("render-animation")
                     .about("渲染动画, 生成图片序列/视频/动图")
                     .visible_aliases(["animation", "anim", "a", "r"])
@@ -124,6 +126,15 @@ pub mod lua_args {
                             .long("fps")
                             .short('r')
                             .help("动图/视频的每秒帧数"),
+                        Arg::new("frame")
+                            .long("frame")
+                            .value_name("FRAME")
+                            .help("指定渲染的帧索引（从0开始）"),
+                        Arg::new("percent")
+                            .long("percent")
+                            .value_name("PERCENT")
+                            .help("指定渲染的帧在动画的百分比位置（范围0–1）")
+                            .conflicts_with("frame"),
                         Arg::new("format")
                             .long("format")
                             .value_name("FORMAT")
@@ -136,7 +147,7 @@ pub mod lua_args {
                     .after_help("颜色参数:\n  css格式的颜色值, 例如: red, #f00, rgb(255,255,0), rgba(255,255,0,100), transparent")
                 )
                 .subcommand(clap::Command::new("install-ffmpeg")
-                    .about("安装FFmpeg（视频编码模块）")
+                    .about("安装FFmpeg")
                     .visible_aliases(["ffmpeg"])
                     .args([
                         generic_args[0].clone(),
@@ -151,9 +162,8 @@ pub mod lua_args {
                             .help("使用自定义安装, 需要有效的可执行文件路径, 例如: ffmpeg, path/to/ffmpeg.exe, /usr/local/bin/ffmpeg")
                             .conflicts_with("uninstall"),
                 ]))
-                .after_help("")
-                .get_matches();
-
+                .after_help("");
+            let matches = cmd.get_matches();
             Args { inner: matches, exec: std::env::args().next().unwrap_or("".into()) }
         }
     }

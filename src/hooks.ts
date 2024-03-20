@@ -350,8 +350,11 @@ export function useIntersectionObserver(param: {ref: React.MutableRefObject<HTML
         setAppeared(true)
       }
     }, { rootMargin, threshold })
-    observer.observe(ref.current)
-    return () => ref.current && observer.unobserve(ref.current)
+
+    if (ref.current) observer.observe(ref.current)
+    return () => {
+      if (ref.current) observer.unobserve(ref.current)
+    }
   }, [ref, threshold, rootMargin])
 
   return { visible, appeared }

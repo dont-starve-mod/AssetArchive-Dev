@@ -7,9 +7,9 @@ import AssetPage from "./pages/AssetPage"
 import AnimListPage from "./pages/AnimListPage"
 import HomePage from "./pages/HomePage"
 import PostProcessProjectList from "./pages/PostProcessProjectList"
-
-import { Routes, Route } from "react-router-dom"
 import AppFirstLaunch from "./components/AppFirstLaunch"
+import EntrySearcher from "./components/EntrySearcher"
+import { Routes, Route } from "react-router-dom"
 
 export default function MainRoutes() {
   return <Routes>
@@ -23,6 +23,7 @@ export default function MainRoutes() {
     <Route path="/anim-list" element={<AnimListPage/>} />
     <Route path="/search" element={<SearchResultPage/>} />
     <Route path="/modtools" element={<>什么都没有</>} />
+    <Route path="/entry-searcher" element={<EntrySearcher/>} />
     <Route path="/filter" element={<PostProcessProjectList/>} />
     <Route path="/" element={<HomePage/>} />
   </Routes>

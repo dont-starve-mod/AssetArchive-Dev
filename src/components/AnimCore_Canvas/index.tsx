@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react'
 import { addAnimState, removeCanvas, CanvasRenderer } from './animcore'
-import { useMouseDrag, useMouseScroll } from '../../hooks'
+import { useAppSetting, useMouseDrag, useMouseScroll } from '../../hooks'
 import { IRenderParams } from './renderparams'
 import { v4 } from 'uuid'
 import { AnimState } from './animstate'
@@ -11,12 +11,17 @@ type AnimCoreProps = {
   bgc?: string,
   animstate: AnimState,
   customLoaders?: object,
+  noMouseEvent?: boolean,
   renderRef?: (render: any)=> void
 }
+
+const dummy = ()=> {}
 
 export default function AnimCore(props: AnimCoreProps & IRenderParams) {
   const {width = 540, height = 300, bgc = "#aaa", animstate, customLoaders} = props
   const canvas = useRef<CanvasRenderer>()
+  const [resolution] = useAppSetting("resolution")
+
   const onMouseMove = useCallback((x: number, y: number)=> {
     canvas.current?.render.offset(x, y)
   }, [])
@@ -37,7 +42,7 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
       removeCanvas(ref)
       if (renderRef) renderRef(null)
     }
-  }, [renderRef])
+  }, [renderRef, width, height])
 
   const canvasStyle = {
     width, height,
@@ -62,9 +67,11 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
     return ()=> animstate.removeEventListener("rebuildtint", onTint)
   }, [animstate])
 
+  const {noMouseEvent} = props
+
   return (
     <div style={{...canvasStyle, backgroundColor: bgc, position: "relative"}}>
-      <svg height="0" style={{position: "absolute"}}>
+      <svg height="0" className="absolute">
         <filter id={filterId}>
           <feColorMatrix values={colorMatrix}/>
           {/* <feColorMatrix values={colorMatrix} style={{colorInterpolationFilters:"sRGB"}}/> */}
@@ -75,10 +82,10 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
         width={width* window.devicePixelRatio} 
         height={height* window.devicePixelRatio} 
         style={{...canvasStyle, position: "absolute", filter: `url(#${filterId})`}}
-        onMouseDown={onMouseDown}
-        onWheel={onWheel}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        onMouseDown={!noMouseEvent ? onMouseDown : dummy}
+        onWheel={!noMouseEvent ? onWheel : dummy}
+        onMouseEnter={!noMouseEvent ? onMouseEnter : dummy}
+        onMouseLeave={!noMouseEvent ? onMouseLeave : dummy}
       />
     </div>
   )

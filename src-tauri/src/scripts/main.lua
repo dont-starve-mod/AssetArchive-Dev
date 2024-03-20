@@ -36,6 +36,7 @@ local function SendData()
 	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
 	IpcEmitEvent("entry", require "compiler.output.entry")
 	IpcEmitEvent("animpreset", require "compiler.output.animpreset")
+	IpcEmitEvent("entry_tags", require "compiler.output.entry_tags")
 
 	print("All data sent")
 end

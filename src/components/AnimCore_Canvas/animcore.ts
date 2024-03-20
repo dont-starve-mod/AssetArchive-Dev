@@ -199,11 +199,25 @@ function elementLoader({build, imghash, index}:
   async function load(){
     try {
       elementLoading[id] = true
-      const response = await get<number[]>({type: "symbol_element", build, imghash, index, format: "png", fill_gap: true})
+      // const response = await get<number[]>({type: "symbol_element", build, imghash, index, format: "png", fill_gap: true})
+      // if (response.length > 0){
+      //   const array = Uint8Array.from(response)
+      //   const blob = new Blob([array])
+      //   const img = await createImageBitmap(blob)
+      //   delete elementLoading[id]
+      //   console.log("Load element success: " + id + ` (${img.width}✕${img.height})`)
+      //   elementData[id] = img
+      // }
+      // else {
+      //   pushError(error, "Atlas not exists: " + id)
+      // }
+
+      const response = await get<string>({type: "symbol_element", build, imghash, index, format: "json", fill_gap: false})
       if (response.length > 0){
-        const array = Uint8Array.from(response)
-        const blob = new Blob([array])
-        const img = await createImageBitmap(blob)
+        const {width, height, rgba} = JSON.parse(response)
+        const pixels = base64DecToArr(rgba)
+        const data = new ImageData(pixels, width, height)
+        const img = await createImageBitmap(data)
         delete elementLoading[id]
         console.log("Load element success: " + id + ` (${img.width}✕${img.height})`)
         elementData[id] = img
@@ -369,6 +383,7 @@ function addAnimState(
   renderParams?: IRenderParams,
 ): void
 {
+  console.log("addAnimState", canvas)
   observer.observe(canvas)
   canvas.ctx = canvas.getContext("2d") as CanvasRenderingContext2D
   canvas.render = canvas.render || new RenderParams(renderParams)

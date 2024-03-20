@@ -21,7 +21,7 @@ export function base64DecToArr(sBase64: string, nBlocksSize?: number) {
   const nOutLen = nBlocksSize
     ? Math.ceil(((nInLen * 3 + 1) >> 2) / nBlocksSize) * nBlocksSize
     : (nInLen * 3 + 1) >> 2;
-  const taBytes = new Uint8Array(nOutLen);
+  const taBytes = new Uint8ClampedArray(nOutLen);
 
   let nMod3: number;
   let nMod4: number;

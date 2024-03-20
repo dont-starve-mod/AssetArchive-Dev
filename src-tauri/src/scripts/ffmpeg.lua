@@ -62,7 +62,7 @@ function FFmpeg:GetState()
 end
 
 function FFmpeg:IsAvailable()
-    return self.binpath:is_file() or (Config:Get("ffmpeg_path") or "") ~= ""
+    return self:TryGetBinPath("no_warning") ~= nil
 end
 
 function FFmpeg:Install(bytes)
@@ -120,7 +120,7 @@ function FFmpeg:TryGetBinPath(no_warning)
     elseif FFcore.ValidateBinPath(self.binpath:as_string()) then
         return self.binpath:as_string(), "AUTO"
     elseif not no_warning then
-        print_error("Warning: failed to get ffmpeg path")
+        error("Failed to get ffmpeg path")
     end
 end
 

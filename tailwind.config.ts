@@ -6,7 +6,11 @@ export default {
     "./src/**/*.{jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+        scale: {
+          "120": "1.2",
+        },
+    },
   },
   plugins: [],
   corePlugins: {

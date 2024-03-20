@@ -198,6 +198,10 @@ fn get_is_debug() -> bool {
     cfg!(debug_assertions)
 }
 
+fn get_is_release() -> bool {
+    cfg!(feature = "release")
+}
+
 #[cfg(target_os="windows")]
 #[tauri::command]
 fn select_file_in_folder(path: String) -> bool {
@@ -415,7 +419,7 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         })?)?;
 
         let workdir = state.get_debug_script_root(std::env::current_dir().unwrap_or_default());
-        let script_root = if workdir.join("Cargo.toml").exists() { // TODO: 判定开发者环境, 有点不好, 以后要删了
+        let script_root = if !get_is_release() && workdir.join("Cargo.toml").exists() {
             println!("[DEBUG] Enable dynamic script loading");
             workdir.join("src").join("scripts")
         }

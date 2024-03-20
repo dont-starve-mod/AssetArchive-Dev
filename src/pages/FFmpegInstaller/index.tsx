@@ -191,10 +191,10 @@ function Custom({setStep, state, forceUpdate}) {
       <div className={style["hint"] + " bp4-running-text"}>
         {
           !state.custom_installed ? <>
-            <p>建议使用环境变量或绝对路径，例如：</p>
-            <p className={style["path"]}>ffmpeg</p>
-            <p className={style["path"]}>/usr/local/bin/ffmpeg</p>
-            <p className={style["path"]}>/Users/Name/Downloads/ffmpeg</p>
+            <p>建议使用绝对路径，例如：</p>
+            <p className={style["path"]}>C:/tools/ffmpeg.exe</p>
+            <p className={style["path"]}>/opt/homebrew/bin/ffmpeg</p>
+            {/* <p className={style["path"]}>/Users/Name/Downloads/ffmpeg</p> */}
             <p>FFmpeg必须包含libx264、gif和png编码格式，以及mp4、gif和mov封装格式。</p>
             <p>如果你无法确认路径位置，请使用<a onClick={()=> setStep("intro")}>一键安装</a>。</p>
           </> : <>

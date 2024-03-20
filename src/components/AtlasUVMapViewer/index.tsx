@@ -217,7 +217,6 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
           <div style={{height: 4}}></div>
           <Popover2 
             content={<div 
-              className='shadow-box'
               style={{
                 userSelect: "none", WebkitUserSelect: "none",
                 backgroundColor: "white", padding: 10, paddingBottom:4, borderRadius: 2}}>

@@ -9,6 +9,10 @@ import { appWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api'
 import store, { useSelector } from '../../redux/store'
 import { base64DecToArr } from '../../base64_util'
+import { EntryPreviewData } from '../../searchengine'
+import { AnimState } from '../AnimCore_Canvas/animstate'
+import AnimCore from '../AnimCore_Canvas'
+import { RenderParams } from '../AnimCore_Canvas/renderparams'
 
 interface PreviewProps {
   width?: number,
@@ -486,7 +490,9 @@ function Zip(props: {file: string} & PreviewProps) {
   [appeared && !isPureAnimation])
 
   if (isPureAnimation) {
-    return <SimpleIcon icon="walk"/>
+    return (
+      <SimpleIcon icon="walk" ref={ref}/>
+    )
   }
   else {
     return (
@@ -520,6 +526,82 @@ function Zip(props: {file: string} & PreviewProps) {
   }
 }
 
+function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
+  const {ref, canvas, appeared, width, height, renderWidth, renderHeight, loadingSize} = useCanvasPreviewSetup(props, [80, 80])
+  const [loadingState, setState] = useState(LoadingState.Loading)
+  const {bank, build, anim, animpercent, facing, alpha, overridebuild, overridesymbol, hidesymbol, hide} = props
+  const animstate = useRef(new AnimState()).current
+  
+  // convert preview data to animstate api list
+  useEffect(()=> {
+    const list = [
+      {name: "SetBank", args: [bank]},
+      {name: "SetBuild", args: [build]},
+      {name: "PlayAnimation", args: [anim]},
+      overridebuild && {name: "OverrideBuild", args: [overridebuild]},
+      alpha && {name: "SetMultColour", args: [1,1,1,alpha]},
+      ...(hide || []).map(v=> ({name: "Hide", args: [v]})),
+      ...(hidesymbol || []).map(v=> ({name: "HideSymbol", args: [v]})),
+    ]
+    animstate.clear()
+    animstate.autoFacingByBit = true
+    // @ts-ignore
+    animstate.setApiList(list.filter(Boolean))
+    animstate.pause()
+    animstate.getPlayer().setPercent(animpercent || 0)
+    animstate.facing = facing
+  }, [bank, build, anim, animpercent, facing, hide, hidesymbol, alpha, overridebuild, animstate])
+
+  const [render, setRender] = useState<RenderParams>()
+
+  useEffect(()=> {
+    const onChangeRect = ()=> {
+      const {left, top, width: w, height: h} = animstate.rect
+      const scaleW = width / w, scaleH = height / h
+      const scale = Math.min(scaleW, scaleH)
+      if (render) {
+        render.centerStyle = "origin"
+        if (scaleW > scaleH){
+          render.applyPlacement({
+            x: -left*scale + (width - w*scale)/2,
+            y: -top*scale,
+            scale,
+          })
+        }
+        else {
+          render.applyPlacement({
+            x: -left*scale,
+            y: -top*scale + (height - h*scale)/2,
+            scale,
+          })
+        }
+      }
+    }
+    animstate.addEventListener("changerect", onChangeRect)
+    return ()=> animstate.removeEventListener("changerect", onChangeRect)
+  }, [animstate, width, height, render])
+
+  return (
+    <>
+      <div ref={ref}>
+        {
+          appeared && <>
+            <Loading size={loadingSize} loadingState={loadingState}/>
+            <AnimCore 
+              width={width} 
+              height={height} 
+              noMouseEvent
+              bgc="transparent"
+              animstate={animstate}
+              renderRef={v=> setRender(v)}
+            />
+          </>
+        }
+      </div>
+    </>
+  )
+}
+
 const SFX_ID = "PREVIEW_SFX"
 function Sfx(props: {path: string, param_list: any[]} & PreviewProps) {
   const {path} = props
@@ -529,7 +611,7 @@ function Sfx(props: {path: string, param_list: any[]} & PreviewProps) {
     (appstates.fmod_playing_info[SFX_ID] || {}).path)
   const play = useCallback(()=> {
     // don't use `useSelector` for performance issue
-    const param_value = store.getState().appstates.fmod_param_value
+    const param_value = store.getState().localstorage.fmod_param_value
     const params = Object.fromEntries(
       props.param_list.map(({name, range})=> {
         const percent = param_value[name] || 0
@@ -540,7 +622,7 @@ function Sfx(props: {path: string, param_list: any[]} & PreviewProps) {
       api: "PlaySoundWithParams",
       args: [path, SFX_ID, params],
     })})
-  }, [path])
+  }, [path, props.param_list])
   const stop = useCallback(()=> {
     invoke("fmod_send_message", {data: JSON.stringify({
       api: "KillSound",
@@ -578,14 +660,16 @@ export function killPreviewSfx() {
   })})
 }
 
-export function SimpleIcon({icon}: {icon: IconName}) {
+export function SimpleIcon({icon, ref}: {icon: IconName, ref?: React.RefObject<HTMLDivElement>}) {
   return (
-    <div style={{position: "relative", width: "100%", height: "100%"}}>
+    <div ref={ref} className="relative w-full h-full">
       <Button 
         minimal
         large
-        icon={icon} 
-        style={{position: "absolute", transform: "translate(-50%, -50%) scale(1.2)", left: "50%", top: "50%"}}/>
+        icon={icon}
+        className={`absolute left-1/2 top-1/2 
+          transform -translate-x-1/2 -translate-y-1/2 scale-120`}
+      />
   </div>
   )
 }
@@ -598,8 +682,9 @@ export default {
   XmlMap,
   Atlas,
   Zip,
+  EntryAnim,
   FastSymbolElement,
   SymbolElement,
   SimpleIcon,
   Sfx,
-}
+} as const

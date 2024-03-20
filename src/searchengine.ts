@@ -78,13 +78,28 @@ type Asset = Tex | Xml | AnimZip | AnimDyn | TexNoRef | Shader | FmodEvent | Fmo
 export type AllAssetTypes = Asset
 export type Matches = Array<{indices: Array<[number, number]>, key: string}>
 
+export type EntryPreviewData = {
+  tex: string,
+  anim: {
+    bank: string,
+    build: string,
+    anim: string,
+    animpercent?: number, 
+    facing?: number, 
+    alpha?: number,
+    overridebuild?: string,
+    overridesymbol?: [string, string, string, number?][], 
+    hidesymbol?: string[], 
+    hide?: string[],
+  }
+}
+
 export type Entry = {
   id: string,
   key: string,
   type: "entry",
   alias: string[],
   plain_alias: string,
-  tags: string[],
   desc: string[], // TODO: 应该是RichText
   plain_desc: string,
   source: string[],
@@ -93,7 +108,9 @@ export type Entry = {
     id: string,
     type: Asset["type"],
     file?: string,
-  }>
+  }>,
+  preview_data: EntryPreviewData,
+  tags: {[tag: string]: true},
 }
 
 export type Bank = {

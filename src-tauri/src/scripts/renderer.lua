@@ -129,11 +129,11 @@ function Render:Refine()
 
 	local builddata = build and self.provider:GetBuild({name = build})
 	if builddata == nil then
-		print_warning("Warning: main build not exists: "..tostring(build))
+		print_error("Warning: main build not exists: "..tostring(build))
 	end
 	local animlist = bank and animation and self.provider:GetAnimation({bank = bank, name = animation})
 	if animlist == nil then
-		print_warning("Warning: animation not exists: ["..tostring(bank).."]"..tostring(animation))
+		print_error("Warning: animation not exists: ["..tostring(bank).."]"..tostring(animation))
 		error("runtime error: animation not exists")
 	end
 
@@ -207,11 +207,11 @@ function Render:BuildSymbolSource()
 			local build = self.provider:GetBuild({name = buildname})
 			local symboldata = nil
 			if build == nil then
-				print_warning("Warning: build not exists: "..format(v))
+				print_error("Warning: build not exists: "..format(v))
 			else
 				symboldata = build:GetSymbol(symbol)
 				if symboldata == nil then
-					print_warning("Warning: symbol not in build: "..format(v))
+					print_error("Warning: symbol not in build: "..format(v))
 				end
 			end
 			if symbol ~= nil then
@@ -224,7 +224,7 @@ function Render:BuildSymbolSource()
 			local buildname = args[1]
 			local build = self.provider:GetBuild({name = buildname})
 			if build == nil then
-				print_warning("Warning: build not exists: "..format(v))
+				print_error("Warning: build not exists: "..format(v))
 			else
 				for k,v in pairs(build.symbol_map)do
 					if name:startswith("Add") then

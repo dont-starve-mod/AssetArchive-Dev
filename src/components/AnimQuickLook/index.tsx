@@ -67,7 +67,7 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
   useEffect(()=> {
     if (typeof animstateRef === "function")
       animstateRef(animstate)
-  }, [animstateRef])
+  }, [animstate, animstateRef])
 
   const cmds = useQuickLookCmds(data)
   useEffect(()=> {
@@ -105,7 +105,7 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
   const exportFn = useQuickLookExport(animstate)
 
   return (
-    <div style={{position: "relative"}} className='no-select'>
+    <div className="select-none relative">
       <AnimCore
         width={Math.floor(placement.width)}
         height={Math.floor(placement.height)}

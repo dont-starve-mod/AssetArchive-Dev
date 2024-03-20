@@ -202,6 +202,7 @@ end
 
 function EntryManager:AddTagFromScrapbook()
 	local data = self.root:LoadScript("screens/redux/scrapbookdata")
+	local all_tags = { fueled = true, fuel = true }
 	local other_keys = {}
 
 	-- [base]
@@ -226,6 +227,7 @@ function EntryManager:AddTagFromScrapbook()
 	-- armor | absorb_percent -> armor
 	-- armor_planardefense
 	-- planardamage
+	-- stewer
 	-- finiteuses
 	-- weaponrange > 5 -> ranged
 	-- perishable
@@ -255,14 +257,13 @@ function EntryManager:AddTagFromScrapbook()
 	-- specialinfo
 	-- harvestable
 	-- activatable
-	-- stewer
 	-- oar_velocity
 	-- oar_force
 	-- repairitems
 	-- forgerepairable
 	
 	local BASE_KEYS = {
-		"name", "prefab", "tex", "deps", "type"
+		"name", "prefab", "tex", "deps",
 	}
 
 	local PREVIEW_KEYS = {
@@ -285,14 +286,15 @@ function EntryManager:AddTagFromScrapbook()
 		lure_dist = "fishing",
 		lure_radius = "fishing",
 
+		type = "type.{}",
 		craftingprefab = "crafted_by.{}",
 		workable = "workable.{}",
 		subcat = "subcat.{}",
 		insulator_type = "insulator.{}",
 		foodtype = "food.{}",
 		fueltype = "fuel.{}",
-		fueledtype1 = "fuled_by.{}",
-		fueledtype2 = "fuled_by.{}",
+		fueledtype1 = "fueled_by.{}",
+		fueledtype2 = "fueled_by.{}",
 
 		armor = "armor",
 		absorb_percent = "armor",
@@ -306,6 +308,7 @@ function EntryManager:AddTagFromScrapbook()
 		perishable = true,
 		lightbattery = true,
 		sewable = true,
+		stewer = true,
 		toolactions = "tool",
 		stacksize = "stackable",
 		picakble = "pickable",
@@ -376,10 +379,6 @@ function EntryManager:AddTagFromScrapbook()
 
 	local item_list = {}
 	table.foreach(data, function(_, v)
-		for _, k in ipairs(SKIPPED_KEYS)do
-			v[k] = nil
-		end
-
 		local item = {}
 		local preview_data = {}
 		for _, k in ipairs(BASE_KEYS)do
@@ -389,6 +388,12 @@ function EntryManager:AddTagFromScrapbook()
 		for _, k in ipairs(PREVIEW_KEYS)do
 			preview_data[k] = v[k]
 			v[k] = nil
+		end
+
+		if preview_data.overridesymbol then
+			if type(preview_data.overridesymbol[1]) ~= "table" then
+				preview_data.overridesymbol = { preview_data.overridesymbol }
+			end
 		end
 
 		local tags = {}
@@ -422,6 +427,20 @@ function EntryManager:AddTagFromScrapbook()
 		item.tags = tags
 		table.insert(item_list, item)
 
+		for k in pairs(tags)do
+			if k:startswith("fueled_by") then
+				if v["fueleduses"] then
+					tags["finiteuses"] = true
+				else
+					tags["fueled"] = true
+				end
+			end
+			all_tags[k] = true
+		end
+		
+		for _, k in ipairs(SKIPPED_KEYS)do
+			v[k] = nil
+		end
 		for k in pairs(v)do
 			other_keys[k] = true
 		end
@@ -438,7 +457,36 @@ function EntryManager:AddTagFromScrapbook()
 		self.anim_preview_list[v.prefab] = v.preview_data.anim
 	end
 
-	return item_list
+	print(#item_list.." Scrapbook entries: ")
+
+	for _,v in ipairs(item_list)do
+		if self.items[v.prefab] ~= nil then
+			self.items[v.prefab].preview_data = assert(v.preview_data)
+			self.items[v.prefab].tags = assert(v.tags)
+		elseif self.alias_map[v.prefab] ~= nil then
+			local key = self.alias_map[v.prefab]
+			self.items[key].preview_data = assert(v.preview_data)
+			self.items[key].tags = assert(v.tags)
+		else
+			print("Entry not found: ", v.prefab)
+		end
+	end
+
+	local all_tags = ToArray(all_tags)
+	local all_tags_names = {}
+	table.sort(all_tags)
+	local GetTagName = require "compiler/entrydesc/tag".GetTagName
+	table.foreach(all_tags, function(_,k) 
+		local name = GetTagName(self.po, k)
+		if name == nil then
+			error("Failed to get tag name: "..k)
+		elseif name ~= "#REMOVE" then
+			table.insert(all_tags_names, {k, name})
+		end
+	end)
+	print(#all_tags_names.." Tags: ")
+	
+	self.all_tags_names = all_tags_names
 end
 
 local function run(env)
@@ -465,6 +513,9 @@ local function run(env)
 
 	-- write anim preview list
 	env.write_json("anim_preview_list", manager.anim_preview_list)
+
+	-- write tags
+	env.write_json("entry_tags", manager.all_tags_names)
 end
 
 return run

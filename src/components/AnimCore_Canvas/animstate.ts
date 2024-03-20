@@ -182,7 +182,8 @@ export class AnimState {
   private _facing?: number = facing2byte("all")
   private _event: EventTarget
   facingList: number[]
-  autoFacing?: true
+  autoFacing: boolean
+  autoFacingByBit: boolean
   DEV_usingElementLoader: boolean
 
   animLoader: (param: {bank: hash, animation: string})=> AnimationData[] = dummy as any
@@ -213,6 +214,7 @@ export class AnimState {
     }
     this.player = new AnimPlayer(this)
     this.autoFacing = true
+    this.autoFacingByBit = false
     this._event = new EventTarget()
 
     const {bank, build, animation, facing} = data || {}
@@ -441,6 +443,16 @@ export class AnimState {
     this.facingList = animList.map(a=> a.facing)
     if (anim !== undefined)
       return anim
+    else if (this.autoFacingByBit){
+      let code = 1
+      while (code < 256) {
+        for (let facing of this.facingList){
+          if ((facing & code) > 0)
+            return animList.find(a=> a.facing === facing)
+        }
+        code <<= 1
+      }
+    }
     else if (this.autoFacing)
       return animList[0]
     else

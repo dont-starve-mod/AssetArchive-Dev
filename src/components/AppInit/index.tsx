@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api'
+import { dialog, invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
@@ -16,6 +16,7 @@ import { useOS } from '../../hooks'
 import { formatAlias } from '../AliasTitle'
 import RenderProgress from '../RenderProgress'
 import { initStaticPageData } from '../../pages/AssetPage/static'
+import { setState } from '../../redux/reducers/appstates'
 
 // shutdown app if main window is closed. (so that all sub windows will be closed, too)
 globalListen("tauri://destroyed", (e)=> {
@@ -227,6 +228,10 @@ export default function AppInit() {
             window.assets_map[v.id] = v)
           appWindow.emit("update_assets", window.assets)
         }),
+        await globalListen<string>("entry_tags", ({payload})=> {
+          const data = JSON.parse(payload)
+          dispatch(setState({key: "entry_tags", value: data}))
+        }),
       ]
 
       try{
@@ -247,7 +252,7 @@ export default function AppInit() {
     }
     const handlers = init()
     return ()=> { handlers.then(fns=> fns.forEach(f=> f())) }
-  }, [])
+  }, [dispatch])
 
   return <>
     <ErrorHandler/>
@@ -420,6 +425,6 @@ function GlobalHotKey() {
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [])
+  }, [isMacOS])
   return <></>
 }

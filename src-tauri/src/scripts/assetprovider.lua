@@ -441,10 +441,13 @@ function Provider:ListAsset()
 		alltexelement = self.alltexelement,
 		alltexture = self.alltexture,
 		allkshfile = self.allkshfile,
-		-- NOTE: fev and fsb are lazy loaded (not indexed by search engine)
-		allfevfile = self.allfevfile,
-		allfsbfile = self.allfsbfile,
 	}
+
+	-- NOTE: fev and fsb only use in compile
+	if Args then
+		self.assets.allfevfile = self.allfevfile
+		self.assets.allfsbfile = self.allfsbfile
+	end
 
 	-- link fev reference to fsb
 	local fsb_map = {}

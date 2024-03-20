@@ -7,6 +7,8 @@ export interface AppStates {
   predict_init_flag: boolean,
   /** fmod playing info */
   fmod_playing_info: {[K: string]: FmodPlayingInfo},
+  /** entry tags */
+  entry_tags: [string, string][],
 }
 
 const appstates = createSlice<AppStates, SliceCaseReducers<AppStates>>({
@@ -14,6 +16,7 @@ const appstates = createSlice<AppStates, SliceCaseReducers<AppStates>>({
   initialState: {
     predict_init_flag: false,
     fmod_playing_info: {},
+    entry_tags: [],
   },
   reducers: {
     setState: <T extends keyof AppStates>(

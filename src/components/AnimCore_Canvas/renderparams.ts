@@ -118,7 +118,7 @@ export class RenderParams implements IRenderParams{
     // console.log("scaleTo", this.scale)
   }
 
-  applyPlacement(placement: Placement) {
+  applyPlacement(placement: Omit<Placement, "width" | "height">) {
     this.reset()
     this.x = placement.x
     this.y = placement.y

@@ -35,6 +35,7 @@ import TinySlider from '../../components/TinySlider'
 import StaticPage from './static'
 import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../format'
 import MultiplySoundViewer from '../../components/MultiplySoundViewer'
+import Background, { useBackgroundStyle } from '../../components/Background'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -179,19 +180,16 @@ function TexPage({id, xml, tex}) {
 
   const copy = useCopyTexElement(xml, tex)
 
-  const transparentStyle: React.CSSProperties = {
-    backgroundImage: "linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%)",
-    backgroundColor: "#555",
-    backgroundSize: "16px 16px",
-    backgroundPosition: "0 0, 8px 8px",
-  }
-
   const onClickImg = useCallback(()=> {
     if (isMaximized) {
       // TODO: reset article scroll
     }
     setMaximized(!isMaximized)
   }, [isMaximized, setMaximized])
+
+  const backgroundStyle = useBackgroundStyle(
+    gridBackground ? "grid" : "solid",
+    !gridBackground && "transparent")
 
   return <div>
     <H3>{tex} <AssetType type="tex"/></H3>
@@ -210,7 +208,7 @@ function TexPage({id, xml, tex}) {
         maxHeight: "80vh", 
         display: loading ? "none" : null,
         cursor: resizable ? (isMaximized ? "zoom-out" : "zoom-in") : "default",
-        ...(gridBackground ? transparentStyle : {})}} 
+        ...backgroundStyle}}
         className='bp4-elevation-1' ref={ref} onClick={onClickImg}/>
       <div style={{height: 20}}></div>
       <Button icon="duplicate" onClick={()=> copy()} disabled={loading}>
@@ -1269,7 +1267,7 @@ const codeStyle: React.CSSProperties = {
 }
 
 function EntryPage(props: Entry) {
-  const {assets, id, deps, source} = props
+  const {assets, id, deps, source, preview_data = {} as any} = props
   const alias = useMemo(()=> {
     return sortedAlias(props.alias)
   }, [props.alias])
@@ -1288,6 +1286,15 @@ function EntryPage(props: Entry) {
           </span>)
         }
       </H3>
+      {
+        preview_data.anim && <>
+          <H5>预览<Button className="ml-1 invisible" icon="cube"/></H5>
+          <Background width={200} height={200} 
+            backgroundStyle={"solid"} className="bp4-elevation-2 mb-4">
+            <Preview.EntryAnim {...preview_data.anim} width={200} height={200}/>
+          </Background>
+        </>
+      }
       <H5>描述</H5>
       <AssetDesc id={id}/>
       <div style={{height: 10}}></div>

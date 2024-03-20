@@ -47,7 +47,7 @@ include-crypt-bytes = "^0.1"
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
-
+release = []
 
 [patch.crates-io]
 rlua-lua51-sys = { path = "rlua-lua51-sys" }
