@@ -1,13 +1,19 @@
-import { Button, Callout, Card, H5, InputGroup, Tag, TagProps } from '@blueprintjs/core'
+import { Button, Callout, Card, H5, H6, InputGroup, Tag, TagProps } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
-import { useLocalStorage, useOS } from '../../hooks'
+import { useLocalStorage, useOS, usePagingHandler } from '../../hooks'
 import { useSelector } from '../../redux/store'
+import { useLocation, useNavigate } from 'react-router-dom'
+import Preview from '../Preview'
+import { sortedAlias } from '../AliasTitle'
+import PageTurner from '../PageTurner'
 
 type Filter = {
   key: string,
   label: string,
   type: "major" | "character" | "food" | "category" | "property",
 }
+
+const NAMES = ["major", "category", "food", "property", "character"]
 
 type EntryFilterProps = {
 
@@ -42,8 +48,8 @@ const useClassifyEntryFilters = (filters: [string, string][])=> {
       else if(key.startsWith("crafted_by.")) {
         character.push({key, label, sort: 0})
       }
-      else if (key.startsWith("food.")) {
-        food.push({key, label, sort: 0})
+      else if (key.startsWith("food.") || key === "preparedfood") {
+        category.push({key, label, sort: 10})
       }
       else if (key.startsWith("subcat.") || key.startsWith("insulator.")) {
         category.push({key, label, sort: key.startsWith("insulator.") ? 1 : 0})
@@ -91,10 +97,37 @@ const useClassifyEntryFilters = (filters: [string, string][])=> {
   }, [filters])
 }
 
+const useEntryFilterResult = (
+  all_tag_classify: Omit<ReturnType<typeof useClassifyEntryFilters>, "keyToLabel">,
+  selected: {[tag: string]: boolean})=> {
+  
+  return useMemo(()=> 
+    Object.values(window.entry_map).filter(v=> {
+      const {tags: entryTags} = v
+      if (typeof entryTags === "object" && Object.values(entryTags).length > 0) {
+        for (let type of NAMES) {
+          let oneOfTags = []
+          let needChecking = false
+          for (let tag of all_tag_classify[type]) {
+            if (selected[tag.key] === true){
+              needChecking = true
+              oneOfTags.push(tag.key)
+            }
+          }
+          if (needChecking && oneOfTags.every(v=> entryTags[v] !== true)) {
+            return false
+          }
+        }
+        return true
+      }
+      return false
+    })
+  , [selected, all_tag_classify])
+}
+
 function EntryFilter(props: EntryFilterProps) {
   const all_tag_names = useSelector(({appstates})=> appstates.entry_tags)
   const all_tag_classify = useClassifyEntryFilters(all_tag_names as any)
-  const names = ["major", "category", "food", "property", "character"]
   const [unfold, setUnfold] = useLocalStorage("entry_filter_unfold")
   const [selected, setSelected] = useLocalStorage("entry_filter_selected")
   const {isMacOS} = useOS()
@@ -144,11 +177,12 @@ function EntryFilter(props: EntryFilterProps) {
     // <div className="flex flex-row flex-wrap justify-between" style={{width: "100%"}}>
     <div>
       {
-        names.map(name=> {
+        NAMES.map(name=> {
           const tag = all_tag_classify[name] as Filter[]
           const show = unfold[name]
           // const hasSelected = tag.some(v=> selected[v[0]])
-          return <Card className="p-1 mb-1">
+          return tag.length > 0 && 
+          <Card className="p-1 mb-1">
             <div className="mb-1 border-b-2 border-b-gray-400 pr-7 relative">
               <div className="absolute right-0 top-0" style={{padding: 2}}>
                 {
@@ -181,15 +215,24 @@ type EntrySearcherProps = {
 
 }
 
-
-
-
-
 export default function EntrySearcher(props: EntrySearcherProps) {
   const [selected, setSelected] = useLocalStorage("entry_filter_selected")
   const numSelected = Object.entries(selected).filter(v=> v[1] === true).length
   const all_tag_names = useSelector(({appstates})=> appstates.entry_tags)
-  const {keyToLabel} = useClassifyEntryFilters(all_tag_names as any)
+  const all_tag_classify = useClassifyEntryFilters(all_tag_names as any)
+  const {keyToLabel} = all_tag_classify
+  const result = useEntryFilterResult(all_tag_classify, selected)
+  const navigate = useNavigate()
+  const handler = usePagingHandler(result, {resetScroll: ()=> {
+    document.getElementById("app-article")?.scrollTo(0, 1)
+  }})
+  const {range, first} = handler
+
+  const onChangeSelected = useCallback((v: typeof selected)=> {
+    setSelected(v)
+    first()
+  }, [first, setSelected])
+
   return (
     <div>
       {/* <H3 className="mt-4">标题</H3> */}
@@ -203,17 +246,17 @@ export default function EntrySearcher(props: EntrySearcherProps) {
             spellCheck={false}
             autoFocus
           />
-          <div className="overflow-auto flex-1">
+          <div className="overflow-auto flex-1 ml-1">
             {
               Object.entries(selected).map(([key, value])=> 
                 value && <Tag minimal className="m-1" 
-                  onRemove={()=> setSelected({...selected, [key]: undefined})}>
+                  onRemove={()=> onChangeSelected({...selected, [key]: undefined})}>
                     {keyToLabel[key]}
                   </Tag>)
             }
           </div>
           <div className="ml-auto flex-0">
-            <Button onClick={()=> setSelected({})}>
+            <Button onClick={()=> onChangeSelected({})}>
               清空
               <Tag minimal className="ml-1">{numSelected}</Tag>
             </Button>
@@ -222,7 +265,46 @@ export default function EntrySearcher(props: EntrySearcherProps) {
         <EntryFilter/>
       </Callout>
       <div>
-        <H5 className="mt-6">筛选结果</H5>
+        <H5 className="mt-6">
+          筛选结果
+          <Tag minimal className="ml-1">{result.length}</Tag>
+        </H5>
+        {
+          result.length === 0 && 
+          <p>什么都没有...</p>
+        }
+        <div className="flex flex-wrap justify-between">
+          {
+            result.map(({id, key, preview_data, tags, alias}, i)=> {   
+              if (i > range[1] || i < range[0]) return null
+              return <Card key={key} 
+                className="cursor-pointer m-1 flex flex-1"
+                interactive
+                style={{minWidth: 200, height: 90, padding: 5}}
+                onClick={()=> navigate("/asset/?id="+id)}
+              >
+                <div>
+                  <Preview.EntryAnim {...preview_data.anim} width={80} height={80}/>
+                </div>
+                <div>
+                  <H6 className="mt-1 break-all" style={{maxWidth: 100}}>
+                    {sortedAlias(alias)[0]}
+                  </H6>
+                </div>
+              </Card>
+            })
+          }
+
+          {
+            // dummy divs
+            Array.from({length: 10}).map((_, i)=> 
+              <div key={i} className="flex-1 m-1" 
+                style={{minWidth: 200, padding: 5}}>
+              </div>)
+          }
+        </div>
+        <PageTurner {...handler}/>
+        <div className="h-20"/>
       </div>
       
     </div>

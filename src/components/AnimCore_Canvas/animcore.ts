@@ -192,16 +192,17 @@ function atlasLoader({build, sampler}: {build: string, sampler: number}, error):
 // TODO: element loader的粒度有点太细了，会导致动画中途第一次加载的图片闪烁
 // 需要再优化一下
 
-function elementLoader({build, imghash, index}: 
-  {build: string, imghash: number, index: number}, error): ImageBitmap {
+function elementLoader({build, imghash, index, thumbnailMode}: 
+  {build: string, imghash: number, index: number, thumbnailMode?: boolean}, error): ImageBitmap {
   if (!build || typeof imghash !== "number" || typeof index !== "number") return
-  const id = `${build}-${imghash}-${index}`
+  const rp = thumbnailMode ? {max_canvas_size: 512} : {}
+  const id = `${build}-${imghash}-${index}` + (thumbnailMode ? "-thumbnail" : "")
   if (elementData[id] !== undefined) return elementData[id]
   if (elementLoading[id]) return
   async function load(){
     try {
       elementLoading[id] = true
-      const response = await get<string>({type: "symbol_element", build, imghash, index, format: "json", fill_gap: false})
+      const response = await get<string>({type: "symbol_element", build, imghash, index, format: "json", fill_gap: false, ...rp})
       if (response.length > 0){
         const {width, height, rgba} = JSON.parse(response)
         const pixels = base64DecToArr(rgba)
@@ -253,7 +254,7 @@ function onUpdate(time: number){
       canvas.anims.forEach(anim=> {
         const animList: AnimationData[] = anim.animLoader({bank: anim.bank, animation: anim.animation})
         if (!animList || animList.length === 0) return
-        if (anim.isPaused && !anim.forceRender) return console.log("Render blocked")
+        if (anim.isPaused && !anim.forceRender) return
         if (!cleared){
           cleared = true
           ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -305,7 +306,7 @@ function onUpdate(time: number){
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
           if (anim.DEV_usingElementLoader && anim.elementLoader){
-            const element = anim.elementLoader({build: sourceBuild.name, imghash: symbol, index: img.index})
+            const element = anim.elementLoader({build: sourceBuild.name, imghash: symbol, index: img.index, thumbnailMode: anim.thumbnailMode})
             if (!element) continue
             const {width: WIDTH, height: HEIGHT} = element
             // const x_scale = WIDTH / cw, y_scale = HEIGHT / ch

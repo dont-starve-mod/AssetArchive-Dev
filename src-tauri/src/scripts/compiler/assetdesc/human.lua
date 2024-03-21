@@ -358,6 +358,54 @@ function HumanAnnotator:Music(data)
 		["dontstarve/music/music_boatrace"] = "龙舟比赛",
 	}
 
+	local fe_str = "游戏主界面"
+	local fe_name_of = function(v) 
+		if v:sub(1, 1) == "#" then
+			v = assert(po:GetName(v:sub(2)), v)
+		end
+		return fe_str.."-"..v 
+	end
+
+	local fe_music = {
+		["dontstarve/music/music_FE_WF"] = fe_name_of "冬季盛宴",
+		["dontstarve/music/music_FE_pirates"] = fe_name_of "海盗",
+		["dontstarve/music/music_FE"] = fe_name_of "经典",
+		["dontstarve/music/music_FE_riftsthree"] = fe_name_of "裂隙",
+		["dontstarve/music/music_FE_waterlogged"] = fe_name_of "水中木",
+		["dontstarve/music/music_FE_boatrace"] = fe_name_of "龙舟比赛",
+		["dontstarve/music/music_FE_WX"] = fe_name_of "#wx78",
+		["dontstarve_DLC001/music/music_wigfrid_FE"] = fe_name_of "#wathgrithr",
+		["dontstarve/music/music_moonstorm_FE"] = fe_name_of "月亮风暴",
+		["dontstarve/music/music_FE_lunarrift"] = fe_name_of "月亮裂隙",
+		["dontstarve/music/music_FE_shadowrift"] = fe_name_of "暗影裂隙",
+		["dontstarve/music/music_FE_survivorsguideone"] = fe_name_of "幸存者指南",
+		["dontstarve/music/music_FE_charliestage"] = fe_name_of "查理的舞台",
+		["turnoftides/sanity/lunacy_FE"] = "月岛启蒙",
+		["terraria1/common/music_main_eot"] = "恐怖之眼（泰拉瑞亚联动）",
+
+		["dontstarve/together_FE/DST_theme_portaled"] = "登陆大厅/选人的小曲",
+
+		["dontstarve/music/music_FE_yotr2023"] = fe_name_of "兔年（无法播放）",
+		["dontstarve/music/music_FE_yotg"] = fe_name_of "猪年",
+		["yotb_2021/music/FE"] = fe_name_of "牛年",
+		["dontstarve/music/music_FE_yotc"] = fe_name_of "鼠年",
+		["dontstarve/music/music_FE_summerevent"] = fe_name_of "夏日活动",
+
+
+		["dontstarve/music/lava_arena/FE_1_2"] = fe_name_of "熔炉",
+		["dontstarve/music/lava_arena/FE1"] = fe_name_of "熔炉",
+		["dontstarve/music/lava_arena/FE2"] = fe_name_of "熔炉",
+		["dontstarve/quagmire/music/FE"] = fe_name_of "暴食",
+
+
+	}
+	for _,v in ipairs({"wanda", "webber", "wolfgang", "maxwell", "wickerbottom",
+
+		"daywalker"
+	})do
+		fe_music["dontstarve/music/music_FE_"..v] = fe_name_of("#"..v)
+	end
+
 	local amb_data = {
 		-- components/nightmareclock
 		["dontstarve/cave/nightmare_warning"] = nightmare_str.."警告",
@@ -420,6 +468,12 @@ function HumanAnnotator:Music(data)
 		local asset = Asset("fmodevent", {path = path})
 		self:AddDesc(asset, desc, {check_exists = false})
 		self:AddDesc(asset, "#ambient_sound", {check_exists = false, append = true})
+	end
+
+	for path, desc in pairs(fe_music)do
+		local asset = Asset("fmodevent", {path = path})
+		self:AddDesc(asset, desc, {check_exists = false})
+		self:AddDesc(asset, "#music", {check_exists = false, append = true})
 	end
 
 	for path, v in pairs(path_collction)do

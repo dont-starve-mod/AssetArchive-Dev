@@ -186,12 +186,13 @@ export class AnimState {
   autoFacing = true
   autoFacingByBit = false
   forceRender = true
+  thumbnailMode = false
   DEV_usingElementLoader: boolean
 
   animLoader: (param: {bank: hash, animation: string})=> AnimationData[] = dummy as any
   buildLoader: (param: {build: string})=> BuildData = dummy as any
   atlasLoader: (param: {build: string, sampler: number})=> ImageBitmap = dummy as any
-  elementLoader?: (param: {build: string, imghash: number, index: number})=> ImageBitmap = dummy as any
+  elementLoader?: (param: {build: string, imghash: number, index: number, thumbnailMode: boolean})=> ImageBitmap = dummy as any
 
   frameList: FrameList
   rect: Rect

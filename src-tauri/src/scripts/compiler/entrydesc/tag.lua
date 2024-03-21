@@ -156,6 +156,7 @@ local name_map = {
 	["insulator.winter"] = "防寒冬装",
 	["insulator.summer"] = "隔热夏装",
 	fishing = "诱饵",
+	preparedfood = "料理",
 
 	-- +/-
 	healthvalue = "生命值",

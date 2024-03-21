@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { FmodEvent } from '../../searchengine'
-import { Button, InputGroup, Spinner, Tag } from '@blueprintjs/core'
+import { Button, Spinner, Tag } from '@blueprintjs/core'
+import InputGroup from '../InputGroup'
 import { search } from '../../global_meilisearch'
 import SortableField, { useSoundSorter } from '../SortableField'
 import { useLocalStorage, usePagingHandler } from '../../hooks'
@@ -54,7 +55,6 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
       if (response.query === query){
         let result = {}
         response.hits.forEach(v=> result[v.id] = true)
-        console.log(response.hits)
         setQueryResult(result)
       }
     })
@@ -114,7 +114,6 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
     return data
   }, [items])
 
-  console.log(items)
   // }, [items, abstract])
   
   const resetScroll = useCallback(()=> {
@@ -143,13 +142,12 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
       <div style={{display: "flex", alignContent: "center", marginBottom: 5}}>
         <InputGroup
           placeholder= "筛选"
-          spellCheck="false"
-          autoComplete="off"
           leftIcon="filter"
           small
           style={{maxWidth: 200}}
-          value={query}
-          onChange={e=> setQuery(e.currentTarget.value)}
+          // value={query}
+          // onChange={e=> setQuery(e.currentTarget.value)}
+          onChange2={setQuery}
         />
       </div>
       <div>

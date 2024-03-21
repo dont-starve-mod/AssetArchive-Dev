@@ -202,7 +202,18 @@ end
 
 function EntryManager:AddTagFromScrapbook()
 	local data = self.root:LoadScript("screens/redux/scrapbookdata")
-	local all_tags = { fueled = true, fuel = true }
+
+	local preparedfood = self.root:GetScript("preparedfoods")
+	local preparedfood2 = self.root:GetScript("preparedfoods_warly")
+	local foodnames = {}
+	for _, content in ipairs{preparedfood, preparedfood2}do
+		for key in content:sub(#"local foods ="):gmatch("([^\n%s]+) =%s*\n%s*{")do
+			foodnames[key] = true
+		end
+	end
+	table.foreach(foodnames, print)
+
+	local all_tags = { fueled = 0, fuel = 0 }
 	local other_keys = {}
 
 	-- [base]
@@ -423,6 +434,10 @@ function EntryManager:AddTagFromScrapbook()
 			v[tag_name] = nil
 		end
 
+		if foodnames[item.prefab] then
+			tags["preparedfood"] = true
+		end
+
 		item.preview_data = {tex = v.tex, anim = preview_data}
 		item.tags = tags
 		table.insert(item_list, item)
@@ -435,7 +450,7 @@ function EntryManager:AddTagFromScrapbook()
 					tags["fueled"] = true
 				end
 			end
-			all_tags[k] = true
+			all_tags[k] = (all_tags[k] or 0) + 1
 		end
 		
 		for _, k in ipairs(SKIPPED_KEYS)do
@@ -470,6 +485,16 @@ function EntryManager:AddTagFromScrapbook()
 		else
 			print("Entry not found: ", v.prefab)
 		end
+	end
+
+	if true then
+		-- sort by occurence
+		local temp = {}
+		table.foreach(all_tags, function(k, count)
+			table.insert(temp, {k, count})
+		end)
+		table.sort(temp, function(a, b) return a[2] > b[2] end)
+		table.foreach(temp, function(_, v) print(unpack(v))end)
 	end
 
 	local all_tags = ToArray(all_tags)

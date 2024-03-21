@@ -1,4 +1,5 @@
-import { Button, Checkbox, InputGroup, Spinner, Tag } from '@blueprintjs/core'
+import { Button, Checkbox, Spinner, Tag } from '@blueprintjs/core'
+import InputGroup from '../InputGroup'
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import SortableField from '../SortableField'
 import { search } from '../../global_meilisearch'
@@ -196,13 +197,10 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
       <div style={{display: "flex", alignContent: "center", marginBottom: 5}}>
         <InputGroup
           placeholder= "筛选"
-          spellCheck="false"
-          autoComplete="off"
           leftIcon="filter"
           small
           style={{maxWidth: 200}}
-          value={query}
-          onChange={e=> setQuery(e.currentTarget.value)}
+          onChange2={setQuery}
         />
         {
           deprecatedXmlList.length > 0 && 

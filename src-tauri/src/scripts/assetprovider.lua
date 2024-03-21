@@ -159,18 +159,21 @@ function DST_DataRoot:SearchGame()
 	return false
 end
 
-function DST_DataRoot:LoadScript(path, env)
+function DST_DataRoot:GetScript(path)
 	local module_path = "scripts/"..path:gsub("[.]", "/")..".lua"
 	if not self:Exists(module_path) then
 		error("module not found: "..module_path)
 	else
-		local content = self:Open(module_path):read_to_end()
-		local f = loadstring(content, path)
-		local env = env or {pairs = pairs, ipairs = ipairs}
-		setfenv(f, env)
-		env.__EXPORT = f()
-		return env.__EXPORT, env
+		return self:Open(module_path):read_to_end()
 	end
+end
+
+function DST_DataRoot:LoadScript(path, env)
+	local f = loadstring(self:GetScript(path), path)
+	local env = env or {pairs = pairs, ipairs = ipairs}
+	setfenv(f, env)
+	env.__EXPORT = f()
+	return env.__EXPORT, env
 end
 
 function DST_DataRoot:Open(path, bundled)
@@ -917,7 +920,26 @@ function Provider:GetSymbolElement(args)
 				if args.format == "png" then
 					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh):save_png_bytes()
 				elseif args.format == "json" then
-					return Image.EncodeJson(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+					-- use smaller mipmap for faster loading
+					if args.max_canvas_size ~= nil then
+						local index = math.max(
+							select(2, math.frexp(w / args.max_canvas_size, 2)),
+							select(2, math.frexp(h / args.max_canvas_size, 2))
+						)
+						local bytes = atlas:GetImageBytes(index)
+						w, h = atlas:GetSize(index)
+						x_scale = w / img.cw
+						y_scale = h / img.ch
+						bbx, bby, subw, subh = 
+							unsigned(img.bbx * x_scale),
+							unsigned(img.bby * y_scale),
+							unsigned(img.w * x_scale),
+							unsigned(img.h * y_scale)
+						return Image.EncodeJson(CropBytes(bytes, w, h, bbx, bby, subw, subh), subw, subh)
+					else
+						return Image.EncodeJson(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
+					end
+
 				elseif args.format == "img" then
 					local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
 					if args.resize == true then

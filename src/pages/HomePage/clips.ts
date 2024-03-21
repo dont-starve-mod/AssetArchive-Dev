@@ -9,11 +9,15 @@ import cave from "./clips/creature-6.png"
 import surface from "./clips/creature-7.png"
 
 import combat from "./clips/item-1.png"
-import suvive from "./clips/item-2.png"
+import item from "./clips/item-2.png"
 import light from "./clips/item-3.png"
 import crafting from "./clips/item-4.png"
 import food from "./clips/item-5.png"
 import preparedfood from "./clips/item-6.png"
+import characteritem from "./clips/item-7.png"
+import poi from "./clips/item-poi.png"
+import structure from "./clips/item-structure.png"
+import thing from "./clips/item-thing.png"
 
 import bigportrait from "./clips/image-1.png"
 import wallpaper from "./clips/image-2.png"
@@ -44,11 +48,15 @@ export {
   surface,
 
   combat,
-  suvive,
+  item,
   light,
   crafting,
   food,
   preparedfood,
+  characteritem,
+  structure,
+  poi,
+  thing,
 
   bigportrait,
   wallpaper,

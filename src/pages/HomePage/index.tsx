@@ -1,6 +1,6 @@
 import { Button, Card, H3, H4, H5, H6, Icon } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useMemo } from 'react'
-import { useAppSetting, useOS } from '../../hooks'
+import { useAppSetting, useLocalStorage, useOS } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
 import * as clips from './clips'
 import style from './index.module.css'
@@ -73,6 +73,12 @@ export default function HomePage() {
     toStatic("multi_xml", name)
   }, [toStatic])
 
+  const [_, setSelected] = useLocalStorage("entry_filter_selected")
+  const toEntrySearcher = useCallback((tags: string[])=> {
+    setSelected(Object.fromEntries(tags.map(v=> [v, true])))
+    navigate(`/entry-searcher`)
+  }, [navigate, setSelected])
+
   return (
     <KeepAlivePage.NoDev cacheNamespace="assetPage">
       <div className={'bp4-running-text ' + style["home"]}>
@@ -86,7 +92,7 @@ export default function HomePage() {
         {/* <Card interactive style={{display: "inline-flex"}}> */}
           <p>点击右上角的搜索框，查找你感兴趣的游戏资源。 <Icon icon="arrow-top-right"/> </p>
         {/* </Card> */}
-        <H5>生物</H5>
+        {/* <H5>生物</H5>
         <div className={style["card-box"]}>
           <SubCard title="中立生物" imgSrc={clips.neutral}/>
           <SubCard title="敌对生物" imgSrc={clips.hostile}/>
@@ -106,7 +112,7 @@ export default function HomePage() {
           <SubCard title="食物" imgSrc={clips.food}/>
           <SubCard title="料理" imgSrc={clips.preparedfood}/>
           <SubCard title="全部" imgSrc={clips.all}/>
-        </div>
+        </div> */}
         <H5>图片</H5>
         <div className={style["card-box"]}>
           <SubCard title="人物立绘" imgSrc={clips.bigportrait} onClick={()=> toMultiXml("CharacterPortraits")}/>
@@ -116,6 +122,23 @@ export default function HomePage() {
           <SubCard title="图鉴" imgSrc={clips.scrapbook} onClick={()=> toMultiXml("Scrapbooks")}/>
           <SubCard title="技能树" imgSrc={clips.skilltree} onClick={()=> toMultiXml("Skilltrees")}/>
           <SubCard title="UI" imgSrc={clips.ui} onClick={()=> toMultiXml("UI")}/>
+        </div>
+        <H5>词条</H5>
+        <div className={style["card-box"]}>
+          <SubCard title="生物" imgSrc={clips.passive} onClick={()=> toEntrySearcher(["type.creature", "type.giant"])} />
+          <SubCard title="Boss" imgSrc={clips.epic} onClick={()=> toEntrySearcher(["type.giant"])}/>
+          <SubCard title="物品" imgSrc={clips.item} onClick={()=> toEntrySearcher(["type.item"])}/>
+          <SubCard title="战斗道具" imgSrc={clips.combat} onClick={()=> toEntrySearcher(["subcat.weapon", "subcat.armor"])}/>
+          <SubCard title="食物" imgSrc={clips.food} onClick={()=> toEntrySearcher(["type.food"])}/>
+          <SubCard title="料理" imgSrc={clips.preparedfood} onClick={()=> toEntrySearcher(["preparedfood"])}/>
+          <SubCard title="角色专属物品" imgSrc={clips.characteritem} onClick={()=> toEntrySearcher([
+            "crafted_by.walter", "crafted_by.wanda", "crafted_by.warly", "crafted_by.wathgrithr", "crafted_by.waxwell",
+            "crafted_by.webber", "crafted_by.wendy", "crafted_by.wes", "crafted_by.wickerbottom", "crafted_by.willow",
+            "crafted_by.winona", "crafted_by.wolfgang", "crafted_by.woodie", "crafted_by.wormwood", "crafted_by.wurt",
+            "crafted_by.wx78"])}/>
+          <SubCard title="事物" imgSrc={clips.thing} onClick={()=> toEntrySearcher(["type.thing"])}/>
+          <SubCard title="建筑" imgSrc={clips.structure} onClick={()=> toEntrySearcher(["subcat.structure"])}/>
+          <SubCard title="兴趣点" imgSrc={clips.poi} onClick={()=> toEntrySearcher(["type.poi"])}/>
         </div>
         <H5>人物动画</H5>
         <div className={style["card-box"]}>
@@ -192,4 +215,11 @@ function randomChoice<T>(list: T[]) {
   if (list.length > 0){
     return list[Math.floor(Math.random()* list.length)]
   }
+}
+
+// @ts-ignore
+window.all_music =()=> {
+  return window.assets.allfmodevent.filter(v=> {
+    return v.category.indexOf("music") !== -1
+  })
 }

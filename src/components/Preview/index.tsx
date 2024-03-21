@@ -543,14 +543,22 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
       ...(hide || []).map(v=> ({name: "Hide", args: [v]})),
       ...(hidesymbol || []).map(v=> ({name: "HideSymbol", args: [v]})),
     ]
+    if (Array.isArray(overridesymbol)){
+      overridesymbol.forEach((v)=> {
+        list.push({name: "OverrideSymbol", args: [...v] as any})
+        if (typeof v[3] === "number")
+          list.push({name: "SetSymbolMultColour", args: [v[0], 1, 1, 1, v[3]] as any})
+      })
+    }
     animstate.clear()
+    animstate.thumbnailMode = true
     animstate.autoFacingByBit = true
     // @ts-ignore
     animstate.setApiList(list.filter(Boolean))
     animstate.pause()
     animstate.getPlayer().setPercent(animpercent || 0)
     animstate.facing = facing
-  }, [bank, build, anim, animpercent, facing, hide, hidesymbol, alpha, overridebuild, animstate])
+  }, [bank, build, anim, animpercent, facing, hide, hidesymbol, alpha, overridebuild, overridesymbol, animstate])
 
   const [render, setRender] = useState<RenderParams>()
 
@@ -583,7 +591,7 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
 
   return (
     <>
-      <div ref={ref}>
+      <div ref={ref} style={{width, height}}>
         {
           appeared && <>
             <AnimCore 
