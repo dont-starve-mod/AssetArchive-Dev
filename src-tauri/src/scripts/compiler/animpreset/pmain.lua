@@ -330,6 +330,110 @@ ALL_PRESETLIST.ghost_base = {
 	}
 }
 
+-- Hides (ref to scrapbook data)
+ALL_PRESETLIST.deerclops = {
+	title = "head_neutral",
+	condition = { "BankIs", "deerclops" },
+	presets = {
+		Preset{
+			key = "hide", cmds = {{name = "Hide", args = {"head_neutral"}}},
+		},
+		Preset{
+			key = "show", cmds = {}
+		},
+	},
+}
+
+ALL_PRESETLIST.tallbird = {
+	title = "beakfull",
+	condition = { "BankIs", "tallbird" },
+	presets = {
+		Preset{
+			key = "hide", cmds = {{name = "Hide", args = {"beakfull"}}},
+		},
+		Preset{
+			key = "show", cmds = {}
+		},
+	},
+}
+
+ALL_PRESETLIST.manrabbit_swap = {
+	title = "manrabbit_swap",
+	condition = { "BankIs", "manrabbit" },
+	presets = {
+		Preset{
+			key = "hide", cmds = {{name = "Hide", args = {"ARM_carry"}}},
+		},
+		Preset{
+			key = "show", cmds = {}
+		},
+	},
+}
+
+ALL_PRESETLIST.manrabbit_hat = {
+	title = "manrabbit_hat",
+	condition = { "BankIs", "manrabbit" },
+	presets = {
+		Preset{
+			key = "hide", cmds = {
+				{name = "Hide", args = {"hat"}},
+				{name = "Hide", args = {"HAIR_HAT"}}
+			},
+		},
+		Preset{
+			key = "show", cmds = {}
+		},
+	},
+}
+
+ALL_PRESETLIST.krampus = {
+	title = "krampus_arm",
+	condition = { "BankIs", "krampus" },
+	presets = {
+		Preset{
+			key = "hide", cmds = {{name = "Hide", args = {"ARM"}}},
+		},
+		Preset{
+			key = "show", cmds = {}
+		},
+	},
+}
+
+ALL_PRESETLIST.mosquito_body = {
+	title = "mosquito_body",
+	condition = { "BankIs", "mosquito" },
+	presets = {}
+}
+
+for i = 1, 4 do
+	local layer = "body_"..i
+	local cmds = {}
+	for j = 1, 4 do
+		if j ~= i then
+			table.insert(cmds, {name = "Hide", args = {"body_"..j}})
+		end
+	end
+	ALL_PRESETLIST.mosquito_body.presets[i] = Preset {
+		key = layer,
+		cmds = cmds,
+	}
+end
+
+ALL_PRESETLIST.terrarium = {
+	title = "terrarium_tree_crimson",
+	condition = { "BankIs", "terrarium" },
+	presets = {
+		Preset{
+			key = "hide",
+			cmds = {{name = "Hide", args = {"terrarium_tree_crimson"}}}
+		},
+		Preset{
+			key = "show",
+			cmds = {}
+		}
+	}
+}
+
 -- public fixer
 table.foreach(ALL_PRESETLIST, function(k, v)
 	v.key = k
@@ -340,6 +444,13 @@ table.foreach(ALL_PRESETLIST, function(k, v)
 			p.key = "null"
 			p.title = "无"
 			p.cmds = p.cmds or {}
+		end
+	end)
+
+	table.foreach(v.presets, function(_, p)
+		for _,cmd in ipairs(p.cmds)do
+			assert(cmd.name ~= nil, p.key)
+			assert(cmd.args ~= nil, p.key)
 		end
 	end)
 end)
