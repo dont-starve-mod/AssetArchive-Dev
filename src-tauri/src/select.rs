@@ -37,6 +37,7 @@ pub mod select_handler {
   #[cfg(target_os="windows")]
   pub fn windows_select_file_in_folder(path: String) -> bool {
     use std::process::Command;
+    use crate::CommandExt;
 
     let binpath = SELECT_BIN_PATH.lock().unwrap();
     let path = path.replace("/", "\\");

@@ -205,7 +205,7 @@ pub mod lua_ffmpeg {
             .args(["-r", rate.to_string().as_str()])
             .args(["-i", "pipe:0"]);
 
-        command.as_inner().set_no_console();
+        command.as_inner_mut().set_no_console();
 
         match &format[..] {
             "gif" | "webp" => (),
