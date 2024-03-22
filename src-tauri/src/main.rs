@@ -525,3 +525,18 @@ fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
     }
     Ok(())
 }
+
+pub trait CommandExt {
+    fn set_no_console(&mut self) -> &mut process::Command;
+}
+
+impl CommandExt for process::Command {
+    fn set_no_console(&mut self) -> &mut process::Command {
+        #[cfg(target_os="windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            self.creation_flags(0x08000000);
+        }
+        self
+    }
+}

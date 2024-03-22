@@ -6,6 +6,8 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use once_cell::sync::Lazy;
 
+use crate::CommandExt;
+
 #[derive(Debug)]
 struct DownloadState {
     id: String,
@@ -33,6 +35,7 @@ static DOWNLOAD_STATE: Lazy<Mutex<HashMap<String, DownloadState>>> = Lazy::new(|
 /// validate ffmpeg by run `ffmpeg -version`
 fn run_version<P: AsRef<OsStr>>(path: P) -> Result<bool, String> {
   Command::new(path)
+    .set_no_console()
     .arg("-version")
     .stderr(Stdio::piped())
     .stdout(Stdio::piped())
@@ -72,7 +75,7 @@ pub mod lua_ffmpeg {
     // use std::os::windows::io::{AsRawHandle, OwnedHandle, FromRawHandle};
     
     use rlua::prelude::{LuaResult, LuaContext, LuaError};
-    use rlua::{Lua, Table, UserData, Value};
+    use rlua::{Table, UserData, Value};
     use crate::filesystem::lua_filesystem::ConvertArgToString;
     use crate::image::lua_image::Image;
 
@@ -201,6 +204,8 @@ pub mod lua_ffmpeg {
             .args(["-pixel_format", "rgba"])
             .args(["-r", rate.to_string().as_str()])
             .args(["-i", "pipe:0"]);
+
+        command.as_inner().set_no_console();
 
         match &format[..] {
             "gif" | "webp" => (),

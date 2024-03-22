@@ -8,6 +8,8 @@ pub mod es_handler {
     use once_cell::sync::Lazy;
     use tauri::App;
 
+    use crate::CommandExt;
+
     static ES_BIN_PATH: Lazy<Mutex<PathBuf>> = Lazy::new(||
       Mutex::new(PathBuf::new())
     );  
@@ -34,6 +36,7 @@ pub mod es_handler {
 
     pub fn search(path: &str) -> String {
         match Command::new(ES_BIN_PATH.lock().unwrap().as_path())
+            .set_no_console()
             .args(["-r", path, "-case", "/a-d", "-match-path"])
             .output() {
             Ok(out) => format!("{} / {}", 

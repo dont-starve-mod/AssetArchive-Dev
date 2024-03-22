@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::sync::mpsc::{sync_channel, Receiver, TryRecvError};
 use json::JsonValue;
 
+use crate::CommandExt;
+
 #[derive(Debug, Default)]
 struct FmodData {
     dirty: bool,
@@ -32,6 +34,7 @@ impl FmodChild {
             .map_err(|e| e.to_string())?;
         let name = if cfg!(target_os="windows") { "fmodcore.exe" } else { "fmodcore" };
         let mut child = Command::new(bin_dir.join(name))
+            .set_no_console()
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -270,6 +273,7 @@ pub mod lua_fmod {
                 .map_err(|e| LuaError::RuntimeError(format!("Failed to change work directory: {}", e)))?;
             let name = if cfg!(target_os="windows") { "fmodext.exe" } else { "fmodext" };
             let result = Command::new(fmod_workdir.join(name))
+                .set_no_console()
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::inherit())

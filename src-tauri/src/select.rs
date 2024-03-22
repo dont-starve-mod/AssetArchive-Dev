@@ -41,6 +41,7 @@ pub mod select_handler {
     let binpath = SELECT_BIN_PATH.lock().unwrap();
     let path = path.replace("/", "\\");
     Command::new(binpath.as_path())
+      .set_no_console()
       .arg(&path)
       .status()
       .is_ok()

@@ -1,5 +1,6 @@
 use std::path::{PathBuf, Path};
 use std::process::{Child, Command, Stdio};
+use crate::CommandExt;
 
 #[allow(unreachable_code)]
 fn get_bin_name() -> &'static str {
@@ -88,6 +89,7 @@ impl MeilisearchChild {
       .map_err(|e|e.to_string())?;
     let addr = get_addr();
     let child = Command::new(bin_dir.join(get_bin_name()))
+      .set_no_console()
       .args(["--env", "development"])
       .args(["--log-level", "WARN"])
       .args(["--http-addr", addr.as_str()])
