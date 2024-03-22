@@ -1,11 +1,13 @@
-import { Button, Callout, Card, H5, H6, InputGroup, Tag, TagProps } from '@blueprintjs/core'
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Button, Callout, Card, H5, H6, Tag, TagProps } from '@blueprintjs/core'
+import InputGroup from '../InputGroup'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocalStorage, useOS, usePagingHandler } from '../../hooks'
 import { useSelector } from '../../redux/store'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Preview from '../Preview'
 import { sortedAlias } from '../AliasTitle'
 import PageTurner from '../PageTurner'
+import { search } from '../../global_meilisearch'
 
 type Filter = {
   key: string,
@@ -218,12 +220,16 @@ type EntrySearcherProps = {
 export default function EntrySearcher(props: EntrySearcherProps) {
   const [selected, setSelected] = useLocalStorage("entry_filter_selected")
   const numSelected = Object.entries(selected).filter(v=> v[1] === true).length
+  const [query, setQuery] = useState("")
+  const [queryResult, setQueryResult] = useState<{[id: string]: true}>({})
+  const hasQuery = query.trim().length > 0
   const all_tag_names = useSelector(({appstates})=> appstates.entry_tags)
   const all_tag_classify = useClassifyEntryFilters(all_tag_names as any)
   const {keyToLabel} = all_tag_classify
   const result = useEntryFilterResult(all_tag_classify, selected)
+  const resultWithQuery = hasQuery ? result.filter(v=> queryResult[v.id]) : result
   const navigate = useNavigate()
-  const handler = usePagingHandler(result, {resetScroll: ()=> {
+  const handler = usePagingHandler(resultWithQuery, {resetScroll: ()=> {
     document.getElementById("app-article")?.scrollTo(0, 1)
   }})
   const {range, first} = handler
@@ -232,6 +238,24 @@ export default function EntrySearcher(props: EntrySearcherProps) {
     setSelected(v)
     first()
   }, [first, setSelected])
+
+  const onChangeQuery = useCallback((s: string)=> {
+    setQuery(s)
+    first()
+  }, [first])
+
+  useEffect(()=> {
+    if (hasQuery) {
+      search("assets", query, {
+        limit: 1000,
+        filter: "type = entry"
+      }).then(v=> {
+        if (v.query !== query) return
+        setQueryResult(Object.fromEntries(
+          v.hits.map(v=> [v.id, true])))
+      })
+    }
+  }, [query, hasQuery])
 
   return (
     <div>
@@ -242,9 +266,8 @@ export default function EntrySearcher(props: EntrySearcherProps) {
             leftIcon="filter"
             placeholder="筛选"
             className="w-40 flex-0"
-            autoComplete="off"
-            spellCheck={false}
             autoFocus
+            onChange2={onChangeQuery}
           />
           <div className="overflow-auto flex-1 ml-1">
             {
@@ -267,15 +290,15 @@ export default function EntrySearcher(props: EntrySearcherProps) {
       <div>
         <H5 className="mt-6">
           筛选结果
-          <Tag minimal className="ml-1">{result.length}</Tag>
+          <Tag minimal className="ml-1">{resultWithQuery.length}</Tag>
         </H5>
         {
-          result.length === 0 && 
+          resultWithQuery.length === 0 && 
           <p>什么都没有...</p>
         }
         <div className="flex flex-wrap justify-between">
           {
-            result.map(({id, key, preview_data, tags, alias}, i)=> {   
+            resultWithQuery.map(({id, key, preview_data, tags, alias}, i)=> {   
               if (i > range[1] || i < range[0]) return null
               return <Card key={key} 
                 className="cursor-pointer m-1 flex flex-1"

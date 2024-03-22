@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AnimCore from '../AnimCore_Canvas'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
-import { Button, Dialog, DialogBody, Menu, MenuItem } from '@blueprintjs/core'
+import { Button, Menu, MenuItem } from '@blueprintjs/core'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { useQuickLookCmds, useQuickLookExport } from './util'
 import { appWindow } from '@tauri-apps/api/window'
@@ -89,7 +89,8 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
     }
     animstate.addEventListener("changerect", onChangeRect)
     return ()=> animstate.removeEventListener("changerect", onChangeRect)
-  }, [bankhash, animation, build, placementFn, width, maxAspectRatio, minAspectRatio, cmds])
+  }, [bankhash, animation, build, placementFn, animstate, facing,
+      width, maxAspectRatio, minAspectRatio, cmds])
 
   useEffect(()=> {
     if (typeof onResize === "function")

@@ -258,6 +258,7 @@ export class AnimState {
     this.api_list = list
     this.rebuildTint()
     this.rebuildSymbolSource()
+    this.forceRender = true
   }
 
   getValidApiList() {
@@ -392,6 +393,7 @@ export class AnimState {
       this.frameList = frameList
       this.rebuildSymbolSource()
       this._event.dispatchEvent(new Event("changeframelist"))
+      this.forceRender = true
     }
   }
 
@@ -540,10 +542,11 @@ export class AnimState {
     }
     this.tint = {
       mult: mult || [1,1,1,1], 
-      add: add || [0,0,0,1], 
+      add:  add  || [0,0,0,1], 
       symbolMult, symbolAdd
     }
     this._event.dispatchEvent(new Event("rebuildtint"))
+    this.forceRender = true
     return this
   }
 
@@ -613,6 +616,7 @@ export class AnimState {
       }
     })
     this._event.dispatchEvent(new Event("rebuildsymbolsource"))
+    this.forceRender = true
     return this
   }
 
@@ -677,7 +681,7 @@ class AnimPlayer {
   anim: AnimState
   speed = 1
   _reversed = false
-  currentFrame = 0
+  _currentFrame = 0
   totalFrame = 0
   time = 0
   paused = false
@@ -696,6 +700,12 @@ class AnimPlayer {
       this.time = this.frameInterval - this.time
     }
     this._reversed = v
+  }
+
+  get currentFrame() { return this._currentFrame }
+  set currentFrame(v: number) {
+    this._currentFrame = v
+    this.anim.forceRender = true
   }
 
   update(dt: number){

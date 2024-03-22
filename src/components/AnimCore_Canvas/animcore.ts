@@ -388,6 +388,8 @@ function addAnimState(
   canvas.render = canvas.render || new RenderParams(renderParams)
   canvas.anims = canvas.anims || new Array<AnimState>()
 
+  if (canvas.anims.includes(animstate as AnimState)) return
+
   if (animstate instanceof Array){
     animstate.forEach(a=> addAnimState(canvas, a, loaders))
     return

@@ -122,6 +122,7 @@ export default function AppInit() {
       Object.values(window.entry_map).forEach(v=> {
         doc.push({
           id: v.id,
+          type: "entry",
           plain_alias: v.plain_alias,
           plain_desc: "TODO: fix this",
         })

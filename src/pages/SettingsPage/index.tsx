@@ -11,6 +11,7 @@ import { listen } from '@tauri-apps/api/event'
 import { useNavigate } from 'react-router-dom'
 
 type FFmpeg = {
+  checking: boolean,
   installed: boolean,
   custom_installed: boolean,
   custom_path: string,
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   const [numToast, setNumToast] = useLocalStorage("toast_max_num")
   const [aliveTime, setAliveTime] = useLocalStorage("toast_alive_time")
   const [ffmpegState, setFState] = useState<FFmpeg>({
+    checking: true,
     installed: false,
     custom_installed: false,
     custom_path: ""
@@ -43,7 +45,10 @@ export default function SettingsPage() {
   }, [updateFromInstaller])
 
   useLuaCallOnce<string>("ffmpeg_getstate", response=> {
-    setFState(JSON.parse(response))
+    setFState({
+      checking: false,
+      ...JSON.parse(response)
+    })
   }, {}, [flag])
 
   const navigate = useNavigate()
@@ -159,16 +164,18 @@ export default function SettingsPage() {
     </RadioGroup>
     <hr/>
     <H4>视频编码器
-      <Tag style={{marginLeft: 4}} intent={installed ? "success" : "warning"}>
+      <Tag 
+        className="ml-1"
+        intent={ffmpegState.checking ? "none" : installed ? "success" : "warning"}>
         {
-          installed ? "已安装" : "未安装"
+          ffmpegState.checking ? "检查中..." : installed ? "已安装" : "未安装"
         }
       </Tag>
     </H4>
     <p>FFmpeg是一个开源的多媒体编解码程序，饥荒资源档案的部分功能（例如动画导出）需要依赖FFmpeg。</p>
     <Button icon="download" onClick={()=> openInstaller()}>
       {
-        installed ? "配置" : "安装"
+        (ffmpegState.checking || installed) ? "配置" : "安装"
       }
     </Button>
     <div style={{height: 100}}></div>

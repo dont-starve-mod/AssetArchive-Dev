@@ -42,7 +42,7 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
       removeCanvas(ref)
       if (renderRef) renderRef(null)
     }
-  }, [renderRef, width, height])
+  }, [renderRef, width, height, animstate, customLoaders, props])
 
   const canvasStyle = {
     width, height,
