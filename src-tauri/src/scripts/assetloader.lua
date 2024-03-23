@@ -57,6 +57,10 @@ BuildLoader = Class(function(self, f, lazy)
         return error(ERROR.UNEXPECTED_EOF)
     end
 
+    if not name:is_utf8() then
+        self.invalid_utf8 = true
+    end
+
     self.buildname = name
     self.numatlases = numatlases
     self.atlas = {}
@@ -65,6 +69,9 @@ BuildLoader = Class(function(self, f, lazy)
     for i = 1, numatlases do
         local name = f:read_variable_length_string()
         if name ~= nil then
+            if not name:is_utf8() then
+                self.invalid_utf8 = true
+            end
             table.insert(self.atlas, name)
         else
             return error(ERROR.UNEXPECTED_EOF)
@@ -258,6 +265,10 @@ AnimLoader = Class(function(self, f)
         local numframes = f:read_u32()
         if numframes == nil then
             return error(ERROR.UNEXPECTED_EOF)
+        end
+
+        if not name:is_utf8() then
+            self.invalid_utf8 = true
         end
 
         local anim = {

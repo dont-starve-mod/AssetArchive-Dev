@@ -246,7 +246,8 @@ export default function AppInit() {
         if (error.message === "window.__TAURI_IPC__ is not a function")
           return
         else
-          appWindow.emit("lua_init_error", error)
+          appWindow.emit("lua_call_error", error)
+          // appWindow.emit("lua_init_error", error)
       }
 
       return handlers

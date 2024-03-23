@@ -80,15 +80,6 @@ function string.endswith(str, neddle)
 	return str:sub(#str - #neddle + 1, #str) == neddle
 end
 
-function string.isascii(str)
-	for i = 1, #str do
-		if string.byte(str, i) > 127 then
-			return false
-		end
-	end
-	return true
-end
-
 function string.count(str, neddle)
 	local n =  0
 	for _ in str:gmatch(neddle)do

@@ -141,8 +141,16 @@ pub mod lua_misc {
             Ok(search(path.as_str()))
         })?)?;
 
-        // validate utf-8
+        // validate utf-8 and ascii
         let string_lib = globals.get::<_, Table>("string")?;
+        string_lib.set("is_ascii", lua_ctx.create_function(|_, s: LuaString|{
+            if let Ok(s) = s.to_str() {
+                Ok(s.is_ascii())
+            }
+            else {
+                Ok(false)
+            }
+        })?)?;
         string_lib.set("is_utf8", lua_ctx.create_function(|_, s: LuaString|{
             Ok(s.to_str().is_ok())
         })?)?;

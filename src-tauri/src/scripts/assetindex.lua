@@ -200,7 +200,11 @@ end
 function AssetIndex:ListBuildNames()
 	local result = {}
 	for k in pairs(self.buildinfo)do
-		table.insert(result, k)
+		if k:is_ascii() then
+			table.insert(result, k)
+		else
+			print_warning("non-ascii build name is ignored: "..k)
+		end
 	end
 	return result
 end
@@ -211,7 +215,11 @@ function AssetIndex:ListAnimations()
 		local bank = {bank = k, animation = {}}
 		table.insert(result, bank)
 		for name, data in pairs(v) do
-			table.insert(bank.animation, {name = name, facings = table.getkeys(data.facings)})
+			if name:is_ascii() then
+				table.insert(bank.animation, {name = name, facings = table.getkeys(data.facings)})
+			else
+				print_warning("non-ascii animation name is ignored: "..k)
+			end
 		end
 	end
 	return result

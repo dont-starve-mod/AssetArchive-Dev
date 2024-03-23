@@ -245,7 +245,6 @@ function DST_DataRoot:OpenRootFolder()
 	end
 end
 
-
 local function CalcIndex(w, h, args)
 	local rw, rh = args.rw, args.rh
 	local index = {}

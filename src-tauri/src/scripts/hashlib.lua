@@ -37,7 +37,7 @@ function HashLib:AddHash(s, h)
         self.map_string[s:lower()] = h
         self.map_number[h] = s:lower()
     else
-        if s:isascii() then
+        if s:is_ascii() then
             print("Warning: hash pair failed to check: `"..s.."` -> "..h)
         end
     end
@@ -62,7 +62,11 @@ end
 function HashLib:Serialize()
     local result = {}
     for k,v in pairs(self.map_string)do
-        table.insert(result, {k, v})
+        if k:is_ascii() then
+            table.insert(result, {k, v})
+            -- TODO: utf-8 and non utf-8 are ignored
+            -- may add in future
+        end
     end
     return result
 end

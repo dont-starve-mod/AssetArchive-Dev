@@ -1,5 +1,5 @@
 pub mod lua_filesystem {
-    use std::ffi::OsString;
+    use std::ffi::{OsStr, OsString};
     use std::fs::{self, File};
     use std::io::{self, Read, Seek, SeekFrom, Cursor};
     use std::convert::TryInto;
@@ -472,6 +472,11 @@ pub mod lua_filesystem {
         }
 
         #[inline]
+        fn name(&self) -> Option<String> {
+            self.inner.file_name().map(|s|s.to_string_lossy().to_string())
+        }
+
+        #[inline]
         fn with_name(&self, s: String) -> Self {
             Path { inner: self.inner.with_file_name(s) }
         }
@@ -520,11 +525,6 @@ pub mod lua_filesystem {
             result
         }
         
-        // #[inline]
-        // pub fn to_string(&self) -> String {
-        //     self.inner.to_string_lossy().to_string()
-        // }
-
         fn open_and_write(&self, content: Option<LuaString>) -> Result<(), ()> {
             match content {
                 Some(s)=> fs::write(&self.inner, s.as_bytes()).map_err(|_|()),
@@ -644,10 +644,35 @@ pub mod lua_filesystem {
             _methods.add_method("iter", |_, path: &Self, ()|{
                 Ok(path.iter_dir())
             });
-            _methods.add_method("iter_file", |_, path: &Self, ()|{
+            _methods.add_method("iter_file", |_, path: &Self, options: Option<Table>|{
+                let (extension, ensure_ascii) = match options {
+                    Some(t)=> {
+                        let extension = t.get::<_, String>("extension").ok();
+                        let ensure_ascii = t.get::<_, bool>("ensure_ascii").ok().unwrap_or(true);
+                        (extension, ensure_ascii)
+                    },
+                    None=> (None, true)
+                };
+                let filter_predicate = |p: &Path| -> bool {
+                    if p.is_file() {
+                        if let Some(ext) = &extension {
+                            if !p.check_extention(ext) {
+                                return false;
+                            }
+                        }
+                        else if ensure_ascii && p.get_inner()
+                            .file_name().unwrap_or(OsStr::new("")).to_str().is_none() {
+                            return false;
+                        }
+                        true
+                    }
+                    else {
+                        false
+                    }
+                };
                 Ok(path.iter_dir()
                     .iter()
-                    .filter(|p|p.is_file())
+                    .filter(|p|filter_predicate(p))
                     .cloned()
                     .collect::<Vec<_>>())
             });
@@ -657,6 +682,7 @@ pub mod lua_filesystem {
                 Ok(path.iter_dir()
                     .iter()
                     .filter(|p|p.is_file() && p.check_extention(ext_str))
+                    .filter(|p|p.name().unwrap_or("".to_string()).is_ascii())
                     .cloned()
                     .collect::<Vec<_>>())
             });
@@ -682,6 +708,21 @@ pub mod lua_filesystem {
             _methods.add_method("as_string", |_, path: &Self, ()|{
                 Ok(path.to_string())
             });
+            // utf-8 safe converter
+            // _methods.add_method("serde_json", |_, path, ()|{
+            //     use serde::Serialize;
+            //     let object = match path.inner.to_str() {
+            //         Some(s)=> object!{
+            //             is_utf8: true,
+            //             string: s,
+            //         },
+            //         None=> object!{
+            //             is_utf8: false,
+            //             value: path.inner,
+            //         }
+            //     };
+            //     Ok(object.to_string())
+            // });
             _methods.add_meta_method(MetaMethod::ToString, |_, path: &Self, ()|{
                 Ok(format!("Path<{}>", path))
             });
