@@ -311,16 +311,18 @@ end
 
 function AnimProjectManager:LoadProjectList()
 	self.project_list = {}
-	for _,v in ipairs(self.basedir:iter_file_with_extension(".lua"))do
-		local name = v:name()
-		local mtime = v:mtime()
-		local success, content = pcall(function() return v:read_to_string() end)
-		if success and #content > 0 then
-			local project = AnimProject()
-			if project:LoadSource(content) then
-				table.insert(self.project_list, project:Update({id = name, mtime = mtime}))
-			else
-				print(project.error)
+	for _,v in ipairs(self.basedir:iter_file())do
+		if v:check_extention(".lua") then
+			local name = v:name()
+			local mtime = v:mtime()
+			local success, content = pcall(function() return v:read_to_string() end)
+			if success and #content > 0 then
+				local project = AnimProject()
+				if project:LoadSource(content) then
+					table.insert(self.project_list, project:Update({id = name, mtime = mtime}))
+				else
+					print(project.error)
+				end
 			end
 		end
 	end

@@ -115,12 +115,6 @@ export default function AnimQuickLook(props: AnimQuickLookProps) {
         // bgc="#ddd"
       />
       <div style={{position: "absolute", right: 8, top: 8, display: props.noCog ? "none" : undefined}}>
-        {/* <Popover2
-          minimal
-          placement="left"
-          content={<QuickLookSettings/>}>
-          <Button icon="cog"/>
-        </Popover2> */}
         <Tooltip2 content="配置">
           <Button icon="cog" onClick={()=> appWindow.emit("quick_settings",
             {key: "AnimQuickLook", data})}/>

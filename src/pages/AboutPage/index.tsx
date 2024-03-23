@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { H3, H5, Icon, Tag } from "@blueprintjs/core"
 import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api'
+import { useNavigate } from 'react-router-dom'
+import { openChangeLog } from '../ChangeLog'
 
 function openURL(url: string) {
   invoke("open_url", { url })
@@ -22,7 +24,11 @@ export default function About() {
         </Tag>
       </H3>
       <p>一站式饥荒游戏资源检索工具——只需轻点几下，即可快速导出图片、动画、音效、滤镜等游戏资源。</p>
-      {/* <SimpleLink url="https://lw-0x4eb1a.github.io/AssetArchivePage/">网站首页</SimpleLink> */}
+      <SimpleLink url="http://asset-archive-page-dont-starve3-88a0c46a24df5a45ae1a89244d0837e.gitlab.io/">网站首页</SimpleLink>
+      <a className="ml-5" onClick={()=> openChangeLog()}>
+        更新日志
+        <Icon icon="share" size={12} className="align-middle ml-1" />
+      </a>
       <H5>使用声明</H5>
       <p>本软件仅提供对饥荒游戏资源文件的读取和导出功能，软件本体不携带游戏资源文件，您在使用前应先在设备上安装正版饥荒游戏，并确保游戏文件的完整性。
         因安装盗版游戏或修改游戏资源导致软件运行的任何问题，本软件概不负责。
@@ -67,7 +73,9 @@ export default function About() {
 
 function SimpleLink(props: {children: string, url: string}) {
   return (
-    <a href="#" onClick={()=> openURL(props.url)}>{props.children} 
-    <Icon icon="share" size={12} style={{verticalAlign: "middle", marginLeft: 5}}/></a>
+    <a href="#" onClick={()=> openURL(props.url)}>
+      {props.children} 
+      <Icon icon="share" size={12} className="align-middle ml-1" />
+    </a>
   )
 }

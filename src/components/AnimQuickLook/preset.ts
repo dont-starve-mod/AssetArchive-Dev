@@ -16,6 +16,7 @@ export type DefinedPresetGroup = {
   order: number,
   condition: PresetCondition,
   presets: Preset[],
+  presets_configable?: true,
 }
 
 export function checkCondition(condition: PresetCondition, data: any): boolean  {

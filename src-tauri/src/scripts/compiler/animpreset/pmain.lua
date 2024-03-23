@@ -24,16 +24,28 @@ ALL_PRESETLIST.character_base = {
 	title = "角色外观",
 	condition = CONDITION.IS_PLAYER,
 	presets = {
-		Preset{
-			key = "wilson",
-		},
-		Preset{
-			key = "wendy",
-		},
-		Preset{
-			key = "wx78",
-		}
-	}
+		Preset{ key = "wilson" },
+		Preset{ key = "wendy" },
+		Preset{ key = "wx78" },
+		Preset{ key = "wickerbottom" },
+		Preset{ key = "willow" },
+		Preset{ key = "wonkey" },
+		
+		Preset{ key = "wolfgang" },
+		Preset{ key = "woodie" },
+		Preset{ key = "wes" },
+		Preset{ key = "waxwell" },
+		Preset{ key = "wathgrithr" },
+		Preset{ key = "webber" },
+		Preset{ key = "winona" },
+		Preset{ key = "warly" },
+		Preset{ key = "wortox" },
+		Preset{ key = "wormwood" },
+		Preset{ key = "wurt" },
+		Preset{ key = "walter" },
+		Preset{ key = "wanda" },
+	},
+	presets_configable = true,
 }
 
 table.foreach(ALL_PRESETLIST.character_base.presets, function(_, v)

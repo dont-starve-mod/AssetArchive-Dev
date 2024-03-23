@@ -49,9 +49,9 @@ export function useQuickLookPresets(
       const def = [] as (Omit<DefinedPresetGroup, "condition">)[]
       Object.values(window.animpreset.def)
         .forEach(v=> {
-          const {key, title, condition, presets, order} = v
+          const {key, title, condition, presets, presets_configable, order} = v
           if (checkCondition(condition, {bank: bankHash})){
-            def.push({key, title, presets, order})
+            def.push({key, title, presets, presets_configable, order})
           }
         })
       def.toSorted((a, b)=> a.order - b.order).forEach(v=> {
@@ -66,7 +66,7 @@ export function useQuickLookPresets(
     result.push(GLOBAL_PRESETS.COLOR)
 
     return result
-  }, [])
+  }, [data.animation, data.bank, data.build])
 }
 
 export function useQuickLookCmds(
@@ -117,5 +117,5 @@ export function useQuickLookExport(
         skip_index: true,
       }
     })
-  }, [animstate, call])
+  }, [animstate, call, defaultName])
 }

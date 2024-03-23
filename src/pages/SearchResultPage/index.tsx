@@ -142,8 +142,7 @@ function SearchResultDisplay({result}: {result: Response}) {
         console.warn("Failed to restore tab scroll", key)
       }
     }
-    /* eslint-disable-next-line */
-  }, [])
+  }, [scroll])
 
   useEffect(()=> {
     setTabScroll(tab)

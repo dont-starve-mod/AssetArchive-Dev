@@ -203,7 +203,7 @@ function AssetIndex:ListBuildNames()
 		if k:is_ascii() then
 			table.insert(result, k)
 		else
-			print_warning("non-ascii build name is ignored: "..k)
+			print_info("non-ascii build name is ignored: "..k)
 		end
 	end
 	return result
@@ -218,7 +218,7 @@ function AssetIndex:ListAnimations()
 			if name:is_ascii() then
 				table.insert(bank.animation, {name = name, facings = table.getkeys(data.facings)})
 			else
-				print_warning("non-ascii animation name is ignored: "..k)
+				print_info("non-ascii animation name is ignored: "..name)
 			end
 		end
 	end

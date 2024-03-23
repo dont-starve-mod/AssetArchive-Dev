@@ -8,6 +8,7 @@ import Preview from '../Preview'
 import { sortedAlias } from '../AliasTitle'
 import PageTurner from '../PageTurner'
 import { search } from '../../global_meilisearch'
+import KeepAlivePage from '../KeepAlive/KeepAlivePage'
 
 type Filter = {
   key: string,
@@ -258,79 +259,79 @@ export default function EntrySearcher(props: EntrySearcherProps) {
   }, [query, hasQuery])
 
   return (
-    <div>
-      {/* <H3 className="mt-4">标题</H3> */}
-      <Callout className="mt-4 pb-3">
-        <div className="flex mb-2">
-          <InputGroup
-            leftIcon="filter"
-            placeholder="筛选"
-            className="w-40 flex-0"
-            autoFocus
-            onChange2={onChangeQuery}
-          />
-          <div className="overflow-auto flex-1 ml-1">
+    // <KeepAlivePage cacheNamespace="assetPage" cacheId="@entry-seacher">
+      <div>
+        {/* <H3 className="mt-4">标题</H3> */}
+        <Callout className="mt-4 pb-3">
+          <div className="flex mb-2">
+            <InputGroup
+              leftIcon="filter"
+              placeholder="筛选"
+              className="w-40 flex-0"
+              autoFocus
+              onChange2={onChangeQuery}
+            />
+            <div className="overflow-auto flex-1 ml-1">
+              {
+                Object.entries(selected).map(([key, value])=> 
+                  value && <Tag minimal className="m-1" 
+                    onRemove={()=> onChangeSelected({...selected, [key]: undefined})}>
+                      {keyToLabel[key]}
+                    </Tag>)
+              }
+            </div>
+            <div className="ml-auto flex-0">
+              <Button onClick={()=> onChangeSelected({})}>
+                清空
+                <Tag minimal className="ml-1">{numSelected}</Tag>
+              </Button>
+            </div>
+          </div>
+          <EntryFilter/>
+        </Callout>
+        <div>
+          <H5 className="mt-6">
+            筛选结果
+            <Tag minimal className="ml-1">{resultWithQuery.length}</Tag>
+          </H5>
+          {
+            resultWithQuery.length === 0 && 
+            <p>什么都没有...</p>
+          }
+          <div className="flex flex-wrap justify-between">
             {
-              Object.entries(selected).map(([key, value])=> 
-                value && <Tag minimal className="m-1" 
-                  onRemove={()=> onChangeSelected({...selected, [key]: undefined})}>
-                    {keyToLabel[key]}
-                  </Tag>)
+              resultWithQuery.map(({id, key, preview_data, tags, alias}, i)=> {   
+                if (i > range[1] || i < range[0]) return null
+                return <Card key={key} 
+                  className="cursor-pointer m-1 flex flex-1"
+                  interactive
+                  style={{minWidth: 200, height: 90, padding: 5}}
+                  onClick={()=> navigate("/asset/?id="+id)}
+                >
+                  <div>
+                    <Preview.EntryAnim {...preview_data.anim} width={80} height={80}/>
+                  </div>
+                  <div>
+                    <H6 className="mt-1 break-all" style={{maxWidth: 100}}>
+                      {sortedAlias(alias)[0]}
+                    </H6>
+                  </div>
+                </Card>
+              })
+            }
+            {
+              // dummy divs
+              Array.from({length: 10}).map((_, i)=> 
+                <div key={i} className="flex-1 m-1" 
+                  style={{minWidth: 200, padding: 5}}>
+                </div>)
             }
           </div>
-          <div className="ml-auto flex-0">
-            <Button onClick={()=> onChangeSelected({})}>
-              清空
-              <Tag minimal className="ml-1">{numSelected}</Tag>
-            </Button>
-          </div>
+          <PageTurner {...handler}/>
+          <div className="h-20"/>
         </div>
-        <EntryFilter/>
-      </Callout>
-      <div>
-        <H5 className="mt-6">
-          筛选结果
-          <Tag minimal className="ml-1">{resultWithQuery.length}</Tag>
-        </H5>
-        {
-          resultWithQuery.length === 0 && 
-          <p>什么都没有...</p>
-        }
-        <div className="flex flex-wrap justify-between">
-          {
-            resultWithQuery.map(({id, key, preview_data, tags, alias}, i)=> {   
-              if (i > range[1] || i < range[0]) return null
-              return <Card key={key} 
-                className="cursor-pointer m-1 flex flex-1"
-                interactive
-                style={{minWidth: 200, height: 90, padding: 5}}
-                onClick={()=> navigate("/asset/?id="+id)}
-              >
-                <div>
-                  <Preview.EntryAnim {...preview_data.anim} width={80} height={80}/>
-                </div>
-                <div>
-                  <H6 className="mt-1 break-all" style={{maxWidth: 100}}>
-                    {sortedAlias(alias)[0]}
-                  </H6>
-                </div>
-              </Card>
-            })
-          }
-
-          {
-            // dummy divs
-            Array.from({length: 10}).map((_, i)=> 
-              <div key={i} className="flex-1 m-1" 
-                style={{minWidth: 200, padding: 5}}>
-              </div>)
-          }
-        </div>
-        <PageTurner {...handler}/>
-        <div className="h-20"/>
       </div>
-      
-    </div>
+    // </KeepAlivePage>
   )
 }
 

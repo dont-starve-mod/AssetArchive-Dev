@@ -214,7 +214,6 @@ function Custom({setStep, state, forceUpdate}) {
 export function openInstaller() {
   let label = "ffmpeg-installer"
   let subwindow = WebviewWindow.getByLabel(label)
-  console.log(subwindow)
   if (subwindow)
     subwindow.setFocus().then(console.log, console.error)
   else

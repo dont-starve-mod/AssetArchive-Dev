@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { appWindow } from '@tauri-apps/api/window'
-import { Button, Dialog, DialogBody, DialogFooter, H3, H5, H6, Radio, RadioGroup } from '@blueprintjs/core'
+import { Button, Checkbox, Dialog, DialogBody, DialogFooter, H3, H5, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Event } from '@tauri-apps/api/event'
 import AnimQuickLook from '../AnimQuickLook'
 import { useQuickLookPresets, useQuickLookExport } from '../AnimQuickLook/util'
@@ -33,7 +33,7 @@ export default function AppQuickSettings() {
           <p>小标签代表这一图集包含的图片总数。</p>
           <p>不喜欢小标签？</p>
           <hr/>
-          <RadioGroup>
+          <RadioGroup onChange={()=> {}}>
             <Radio title=''>仅在图片数量大于1时显示</Radio>
             <Radio title=''>从不显示</Radio>
             <Radio title=''>总是显示</Radio>
@@ -105,42 +105,86 @@ type PresetSelectorProps = {
   title: string,
   inline?: boolean,
   presets: Preset[],
+  presets_configable?: boolean,
 }
 
 function SimplePresetSelector(props: PresetSelectorProps) {
-  const {presets, groupKey} = props
+  const {presets, groupKey, presets_configable} = props
   const [selected, setSelected] = useLocalStorage("quicklook_presets")
+  const [shown, setShown] = useLocalStorage("quicklook_presets_shown")
+  const hasShownConfig = presets_configable === true && presets.some(
+    v=> shown[`${groupKey}-${v.key}`] === true)
   const selectedIndex = Math.max(presets.findIndex(v=> selected[`${groupKey}-${v.key}`]), 0)
-  console.log(presets, selectedIndex)
   const onSelect = useCallback((key: string)=> {
     let data = {...selected}
     presets.forEach(v=> {
-      if (key === v.key) {
-        data[`${groupKey}-${v.key}`] = true
-      }
-      else {
-        delete data[`${groupKey}-${v.key}`]
-      }
+      data[`${groupKey}-${v.key}`] = key === v.key ? true : undefined
     })
-    console.log("PRESET", data)
     setSelected(data)
   }, [selected, presets, groupKey, setSelected])
   const simpleTitle = props.title === "#build" ? "外观" : 
     props.title === "#color" ? "调色" :
     props.title
+
+  const [isConfiging, setIsConfiging] = useState(false)
+  const onConfigSelectAll = useCallback(()=> {
+    let data = {...shown}
+    presets.forEach(v=> {
+      data[`${groupKey}-${v.key}`] = true
+    })
+    setShown(data)
+  }, [groupKey, presets, setShown, shown])
+  const onConfigSelectNone = useCallback(()=> {
+    let data = {...shown}
+    presets.forEach(v=> {
+      data[`${groupKey}-${v.key}`] = undefined
+    })
+    setShown(data)
+  }, [groupKey, presets, setShown, shown])
   return (
     <>
-      <H6 title={groupKey}>{simpleTitle}</H6>
+      <H6 title={groupKey}>
+        {simpleTitle}
+        {presets_configable && 
+          <Tooltip2 content="设置" placement="right" className="ml-1" disabled={isConfiging}>
+            <Button icon="cog" small 
+              intent={isConfiging ? "primary" : "none"}
+              onClick={()=> setIsConfiging(v=> !v)}/>
+          </Tooltip2>
+        }
+      </H6>
       <div style={{marginBottom: 10}}>
-        <RadioGroup 
-          inline={props.inline}
-          selectedValue={presets[selectedIndex].key} 
-          onChange={e=> onSelect(e.currentTarget.value)}>
-          {
-            presets.map(({key, title})=> 
-              <Radio style={{margin: "4px 5px"}} key={key} label={title || key} value={key}/>)
-          }
-        </RadioGroup>
+        {
+          !isConfiging ? <RadioGroup 
+            inline={props.inline}
+            selectedValue={presets[selectedIndex].key} 
+            onChange={e=> onSelect(e.currentTarget.value)}>
+            {
+              presets.map(({key, title}, i)=>
+                (
+                  !presets_configable || 
+                  !hasShownConfig && i < 5 || 
+                  hasShownConfig && shown[`${groupKey}-${key}`]
+                ) && 
+                <Radio style={{margin: "4px 5px"}} key={key} label={title || key} value={key}/>)
+            }
+          </RadioGroup> :
+          <>
+            <Button small onClick={()=> onConfigSelectAll()}>全选</Button>
+            <Tooltip2 content="默认显示前6个" placement="right">
+            <Button small className="ml-1" onClick={()=> onConfigSelectNone()}>全不选</Button>
+            </Tooltip2>
+            <Button small className="ml-1" onClick={()=> setIsConfiging(false)}>完成</Button>
+            <div className="h-1"/>
+            {
+              presets.map(({key, title})=> 
+                <Checkbox key={key} style={{margin: "4px 5px"}}
+                  checked={shown[`${groupKey}-${key}`] === true}
+                  onChange={e=> setShown({...shown, [`${groupKey}-${key}`]: e.currentTarget.checked})}
+                  >{title || key}</Checkbox>)
+            }
+          </>
+        }
       </div>
     </>
   )
@@ -148,6 +192,7 @@ function SimplePresetSelector(props: PresetSelectorProps) {
 
 function PresetSelector(props: PresetSelectorProps) {
   const {title, presets} = props
+  console.log(props)
   // hook for simple
   if (title === "#build") return <SimplePresetSelector {...props}/>
   if (title === "#color") return <SimplePresetSelector {...props} inline/>
@@ -206,7 +251,7 @@ function PresetIcon(props: {preset: any}) {
       ...disables,
       [key]: true
     })
-  }, [type, stored_presets, setPresets])
+  }, [key, stored_presets, setPresets])
 
   return (
     <Tooltip2 placement='top' content={title || key}>
