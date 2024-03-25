@@ -91,7 +91,8 @@ export type EntryPreviewData = {
     overridesymbol?: [string, string, string, number?][], 
     hidesymbol?: string[], 
     hide?: string[],
-  }
+  },
+  sound?: string,
 }
 
 export type Entry = {
@@ -121,26 +122,37 @@ export type Bank = {
   plain_desc?: string,
 }
 
+type StaticArchiveItemCommon = {
+  desc?: string | JSX.Element,
+  plain_desc?: string,
+  element?: JSX.Element,
+}
+
 export type MultiXml = {
   id: string, // STATIC@multi-xml.Wallpapers
   title: string,
   type: "multi_xml",
   desc?: string | JSX.Element,
-  plain_desc?: string,
-  element?: JSX.Element,
   // xmlList: string[], dynamic defined by js function
-}
+} & 
+StaticArchiveItemCommon
 
 export type MultiSound = {
   id: string, // STATIC@multi-sound.Music
   title: string,
   type: "multi_sound",
   tag?: AssetTag,
-  desc?: string | JSX.Element,
-  plain_desc?: string,
-  element?: JSX.Element,
-}
+} & 
+StaticArchiveItemCommon
 
-export type StaticArchiveItem = MultiXml | MultiSound
+export type MultEntry = {
+  id: string, // STATIC@multi-entry.Fx
+  title: string,
+  type: "multi_entry",
+  tag?: AssetTag,
+} &
+StaticArchiveItemCommon
+
+export type StaticArchiveItem = MultiXml | MultiSound | MultEntry
 export type ArchiveItem = Asset | Entry | Bank | StaticArchiveItem
 

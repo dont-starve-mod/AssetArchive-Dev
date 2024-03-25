@@ -14,15 +14,17 @@ function addPunc(s: string) {
   }
   return s
 }
-export type AssetTag = "#music" | "#ambient_sound" | "#character_voice" 
+export type AssetTag = "#music" | "#ambient_sound" | "#character_voice" | "#fx"
 
 function TagLink(props: {tag: string}) {
   const {tag} = props
   const link = useMemo(()=> {
     switch (tag as AssetTag) {
-      case "#music": return "STATIC@sound.music"
-      case "#ambient_sound": return "STATIC@sound.ambient"
-      case "#character_voice": return "STATIC@sound.character_voice"
+      // TODO: auto generate for static.tsx
+      case "#music": return "STATIC@multi_sound.Music"
+      case "#ambient_sound": return "STATIC@multi_sound.AmbientSound"
+      case "#character_voice": return "STATIC@multi_sound.CharacterVoice"
+      case "#fx": return "STATIC@multi_entry.Fx"
       default: return ""
     }
   }, [tag])

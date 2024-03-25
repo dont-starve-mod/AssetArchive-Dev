@@ -487,7 +487,7 @@ function EntryManager:AddTagFromScrapbook()
 		end
 	end
 
-	if true then
+	if false then
 		-- sort by occurence
 		local temp = {}
 		table.foreach(all_tags, function(k, count)
@@ -514,6 +514,128 @@ function EntryManager:AddTagFromScrapbook()
 	self.all_tags_names = all_tags_names
 end
 
+function EntryManager:AddTagFromFx()
+	local fx = self.root:LoadScript("fx", 
+		{Vector3 = function() end, STRINGS = DUMMY_FIELD, table = table, tostring = tostring})
+	for k,v in pairs(fx)do
+		local name = assert(v.name)
+		local bank = assert(v.bank)
+		local anim = assert(v.anim)
+		local build = assert(v.build)
+		local sound = v.sound
+		assert(type(sound) == "nil" or type(sound) == "string")
+		if type(anim) == "function" then
+			setfenv(anim, {math = math})
+			anim = anim()
+			local _, _, name, num = anim:find("(.*)(%d)")
+			assert(name) 
+			assert(tonumber(num) ~= nil)
+			anim = name.."1"
+		end
+		local preview_data = {
+			anim = {
+				bank = bank,
+				anim = anim,
+				build = build,
+				is_fx = true,
+			},
+			sound = sound,
+		}
+		local entry = assert(self.items[name], name)
+		assert(entry.preview_data.anim == nil, name)
+		entry.preview_data = preview_data
+		entry.tags["#fx"] = true
+	end
+end
+
+function EntryManager:AddDSTMainScreen()
+	-- screens/redux/multiplayermainscreen
+	for k,v in pairs{
+		waterlogged = true,
+		yot_catcoon = true,
+		moonstorm_background = {anim_list = {"loop_w1", "loop_w2", "loop_w3"}},
+		moonstorm_foreground = {anim_list = {"loop_w1", "loop_w2", "loop_w3"}},
+		-- moonstorm_wrench = {anim = "loop_w1"},
+		carrat_bg = {bank = "dst_carrat_bg"},
+		carrat = {bank = "dst_carrat", presets = (function() 
+			local result = {
+				{key = "normal", cmds = {}},
+			}
+			local colors ={
+				"blue",
+				"brown",
+				"pink",
+				"purple",
+				"yellow",
+				"green",
+				"white",
+			}
+			for _,c in ipairs(colors)do
+				table.insert(result, {key = c, cmds = {
+					{name = "OverrideSymbol", args = {"ear1", "dst_carrat_swaps", c.."_ear1"}},
+					{name = "OverrideSymbol", args = {"ear2", "dst_carrat_swaps", c.."_ear2"}},
+					{name = "OverrideSymbol", args = {"tail", "dst_carrat_swaps", c.."_tail"}},
+				}})
+			end
+			return result 
+		end)()},
+		yotr = true,
+		halloween2 = true,
+		carnival = true,
+		webber_carnival = {bank = "dst_menu_webber", build = "dst_menu_webber_carnival"},
+		wes = true,
+		wes2 = true,
+		wendy = true,
+		webber = true,
+		wanda = {anim_list = {"loop_1", "loop_2", "loop_3"}},
+		terraria = true,
+		wolfgang = {presets = {
+			{key = "wimpy", cmds = {{name = "Hide", args = {"mid"}}, {name = "Hide", args = "mighty"}}},
+			{key = "mid", cmds = {{name = "Hide", args = {"wimpy"}}, {name = "Hide", args = "mighty"}}},
+			{key = "mighty", cmds = {{name = "Hide", args = {"wimpy"}}, {name = "Hide", args = "mid"}}},
+		}},
+		wx78 = {bank = "dst_menu_wx", build = "dst_menu_wx"},
+		wickerbottom = true,
+		pirates = true,
+		drama_bg = {bank = "dst_menu_charlie2", build = "dst_menu_charlie2", anim = "loop_bg"},
+		charlie_halloween = true,
+		charlie = true,
+		waxwell = true,
+		wilson = true,
+		lunarrifts = true,
+		rift2 = true,
+		meta2 = {bank = "dst_menu_meta2", build = "dst_menu_meta2_cotl"},
+		rift3_BG = {presets = {
+			{key = "normal", cmds = {{name = "Hide", args = "HOLLOW"}}},
+			{key = "hollow", cmds = {}},
+		}}, 
+		rift3 = {presets = {
+			{key = "normal", cmds = {{name = "Hide", args = "HOLLOW"}}},
+			{key = "hollow", cmds = {}},
+		}},
+		meta3 = true,
+		menu_v2_bg = true,
+		menu_v2 = true,
+	}do
+		local data = {bank = "dst_menu_"..k, build = "dst_menu_"..k, anim = "loop"}
+		if type(v) == "table" then
+			-- convert to presets
+			if v.anim_list then
+				local presets = {}
+				for _, name in ipairs(v.anim_list)do
+					table.insert(presets, {key = name, cmds = {{name = "PlayAnimation", args = {name}}}})
+				end
+				data.presets = presets
+			end
+			-- override default values
+			for kk, vv in pairs(v)do
+				data[kk] = vv
+			end
+		end
+	end
+end
+
+
 local function run(env)
 	local manager = EntryManager()
 
@@ -525,6 +647,7 @@ local function run(env)
 	manager:BuildPredefs()
 	manager:BuildPrefabs()
 	manager:AddTagFromScrapbook()
+	manager:AddTagFromFx()
 
 	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output/"
 	local path = output/"entry.dat"

@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react'
 import { addAnimState, removeCanvas, CanvasRenderer } from './animcore'
-import { useAppSetting, useMouseDrag, useMouseScroll } from '../../hooks'
+import { useAppSetting, useIntersectionObserver, useMouseDrag, useMouseScroll } from '../../hooks'
 import { IRenderParams } from './renderparams'
 import { v4 } from 'uuid'
 import { AnimState } from './animstate'
@@ -24,10 +24,12 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
 
   const onMouseMove = useCallback((x: number, y: number)=> {
     canvas.current?.render.offset(x, y)
-  }, [])
+    animstate.forceRender = true
+  }, [animstate])
   const onMouseScroll = useCallback((y: number)=> {
     canvas.current?.render.scroll(y)
-  }, [])
+    animstate.forceRender = true
+  }, [animstate])
   const [onMouseDown] = useMouseDrag(onMouseMove)
   const [onWheel, onMouseEnter, onMouseLeave] = useMouseScroll(onMouseScroll)
   const {renderRef} = props
@@ -68,6 +70,11 @@ export default function AnimCore(props: AnimCoreProps & IRenderParams) {
   }, [animstate])
 
   const {noMouseEvent} = props
+
+  const {visible} = useIntersectionObserver({ref: canvas})
+  useEffect(()=> {
+    animstate.setVisible(visible)
+  }, [animstate, visible])
 
   return (
     <div style={{...canvasStyle, backgroundColor: bgc, position: "relative"}}>

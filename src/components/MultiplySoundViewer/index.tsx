@@ -22,7 +22,7 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
   const [_, forceUpdate] = useReducer(v => v + 1, 0)
 
   /* eslint-disable react-hooks/exhaustive-deps */
-  const sounds = soundList() || []
+  const sounds = soundList().filter(v=> v.path) || []
   const assetLoaded = sounds.length > 0
 
   useEffect(()=> {

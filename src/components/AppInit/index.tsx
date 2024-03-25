@@ -167,7 +167,8 @@ export default function AppInit() {
           const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
           Object.entries(assetdesc).forEach(([k, v])=> {
             if (window.assets_map[k] === undefined){
-              return console.log("Warning: cannot assign desc for " + k)
+              // @ts-ignore
+              window.assets_map[k] = {} // fmod event & fmod project
             }
 
             let desc = []
@@ -202,6 +203,13 @@ export default function AppInit() {
             v.plain_alias = formatAlias(v.alias)
             // for easy access
             window.assets_map[v.id] = v
+            // register entry tag NOTE: desc is ignored!!!!!!!!!
+            Object.keys(v.tags).forEach(tag=> {
+              if (tag.startsWith("#")) {
+                window.assets_tag[tag] = window.assets_tag[tag] || {}
+                window.assets_tag[tag][v.id] = v
+              }
+            })
           })
           appWindow.emit("update_entry")
         }),

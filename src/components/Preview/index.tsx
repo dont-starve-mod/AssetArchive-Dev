@@ -526,10 +526,12 @@ function Zip(props: {file: string} & PreviewProps) {
   }
 }
 
-function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
+function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps & {
+  forcePercent?: number, isPlaying?: boolean, onInitAnimState?: (animstate: AnimState)=> void}) {
   const {ref, canvas, appeared, width, height, renderWidth, renderHeight, loadingSize} = useCanvasPreviewSetup(props, [80, 80])
   // const [loadingState, setState] = useState(LoadingState.Loading)
   const {bank, build, anim, animpercent, facing, alpha, overridebuild, overridesymbol, hidesymbol, hide} = props
+  const {forcePercent, isPlaying} = props
   const animstate = useRef(new AnimState()).current
   
   // convert preview data to animstate api list
@@ -556,9 +558,15 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
     // @ts-ignore
     animstate.setApiList(list.filter(Boolean))
     animstate.pause()
-    animstate.getPlayer().setPercent(animpercent || 0)
+    animstate.getPlayer().setPercent(forcePercent || animpercent || 0)
     animstate.facing = facing
-  }, [bank, build, anim, animpercent, facing, hide, hidesymbol, alpha, overridebuild, overridesymbol, animstate])
+  }, [bank, build, anim, animpercent, forcePercent, facing, 
+    hide, hidesymbol, alpha, overridebuild, overridesymbol, animstate])
+
+  const {onInitAnimState} = props
+  useEffect(()=> {
+    onInitAnimState?.(animstate)
+  }, [animstate, onInitAnimState])
 
   const [render, setRender] = useState<RenderParams>()
 
@@ -589,9 +597,20 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps) {
     return ()=> animstate.removeEventListener("changerect", onChangeRect)
   }, [animstate, width, height, render])
 
+  useEffect(()=> {
+    if (typeof isPlaying !== "boolean") return
+    if (isPlaying)
+      animstate.resume()
+    else
+      animstate.pause()
+  }, [animstate, isPlaying])
+
   return (
     <>
-      <div ref={ref} style={{width, height}}>
+      <div 
+        ref={ref} 
+        style={{width, height}}
+      >
         {
           appeared && <>
             <AnimCore 

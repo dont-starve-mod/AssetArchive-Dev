@@ -193,3 +193,6 @@ function timeit(silent)
 	end
 	time = now()
 end
+
+DUMMY_FIELD = {}
+setmetatable(DUMMY_FIELD, {__index = function() return DUMMY_FIELD end})

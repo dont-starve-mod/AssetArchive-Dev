@@ -25,7 +25,7 @@ type AnimQuickLookProps = {
   bankhash: number,
   animation: string,
   build: string,
-  facing: number,
+  facing?: number,
   width?: number,
   maxAspectRatio?: number,
   minAspectRatio?: number,

@@ -168,7 +168,7 @@ const getApiGroup = (name: string) => {
     return "UNKNOWN"
 }
 
-type AnimStateEvent = "rebuildsymbolsource" | "rebuildtint" | "changeframelist" | "changerect"
+type AnimStateEvent = "rebuildsymbolsource" | "rebuildtint" | "changeframelist" | "changerect" | "onupdate"
 
 interface IData {
   bank?: hash,
@@ -182,6 +182,7 @@ const dummy = ()=> {}
 export class AnimState {
   private _facing?: number = facing2byte("all")
   private _event: EventTarget
+  private _visible: boolean
   facingList: number[]
   autoFacing = true
   autoFacingByBit = false
@@ -241,6 +242,7 @@ export class AnimState {
     })
 
     this.DEV_usingElementLoader = true
+    this.visible = false
   }
 
   // alias
@@ -249,6 +251,13 @@ export class AnimState {
   get animation() { return this.getActualAnimation() }
   get facing(): number { return this._facing }
   set facing(v: facing) { this._facing = facing2byte(v) }
+
+  get visible() { return this._visible }
+  set visible(v: boolean) { this._visible = v }
+
+  setVisible(v: boolean) { 
+    this.visible = v 
+  }
 
   getApiList() {
     return this.api_list
@@ -671,6 +680,7 @@ export class AnimState {
     if (this.frameList.length > 0){
       this.player.totalFrame = this.frameList.length
       this.player.update(dt)
+      this._event.dispatchEvent(new Event("onupdate"))
     }
   }
 

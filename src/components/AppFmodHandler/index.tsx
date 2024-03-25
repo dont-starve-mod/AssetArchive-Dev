@@ -91,8 +91,14 @@ export default function AppFmodHandler() {
         })
         window.assets.allfmodevent = allfmodevent
         window.assets.allfmodproject = allfmodproject
-        allfmodevent.forEach(data=> window.assets_map[data.id] = data)
-        allfmodproject.forEach(data=> window.assets_map[data.id] = data)
+        for (let list of [allfmodevent, allfmodproject]) {
+          list.forEach(data=> {
+            if (window.assets_map[data.id]){
+              data = Object.assign(data, window.assets_map[data.id])
+            }
+            window.assets_map[data.id] = data
+          })
+        }
         // push data to searchengine
         appWindow.emit("update_assets", {allfmodevent, allfmodproject})
       }

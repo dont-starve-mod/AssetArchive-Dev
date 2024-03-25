@@ -170,7 +170,10 @@ end
 
 function DST_DataRoot:LoadScript(path, env)
 	local f = loadstring(self:GetScript(path), path)
-	local env = env or {pairs = pairs, ipairs = ipairs}
+	local env = env or {}
+	env.pairs = env.pairs or pairs
+	env.ipairs = env.ipairs or ipairs
+	env.tostring = env.tostring or tostring
 	setfenv(f, env)
 	env.__EXPORT = f()
 	return env.__EXPORT, env

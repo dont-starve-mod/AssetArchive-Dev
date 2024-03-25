@@ -3,6 +3,13 @@
   "tauri": {
     "windows": [
       {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Asset Archive - alpha",
+        "width": 960,
+        "height": 720,
+        "minWidth": 700,
+        "minHeight": 500,
         "decorations": false,
         "hiddenTitle": false
       }

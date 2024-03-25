@@ -6,22 +6,16 @@
 
 .grid-container .grid {
   width: 20%;
-  max-width: 120px;
-  margin: 10px;
-}
-
-.grid-container .grid > div {
-  position: relative;
+  max-width: 96px;
+  margin: 8px;
 }
 
 .grid-name {
-  width: calc(100% + 20px);
-  min-height: 20px;
-  margin-left: -10px;
-  margin-right: -10px;
-  margin-bottom: -13px;
-  /* background-color: pink; */
+  width: 100%;
+  min-height: 16px;
+  margin-bottom: 0px!important;
   text-align: center;
+  font-size: .8rem;
   word-wrap: break-word;
 }
 
@@ -38,7 +32,7 @@
   -webkit-backdrop-filter: blur(4px);
 }
 
-:global(.bp4-card):hover .grid-button-group {
+:global(.bp4-elevation-1):hover .grid-button-group {
   display: block;
   cursor: pointer;
 }

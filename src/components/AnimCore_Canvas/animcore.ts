@@ -254,6 +254,7 @@ function onUpdate(time: number){
       canvas.anims.forEach(anim=> {
         const animList: AnimationData[] = anim.animLoader({bank: anim.bank, animation: anim.animation})
         if (!animList || animList.length === 0) return
+        if (!anim.visible) return
         if (anim.isPaused && !anim.forceRender) return
         if (!cleared){
           cleared = true

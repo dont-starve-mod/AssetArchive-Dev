@@ -171,7 +171,7 @@ function SimplePresetSelector(props: PresetSelectorProps) {
           </RadioGroup> :
           <>
             <Button small onClick={()=> onConfigSelectAll()}>全选</Button>
-            <Tooltip2 content="默认显示前6个" placement="right">
+            <Tooltip2 content="默认显示前5个" placement="right">
             <Button small className="ml-1" onClick={()=> onConfigSelectNone()}>全不选</Button>
             </Tooltip2>
             <Button small className="ml-1" onClick={()=> setIsConfiging(false)}>完成</Button>

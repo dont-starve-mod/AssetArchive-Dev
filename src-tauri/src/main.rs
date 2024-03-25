@@ -37,7 +37,9 @@ use meilisearch::meilisearch_handler::*;
 #[cfg(target_os="windows")]
 use select::select_handler::*;
 #[cfg(target_os="windows")]
+#[allow(unused_imports)]
 use es::es_handler::*;
+
 use include_lua::ContextExt;
 
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};

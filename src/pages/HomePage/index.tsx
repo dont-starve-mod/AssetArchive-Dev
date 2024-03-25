@@ -140,10 +140,12 @@ export default function HomePage() {
           <SubCard title="建筑" imgSrc={clips.structure} onClick={()=> toEntrySearcher(["subcat.structure"])}/>
           <SubCard title="兴趣点" imgSrc={clips.poi} onClick={()=> toEntrySearcher(["type.poi"])}/>
         </div>
-        <H5>人物动画</H5>
+        <H5>动画</H5>
         <div className={style["card-box"]}>
-          <SubCard title="基础动画" imgSrc={clips.wilson} onClick={()=> navigate("/asset?id=bank-"+smallhash("wilson"))}/>
+          <SubCard title="人物动画" imgSrc={clips.wilson} onClick={()=> navigate("/asset?id=bank-"+smallhash("wilson"))}/>
           <SubCard title="骑牛动画" imgSrc={clips.wilsonbeefalo} onClick={()=> navigate("/asset?id=bank-"+smallhash("wilsonbeefalo"))}/>
+          <SubCard title="特效" imgSrc={""} onClick={()=> toStatic("multi_entry", "Fx")}/>
+          <SubCard title="主界面" imgSrc={""} onClick={()=> toStatic("multi_entry", "Home???")}/>
         </div>
         <H5>声音</H5>
         <div className={style["card-box"]}>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, InputGroup, Tag, RadioGroup, Radio, Checkbox } from '@blueprintjs/core'
+import { H3, H5, H6, Icon, NonIdealState, Button, Spinner, Menu, MenuItem, Callout, Tag, RadioGroup, Radio, Checkbox } from '@blueprintjs/core'
 import { ButtonGroup } from '@blueprintjs/core'
 import { useLuaCall, useCopyTexElement, useCopyBuildAtlas, useCopySymbolElement, useCopySuccess, useSaveFileCall, useCopyTexture, useLuaCallOnce, useLocalStorage, usePagingHandler } from '../../hooks'
 import { appWindow } from '@tauri-apps/api/window'
@@ -15,6 +15,7 @@ import KeepAlivePage, { KeepAlivePageProps } from '../../components/KeepAlive/Ke
 import AtlasUVMapViewer from '../../components/AtlasUVMapViewer'
 import AssetFilePath from '../../components/AssetFilepath'
 import BatchDownloadButton from '../../components/BatchDownloadButton'
+import { BatchExportingButton } from '../../components/MultiplyXmlViewer'
 import { ArchiveItem, Entry, FmodEvent, FmodProject, Shader } from '../../searchengine'
 import SfxPlayer from '../../components/SfxPlayer'
 import { AccessableItem } from '../../components/AccessableItem'
@@ -36,6 +37,7 @@ import StaticPage from './static'
 import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../format'
 import MultiplySoundViewer from '../../components/MultiplySoundViewer'
 import Background, { useBackgroundStyle } from '../../components/Background'
+import InputGroup from '../../components/InputGroup'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>
@@ -119,6 +121,7 @@ export default function AssetPage() {
       </KeepAlive>
     case "multi_xml":
     case "multi_sound":
+    case "multi_entry":
       return <KeepAlive key={id}>
         <StaticPage {...asset} key={id}/>
       </KeepAlive>
@@ -307,6 +310,8 @@ export type XmlData = {
   }>
 }
 
+const resetScroll = ()=> document.getElementById("app-article").scrollTop = 1
+
 function XmlPage({id, file, texpath, _numtex}) {
   const [display, setDisplay] = useLocalStorage("xml_display_mode")
   const [loading, setLoading] = useState(true)
@@ -315,8 +320,40 @@ function XmlPage({id, file, texpath, _numtex}) {
   useLuaCallOnce<string>("load", result=> {
     setData(JSON.parse(result))
     setLoading(false)
-  }, {type: "xml", file},
-    [file])
+  },
+  {type: "xml", file}, [file])
+
+  const [query, setQuery] = useState("")
+  const [queryResult, setQueryResult] = useState<{[id: string]: true}>({})
+  const hasQuery = query.trim() !== ""
+
+  const filteredData = useMemo(()=> {
+    if (!data) return {elements: []} as any
+  
+    return !hasQuery ? data : {
+      ...data,
+      elements: data.elements.filter(v=> queryResult[v.id])
+    }
+  }, [hasQuery, queryResult, data])
+
+  const handler = usePagingHandler(filteredData && filteredData.elements, {
+    resetScroll
+  })
+
+  const {first, range} = handler
+
+  useEffect(()=> {
+    if (!hasQuery) return
+    search("assets", query, {
+      limit: 200,
+      filter: "type = tex",
+    }).then(result=> {
+      if (result.query === query){
+        setQueryResult(Object.fromEntries(result.hits.map(v=> [v.id, true])))
+        first()
+      }
+    })
+  }, [query, hasQuery, first])
   
   return <div>
     <H3>{file} <AssetType type="xml"/></H3>
@@ -324,12 +361,34 @@ function XmlPage({id, file, texpath, _numtex}) {
       <H5>描述</H5>
       <AssetDesc id={id}/>
       <H5>图片列表 </H5>
-      <p>本图集包含{_numtex}张图片&nbsp; 
-        <BatchDownloadButton type="xml" file={file}/>
-      </p>
-      <p>
-        视图&nbsp;&nbsp;
-        <ButtonGroup minimal={false} style={{verticalAlign: "middle"}}>
+      <p>本图集包含{_numtex}张图片。</p>
+      <InputGroup
+        small
+        leftIcon="filter"
+        placeholder="筛选"
+        className="max-w-40 mb-2"
+        onChange2={setQuery}
+      />
+      <div className="mt-1">
+        {
+          data && <>
+            <BatchExportingButton 
+              text="导出全部" 
+              items={data && data.elements.map(({name})=> ({xml: file, tex: name}))} 
+              buttonStyle={{marginRight: 4}}
+              />
+            <BatchExportingButton 
+              text="导出筛选结果"
+              disabled={filteredData.elements.length === 0}
+              items={filteredData.elements.map(({name})=> ({xml: file, tex: name}))}
+              />
+          </>
+        }
+      </div>
+
+      <p style={{marginTop: 8}}>
+        视图
+        <ButtonGroup minimal={false} className="align-middle ml-2">
           <Button icon="grid-view" onClick={()=> setDisplay("grid")} intent={display === "grid" ? "primary": null}/>
           <Button icon="list" onClick={()=> setDisplay("list")} intent={display === "list" ? "primary": null}/>
           <Button icon="widget" onClick={()=> setDisplay("atlas")} intent={display === "atlas" ? "primary": null}/>
@@ -337,6 +396,16 @@ function XmlPage({id, file, texpath, _numtex}) {
       </p>
       <Loading loading={loading}/>
       {
+        data && data.elements && data.xml === file && (<>
+          {
+            display === "grid"  ? <XmlPageDisplay.Grid data={filteredData} range={range} xml={file}/> :
+            display === "list"  ? <XmlPageDisplay.List data={filteredData} range={range} xml={file}/> :
+            display === "atlas" ? <XmlPageDisplay.Atlas data={data} xml={file} texpath={texpath}/> :
+            <></>
+          }
+        </>)
+      }
+      {/* {
         data && data.elements && data.xml === file && (<>
           <div style={{display: display === "grid" ? "block" : "none"}}>
             <XmlPageDisplay.Grid data={data} xml={file}/>
@@ -348,6 +417,9 @@ function XmlPage({id, file, texpath, _numtex}) {
             <XmlPageDisplay.Atlas data={data} xml={file} texpath={texpath}/>
           </div>
         </>)
+      } */}
+      {
+        display !== "atlas" && <PageTurner {...handler} style={{marginTop: 5}}/>
       }
       <H5>基本信息</H5>
       <AssetFilePath type="xml" path={file}/>
@@ -358,12 +430,13 @@ function XmlPage({id, file, texpath, _numtex}) {
 
 type XmlDisplayProps = {
   data: XmlData,
+  range?: number[],
   xml: string,
 }
 
 const XmlPageDisplay = {
   Grid(props: XmlDisplayProps) {
-    const {data, xml} = props
+    const {data, xml, range} = props
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
     const download = useSaveFileCall(
@@ -375,12 +448,13 @@ const XmlPageDisplay = {
     
     return <div className={style["grid-container"]}>
       {
-        data.elements.map((element, _)=> 
-        <div className={style["grid"]} key={element.id}>
-          <div className='bp4-card'>
+        data.elements.map((element, i)=> 
+        i >= range[0] && i <= range[1] &&
+        <div style={{width: 90, margin: 4}} key={element.id}>
+          <div className="bp4-elevation-1 relative p-1">
             <Preview.Image xml={xml} tex={element.name} width={80} height={80}/>
             <div className={style['grid-name']}>
-              <p className="bp4-monospace-text">
+              <p style={{marginBottom: 1}}>
                 {element.name}
               </p>
             </div>
@@ -400,7 +474,7 @@ const XmlPageDisplay = {
   },
 
   List(props: XmlDisplayProps) {
-    const {data, xml} = props
+    const {data, xml, range} = props
     const navigate = useNavigate()
     const copy = useCopyTexElement(xml, null)
     const download = useSaveFileCall(
@@ -418,7 +492,8 @@ const XmlPageDisplay = {
       </thead>
       <tbody>
       {
-        data.elements.map((element, _)=> 
+        data.elements.map((element, i)=> 
+        i >= range[0] && i <= range[1] &&
         <tr key={element.id}>
           {/* <td>
             <Checkbox/>
@@ -1038,8 +1113,7 @@ function FmodProjectPage_(props: FmodProject) {
           leftIcon="filter"
           small
           style={{maxWidth: 200}}
-          value={query}
-          onChange={e=> setQuery(e.currentTarget.value)}
+          onChange2={s=> setQuery(s)}
         />
         <Checkbox 
           style={{marginLeft: 10, marginTop: 4}}
@@ -1508,8 +1582,7 @@ function BankPage(props: BankPageProps) {
           leftIcon="filter"
           small
           style={{maxWidth: 200}}
-          value={query}
-          onChange={e=> onChangeQuery(e.currentTarget.value)}
+          onChange2={onChangeQuery}
         />
         <Checkbox style={{margin: 5}} className="no-select"
           checked={filter.indexOf("-pre/pst") !== -1}

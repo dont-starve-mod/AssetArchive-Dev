@@ -3,13 +3,12 @@ import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox, Icon, 
 import { useNavigate } from 'react-router-dom'
 import { appWindow } from '@tauri-apps/api/window'
 import MatchText from '../MatchText'
-import { useAppSetting, useLocalStorage, useOS } from '../../hooks'
+import { useAppSetting, useOS } from '../../hooks'
 import style from './style.module.css'
-import { AllAssetTypes, ArchiveItem } from '../../searchengine'
+import { ArchiveItem } from '../../searchengine'
 import { Popover2 } from '@blueprintjs/popover2'
 import { SEARCHABLE_FIELDS, search } from '../../global_meilisearch'
 import TinySlider from '../TinySlider'
-import { formatAlias } from '../AliasTitle'
 import Hash, { useHashToString } from '../HumanHash'
 
 export default function Nav() {
@@ -20,6 +19,7 @@ export default function Nav() {
   const [focus, setFocus] = useState(false)
   const inputRef = useRef<HTMLInputElement>()
   const resultRef = useRef<HTMLDivElement>()
+  const noDragRef = useRef<Set<HTMLElement>>(new Set())
   const [isCompisiting, setCompositing] = useState(false)
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -54,6 +54,12 @@ export default function Nav() {
     if (target.localName === "input") return
     if (target.localName === "button") return
     if (resultRef.current && resultRef.current.contains(target)) return
+    if (!isMacOS){
+      // webview2 in windows easily lose cursor focus after dragging
+      for (let v of noDragRef.current) {
+        if (v.contains(target)) return
+      }
+    }
     appWindow.startDragging()
   }
 
@@ -99,10 +105,12 @@ export default function Nav() {
       className={style["navbar"]} 
       onMouseDown={handleDrag}>
       <Navbar.Group align={Alignment.LEFT}>
-        <Button className="bp4-minimal" icon="circle-arrow-left"
-          disabled={history.length == 0}
-          onClick={()=> navigate(-1)}/>
-        <Button className="bp4-minimal" icon="circle-arrow-right" onClick={()=> navigate(1)}/>
+        <div ref={v=> {if (v) {noDragRef.current.add(v)}}}>
+          <Button className="bp4-minimal" icon="circle-arrow-left"
+            disabled={window.history.length === 0}
+            onClick={()=> navigate(-1)}/>
+          <Button className="bp4-minimal" icon="circle-arrow-right" onClick={()=> navigate(1)}/>
+        </div>
       </Navbar.Group>
       <Navbar.Group align={Alignment.RIGHT}>
         {/* <Navbar.Heading>Title</Navbar.Heading> */}
@@ -129,19 +137,33 @@ export default function Nav() {
             }
         </div>
         <Navbar.Divider/>
+        <div className="flex items-center" 
+          ref={v=> {if (v) noDragRef.current.add(v)}}>
         <VolumeIcon/>
         <ColorThemeIcon/>
         {
           isWindows && <>
             <Navbar.Divider />
-            <Button minimal icon="minus" onClick={()=> appWindow.minimize()}/>
-            <Button minimal icon="small-square" onClick={()=> appWindow.toggleMaximize()}/>
+            <Button minimal icon="minus" 
+              onClick={(e: React.MouseEvent<HTMLElement>)=> {
+                appWindow.minimize()
+                e.preventDefault()
+              }}/>
+            <Button minimal icon="small-square" 
+              onClick={(e: React.MouseEvent<HTMLElement>)=> {
+                appWindow.toggleMaximize()
+                e.preventDefault()
+              }}/>
             <Button minimal icon="cross" intent={closeButtonFocus ? "danger" : "none"}
               onMouseOver={()=> setCloseButtonFocus(true)}
               onMouseLeave={()=> setCloseButtonFocus(false)}
-              onClick={()=> appWindow.close()}/>
+              onClick={(e:React.MouseEvent<HTMLElement>)=> {
+                appWindow.close()
+                e.preventDefault()
+              }}/>
           </>
         }
+        </div>
       </Navbar.Group>
     </Navbar>
   )
@@ -233,7 +255,7 @@ function QuickSearchResult({result, estimatedTotalHits, resultRef, onClickItem, 
         list.scrollTop += divBottom - listBottom
       }
     }
-  }, [])
+  }, [elements])
 
   useEffect(()=> {
     // TODO: fix delay between background color and scroll
@@ -270,7 +292,7 @@ function QuickSearchResult({result, estimatedTotalHits, resultRef, onClickItem, 
     }
     window.addEventListener("keydown", onKeyDown)
     return ()=> window.removeEventListener("keydown", onKeyDown)
-  }, [setSelectedIndex, maxIndex, selectedIndex, onClickMore, scrollActiveItemIntoView, navigate])
+  }, [setSelectedIndex, maxIndex, selectedIndex, onClickMore, scrollActiveItemIntoView, navigate, result])
 
   return (
     <div className={style["quick-search-result"]} ref={resultRef} onMouseDown={e=> e.preventDefault()}>

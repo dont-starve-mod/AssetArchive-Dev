@@ -19,9 +19,11 @@ type MultiplyXmlViewerProps = {
   exportFolderName?: string,
 }
 
-function BatchExportingButton(props: {text: string, items: Tex[], buttonStyle?: React.CSSProperties}) {
+export function BatchExportingButton(props: 
+  {text: string, items: (Pick<Tex, "xml" | "tex">)[], 
+  disabled?: boolean, buttonStyle?: React.CSSProperties}) {
   // @ts-ignore TODO: fix export folder
-  const {exportFolderName = "export", items, text, buttonStyle} = props
+  const {exportFolderName = "export", items, text, buttonStyle, disabled} = props
   const [loading, setLoading] = useState(false)
   const exportImages = useLuaCall<string>("batch_download", response=> {
     const data = JSON.parse(response)
@@ -35,7 +37,7 @@ function BatchExportingButton(props: {text: string, items: Tex[], buttonStyle?: 
       })
   }, {type: "tex"}, [])
 
-  const onClickExport = useCallback(async(items: Tex[])=> {
+  const onClickExport = useCallback(async(items: ({xml: string, tex: string})[])=> {
     const dirpath = await open({
       directory: true,
       multiple: false,
@@ -52,7 +54,7 @@ function BatchExportingButton(props: {text: string, items: Tex[], buttonStyle?: 
   }, [exportImages, exportFolderName])
 
   return (
-    <Button loading={loading} style={buttonStyle} onClick={()=> onClickExport(items)}>
+    <Button loading={loading} disabled={disabled} style={buttonStyle} onClick={()=> onClickExport(items)}>
       {text} <Tag minimal>{items.length}</Tag>
     </Button>
   )
@@ -117,6 +119,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
   useEffect(()=> {
     if (!hasQuery) return
     search("assets", query, {
+      limit: 200,
       filter: "type = tex AND xml IN " + listStr,
     }).then(response=> {
       if (response.query === query){
@@ -224,7 +227,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
       </div>
       <div style={{marginBottom: 5}}>
         <BatchExportingButton text="导出全部" items={allTex} buttonStyle={{marginRight: 4}}/>
-        <BatchExportingButton text="导出筛选结果" items={items}/>
+        <BatchExportingButton text="导出筛选结果" disabled={items.length === 0} items={items}/>
       </div>
       <table className={`bp4-html-table compact-table`}>
         <thead>

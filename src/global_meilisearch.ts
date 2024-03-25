@@ -25,7 +25,7 @@ export function setAddr(addr: string) {
   //@ts-ignore
   window.client = state.client
 
-  if (false) {
+  if (true) {
     state.client.index("assets").deleteAllDocuments()
     state.client.index("anims").deleteAllDocuments()
   }

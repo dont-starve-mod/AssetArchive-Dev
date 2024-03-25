@@ -3,6 +3,7 @@ import MultiplyXmlViewer from '../../components/MultiplyXmlViewer'
 import { StaticArchiveItem } from '../../searchengine'
 import { Button, Callout, H3 } from '@blueprintjs/core'
 import MultiplySoundViewer from '../../components/MultiplySoundViewer'
+import MultiplyEntryViewer from '../../components/MultiplyEntryViewer'
 
 function InvDetail() {
   const [open, setOpen] = useState(false)
@@ -102,6 +103,25 @@ export function initStaticPageData(){
       tag: "#ambient_sound",
       type: "multi_sound",
     },
+
+    {
+      id: "Fx",
+      title: "动画特效",
+      tag: "#fx",
+      type: "multi_entry",
+      desc: <>
+        <p>源代码<code>fx.lua</code>内定义的特效；其他单独编写的复杂动画特效和粒子特效并未收录。</p>
+      </>
+    },
+    {
+      id: "?",
+      title: "所有主界面动画（动态壁纸）",
+      tag: "#cccc",
+      type: "multi_entry",
+      desc: <>
+        <p>游戏主界面右上角展示的动画，通常和游戏近期的更新内容相关。</p>
+      </>
+    }
   ]
 
   window.assets.allstaticpage.forEach(v=> {
@@ -114,6 +134,11 @@ export function initStaticPageData(){
     }
     else if (v.type === "multi_sound") {
       const C = MultiplySoundViewer[id]
+      if (!C) console.error(`No static component for ${v.id}`)
+      v.element = <C/>
+    }
+    else if (v.type === "multi_entry") {
+      const C = MultiplyEntryViewer[id]
       if (!C) console.error(`No static component for ${v.id}`)
       v.element = <C/>
     }
