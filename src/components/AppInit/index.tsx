@@ -135,12 +135,12 @@ export default function AppInit() {
   useEffect(()=> {
     async function init() {
       const handlers = [
-        await globalListen("tauri://update-status", ({payload})=> {
-          console.log("UPDATE STATUS EVENT:", payload)
-        }),
-        await globalListen("tauri://update", ({payload})=> {
-          console.log("UPDATE EVENT:", payload)
-        }),
+        // await globalListen("tauri://update-status", ({payload})=> {
+        //   console.log("UPDATE STATUS EVENT:", payload)
+        // }),
+        // await globalListen("tauri://update", ({payload})=> {
+        //   console.log("UPDATE EVENT:", payload)
+        // }),
         await globalListen<string>("settings", ({payload})=> {
           const settings: AppSettings = JSON.parse(payload)
           dispatch(initSettings(settings))
@@ -162,7 +162,6 @@ export default function AppInit() {
         }),
         await globalListen<string>("assetdesc", async ({payload})=> {
           const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
-          console.log("事件2")
           Object.entries(assetdesc).forEach(([k, v])=> {
             if (window.assets_map[k] === undefined){
               // @ts-ignore

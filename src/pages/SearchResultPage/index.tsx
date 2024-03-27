@@ -1,16 +1,15 @@
-import { Button, H3, H6, Icon, MenuItem, NumericInput, Radio, RadioGroup, Spinner, TabId, Tag } from '@blueprintjs/core'
+import { Button, H3, H6, Icon, Radio, RadioGroup, Spinner, TabId, Tag } from '@blueprintjs/core'
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
 import { AllAssetTypes } from "../../searchengine"
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import style from "./index.module.css"
-import { maxTotalHits, Response, isValid, search, SEARCHABLE_FIELDS } from '../../global_meilisearch'
+import { maxTotalHits, Response, isValid, search, SEARCHABLE_FIELDS, isSearchable } from '../../global_meilisearch'
 import { AccessableItem } from '../../components/AccessableItem'
 import { appWindow } from '@tauri-apps/api/window'
 import { killPreviewSfx } from '../../components/Preview'
 import { useSelector } from '../../redux/store'
-import { Select2 } from '@blueprintjs/select'
 import { Classes, Popover2 } from '@blueprintjs/popover2'
 import { useChangeParams, useLocalStorage } from '../../hooks'
 import PageTurner from '../../components/PageTurner'
@@ -38,7 +37,7 @@ export default function SearchResultPage() {
   useEffect(()=> {
     if (!query) return
     setLoading(true)
-    if (!isValid()){
+    if (!isSearchable()){
       setTimeout(forceUpdate, 500)
       return
     }
@@ -52,14 +51,11 @@ export default function SearchResultPage() {
         setSearchResult({
           ...result,
           hits: result.hits.map(({id, _matchesPosition})=> {
-            if (!window.assets_map[id])
-              console.error("Failed to resolve id: " + id)
-              // TODO: should not happen, why...
-            else
-              return {
-                matches: _matchesPosition,
-                ...window.assets_map[id],
-              }
+            return window.assets_map[id] && 
+            {
+              matches: _matchesPosition,
+              ...window.assets_map[id],
+            }
           }).filter(v=> Boolean(v))
         })
         setLoading(false)
@@ -83,7 +79,8 @@ export default function SearchResultPage() {
       {
         !loading &&
         <KeepAlivePage
-          key={result.query}
+          // key={result.query}
+          key={`${result.query} [${result.hits.length}]`} // update cache if results changed
           cacheNamespace="searchPage"
           cacheId={result.query}>
           <SearchResultDisplay result={result}/>
@@ -317,7 +314,7 @@ function GroupTag({children, selected, onClick}) {
 
 function NoResult() {
   return (
-    <div className={style["no-result"]}>
+    <div className="ml-3 mt-3 mb-10">
       <p>
         <Icon icon="search" style={{color: "#ccc", marginLeft: -10, marginRight: 5}}/>
         没找到想要的结果？

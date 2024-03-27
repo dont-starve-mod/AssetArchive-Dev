@@ -11,10 +11,16 @@ type IndexName = "assets" | "anims"
 
 type State = {
   addr?: string,
+  indexingTaskIds: Set<number>,
   client?: MeiliSearch,
 }
 
-const state: State = {}
+const state: State = {
+  addr: undefined,
+  indexingTaskIds: new Set(),
+  client: undefined,
+}
+
 const queuedDocs: any[] = []
 
 export const SEARCHABLE_FIELDS = ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text"]
@@ -57,9 +63,10 @@ export async function setAddr(addr: string) {
       }
     }
     if (count === tasks.length){
-      console.log("All init tasks done")
+      console.log("Meilisearch: all init tasks done")
       clearInterval(timer)
       state.addr = addr
+      flushDocuments()
     }
   }, 200)
 }
@@ -72,37 +79,30 @@ export function isValid(): boolean {
   return state.addr !== undefined
 }
 
-function checkValid() {
-  if (!isValid())
-    throw Error("Meilisearch client not valided")
+export function isSearchable(): boolean {
+  return state.addr !== undefined && state.indexingTaskIds.size === 0
 }
 
+function checkValid() {
+  if (!isValid())
+    throw Error("Meilisearch: client not valid")
+}
+
+setInterval(async ()=> {
+  // check add indexing tasks
+  if (state.indexingTaskIds.size === 0) return
+
+  for (let id of state.indexingTaskIds) {
+    const {status} = await state.client.getTask(id)
+    if (status === "succeeded" || status === "failed"){
+      console.log(`Meilisearch: TASK [${id}] ${status}`)
+      state.indexingTaskIds.delete(id)
+    }
+  }
+}, 200)
+
 function checkTaskStatus(id: number) {
-  let timer = 0
-  timer = setInterval(()=> {
-    state.client.getTask(id)
-      .then(
-        response=> {
-          switch (response.status) {
-            case "enqueued": return
-            case "processing": return
-            case "succeeded": {
-              console.log("Task succeeded: ", id, response.details)
-              return clearInterval(timer)
-            }
-            case "failed": {
-              console.error("Task failed: ", response)
-              return clearInterval(timer)
-            }
-            default: 
-              console.log(response)
-          }
-        },
-        error=> {
-          console.error("Error in get task status\n", error)
-        }
-      )
-    }, 200) as any
+  state.indexingTaskIds.add(id)
 }
 
 export function addDocuments(index: IndexName, docs: any[], options?: DocumentOptions) {
@@ -113,7 +113,7 @@ export function addDocuments(index: IndexName, docs: any[], options?: DocumentOp
     window.alert("Find invalid doc\n" + JSON.stringify(invalidDoc))
   }
   if (!isValid()){
-    let pos = queuedDocs.findIndex(v=> {
+    let pos = docs.length === 0 ? -1 : queuedDocs.findIndex(v=> {
       if (v.index === index && v.docs.length === docs.length){
         if (JSON.stringify(v.docs.slice(0, 10)) === JSON.stringify(docs.slice(0, 10))){
           return true
@@ -131,7 +131,7 @@ export function addDocuments(index: IndexName, docs: any[], options?: DocumentOp
   else {
     queuedDocs.push({index, docs, options})
     queuedDocs.forEach(({index, docs, options})=> {
-      console.log("Adding meiliseach documents: " + index + "(" + docs.length + ")")
+      // console.log("Adding meiliseach documents: " + index + "(" + docs.length + ")")
       state.client.index(index)
         .updateDocuments(docs, options)
         .then(
@@ -150,13 +150,20 @@ export function addDocuments(index: IndexName, docs: any[], options?: DocumentOp
   }
 }
 
+export function flushDocuments() {
+  if (isValid()) {
+    addDocuments("anims", [])
+  }
+  else {
+    console.error("Flush() must call after meilisearch client initialized")
+  }
+}
+
 export type Response = SearchResponse<Record<string, any>, SearchParams>
 
 export async function search(index: IndexName, query: string, options?: SearchParams) {
   checkValid()
-
-  let result = await state.client.index(index).search(query, options)
-  return result
+  return await state.client.index(index).search(query, options)
 }
 
 const cache = new LRUCache<string, Response>({max: 4})

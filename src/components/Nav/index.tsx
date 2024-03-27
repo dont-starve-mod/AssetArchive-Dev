@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react'
+import React, { useCallback, useEffect, useState, useRef, useReducer } from 'react'
 import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox, Icon, IconName } from '@blueprintjs/core'
 import { useNavigate } from 'react-router-dom'
 import { appWindow } from '@tauri-apps/api/window'
@@ -7,7 +7,7 @@ import { useAppSetting, useOS } from '../../hooks'
 import style from './style.module.css'
 import { ArchiveItem } from '../../searchengine'
 import { Popover2 } from '@blueprintjs/popover2'
-import { SEARCHABLE_FIELDS, search } from '../../global_meilisearch'
+import { SEARCHABLE_FIELDS, isSearchable, search } from '../../global_meilisearch'
 import TinySlider from '../TinySlider'
 import Hash, { useHashToString } from '../HumanHash'
 
@@ -22,6 +22,7 @@ export default function Nav() {
   const noDragRef = useRef<Set<HTMLElement>>(new Set())
   const [isCompisiting, setCompositing] = useState(false)
   const [isLoading, setLoading] = useState(false)
+  const [flag, forceUpdate] = useReducer(v=> v + 1, 0)
   const navigate = useNavigate()
 
   // const showResult = focus && (query.length >= 2 || !(/^[\x00-\x7F]+$/.test(query)) && query.length >= 1)
@@ -30,6 +31,10 @@ export default function Nav() {
   useEffect(()=> {
     if (showResult && !isCompisiting) {
       setLoading(true)
+      if (!isSearchable()){
+        setTimeout(forceUpdate, 500)
+        return
+      }
       search("assets", query, {
         limit: 1000,
         showMatchesPosition: true,
@@ -48,7 +53,7 @@ export default function Nav() {
         }
       )
     }
-  }, [showResult, query, isCompisiting])
+  }, [showResult, query, isCompisiting, flag])
 
   const handleDrag = ({target})=> {
     if (target.localName === "input") return
@@ -315,6 +320,7 @@ function QuickSearchResult({result, estimatedTotalHits, resultRef, onClickItem, 
       }
       <div>
         {
+          loading ? <p>正在查询中</p> :
           estimatedTotalHits === 0 ? <p>未找到结果。</p> :
           estimatedTotalHits > 1000 ? <p>找到了超过1000个结果。<a onClick={onClickMore}>更多...</a></p> :
           <p>找到了约{estimatedTotalHits}个结果。<a onClick={onClickMore}>查看...</a></p>
