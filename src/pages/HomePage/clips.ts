@@ -29,6 +29,8 @@ import ui from "./clips/image-7.png"
 
 import wilson from "./clips/anim-wilson.png"
 import wilsonbeefalo from "./clips/anim-wilsonbeefalo.png"
+import fx from "./clips/anim-fx.png"
+import mainscreen from "./clips/anim-mainscreen.png"
 
 import music from "./clips/sound-1.png"
 import voice from "./clips/sound-2.png"
@@ -68,6 +70,8 @@ export {
 
   wilson,
   wilsonbeefalo,
+  fx,
+  mainscreen,
 
   music,
   amb,

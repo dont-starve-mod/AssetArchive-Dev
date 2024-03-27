@@ -2,12 +2,12 @@ import { H5, UL } from '@blueprintjs/core'
 import { WebviewWindow } from '@tauri-apps/api/window'
 import React from 'react'
 
-//@ts-ignore
 import v005 from "./imgs/Snipaste_2024-03-23_16-23-10.jpg"
+import v006 from "./imgs/v006.jpg"
 
 function Img(props: {src: string}) {
   return (
-    <div className="max-w-md">
+    <div className="max-w-lg">
       <img src={props.src} className="max-w-full mt-2 mb-2"></img>
     </div>
   )
@@ -15,11 +15,13 @@ function Img(props: {src: string}) {
 
 export default function ChangeLog() {
   return (
-    <div className="p-5 bp4-running-text overflow-auto">
+    <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
       <H5>alpha - 0.0.6</H5>
       <UL>
         <li>修复最小化、最大化和关闭按钮无法点击的问题。</li>
+        <li>修复音效无法搜索的问题。</li>
         <li>新增特效预览和动态壁纸预览。</li>
+        <Img src={v006}/>
       </UL>
       <H5>alpha - 0.0.5</H5>
       <UL>

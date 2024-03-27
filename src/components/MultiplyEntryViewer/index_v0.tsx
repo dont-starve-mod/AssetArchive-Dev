@@ -2,7 +2,7 @@
 // view content of `scripts/fx.lua`
 
 import { Button, Callout, Card, Checkbox, Dialog, DialogBody, H3, H5, H6, Radio, RadioGroup, Tag, TagProps } from '@blueprintjs/core'
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocalStorage, usePagingHandler } from '../../hooks'
 import InputGroup from '../InputGroup'
 import { Entry, MultEntry } from '../../searchengine'
@@ -114,7 +114,7 @@ export default function MultiplyEntryViewer(props: MultiplyEntryViewerProps) {
         <Tag minimal>特效总数 {all.length}</Tag>
         <Tag minimal className="m-1">当前显示 {items.length}</Tag>
       </div>
-      <div className="flex flex-wrap justify-normal">
+      <div className="flex flex-wrap justify-between">
         {
           items.map(({id, alias, preview_data}, i)=> 
             i >= range[0] && i <= range[1] &&
@@ -139,25 +139,27 @@ export default function MultiplyEntryViewer(props: MultiplyEntryViewerProps) {
 
 const SFX_ID = "PREVIEW_SFX"
 
-type PreviewCardProps = {
-  preview: Entry["preview_data"],
-  width?: number,
-  height?: number,
-  alias: string[],
-  autoPlay?: boolean,
-  onClick?: ()=> void,
-}
-
-function PreviewCard(props: PreviewCardProps) {
+function PreviewCard(props: {preview: Entry["preview_data"], alias: string[], autoPlay?: boolean, onClick?: ()=> void}) {
   const [hover, setHover] = useState(false)
   const [selected, setSelected] = useLocalStorage("fx_filter_selected")
   const [showPopover, setShowPopover] = useState(false)
   const muted = selected["muted"]
   const animRef = useRef<AnimState>(null)
   const navigate = useNavigate()
-  const {width = 160, height = 200} = props
 
   const {preview, onClick} = props
+
+//   invoke("fmod_send_message", {data: JSON.stringify({
+//     api: "PlaySoundWithParams",
+//     args: [path, SFX_ID, params],
+//   })})
+// }, [path, props.param_list])
+// const stop = useCallback(()=> {
+//   invoke("fmod_send_message", {data: JSON.stringify({
+//     api: "KillSound",
+//     args: [SFX_ID],
+//   })})
+// }, [])
 
   useEffect(()=> {
     if (muted || !preview.sound || !hover) return
@@ -179,62 +181,61 @@ function PreviewCard(props: PreviewCardProps) {
     }
   }, [hover, preview.sound, muted])
 
-  const onInitAnimState = useCallback((anim: AnimState)=> {
-    animRef.current = anim
-    anim.thumbnailMode = false
-    anim.getPlayer().setPercent(0.6)
-  }, [])
-
   return (
     <Card 
-      className="cursor-pointer m-2 flex-0"
+      className="cursor-pointer m-1 flex-1"
       interactive
-      style={{width, minHeight: height, padding: 5}}
+      style={{minWidth: 200, height: 90, padding: 5}}
       onClick={onClick}
       onMouseEnter={()=> setHover(true)}
       onMouseLeave={()=> setHover(false)}
     >
       <div className="relative">
-        <div>
+        <div className="flex">
           <Background 
+            className="flex-shrink-0"
             backgroundStyle="solid" 
             backgroundColor="#aaa"
-            className="relative"
-            width={width - 10} height={height - 50}>
+            width={80} height={80}>
             <Preview.EntryAnim 
               {...preview.anim}
+              forcePercent={0.5}
               isPlaying={props.autoPlay || hover}
-              onInitAnimState={onInitAnimState}
-              width={width - 10} 
-              height={height - 50}
+              onInitAnimState={anim=> {
+                animRef.current = anim
+                // anim.DEV_usingElementLoader = false
+              }}
+              width={80} 
+              height={80}
             />
-            <div className="absolute right-1 top-1">
-              {
-                preview.sound &&
-                <Tooltip2 
-                  isOpen={showPopover}
-                  onInteraction={v=> setShowPopover(v)}
-                  content={<>
-                  <p>该动画特效包含音效：</p>
-                  <p>{preview.sound}</p>
-                </>}>
-                  <Button icon="music" small style={{
-                    opacity: muted ? 0.5 : 1,
-                  }} onClick={(e: React.MouseEvent)=> {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setShowPopover(false)
-                    navigate("/asset?id=f-"+smallhash(preview.sound))
-                  }}/>
-                </Tooltip2>
-              }
-            </div>
           </Background>
           <div>
-            <H6 className="break-all text-center" style={{margin: 4}}>
+            <H6 className="break-all flex-shrink" style={{margin: 4}}>
               {sortedAlias(props.alias)[0]}
             </H6>
           </div>
+        </div>
+        <div className="absolute right-0 bottom-0">
+          {/* <Button icon="export" minimal/> */}
+          {
+            preview.sound &&
+            <Tooltip2 
+              isOpen={showPopover}
+              onInteraction={v=> setShowPopover(v)}
+              content={<>
+              <p>该动画特效包含音效：</p>
+              <p>{preview.sound}</p>
+            </>}>
+              <Button icon="music" minimal small style={{
+                opacity: muted ? 0.5 : 1,
+              }} onClick={(e: React.MouseEvent)=> {
+                e.preventDefault()
+                e.stopPropagation()
+                setShowPopover(false)
+                navigate("/asset?id=f-"+smallhash(preview.sound))
+              }}/>
+            </Tooltip2>
+          }
         </div>
       </div>
     </Card>
@@ -362,7 +363,9 @@ function FxDetail() {
                 </p>
               </>
             }
+
           </div>
+
         </div>
       </DialogBody>
     </Dialog>

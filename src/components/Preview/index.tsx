@@ -401,7 +401,7 @@ function FastSymbolElement(props: FastSymbolElementProps) {
         int(renderHeight*w/h), renderHeight)
     }
 
-  }, [bitmap, data, canvas.current])
+  }, [bitmap, data, canvas, bbx, bby, cw, ch, w, h, sampler, renderWidth, renderHeight])
 
   return <div ref={ref} style={{minWidth: 1, minHeight: 1}}>
     <canvas ref={canvas} width={renderWidth} height={renderHeight} style={

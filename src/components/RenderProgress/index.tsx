@@ -3,13 +3,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api'
 import { openInstaller } from '../../pages/FFmpegInstaller'
-// @ts-ignore
 import aris_working from './aris-working.gif'
-// @ts-ignore
 import aris_failed from './aris-failed.png'
-// @ts-ignore
 // import aris_finish from './aris-finish.gif'
-// @ts-ignore
 import aris_finish_new from './aris-finish-new.gif'
 import { appWindow } from '@tauri-apps/api/window'
 

@@ -144,8 +144,8 @@ export default function HomePage() {
         <div className={style["card-box"]}>
           <SubCard title="人物动画" imgSrc={clips.wilson} onClick={()=> navigate("/asset?id=bank-"+smallhash("wilson"))}/>
           <SubCard title="骑牛动画" imgSrc={clips.wilsonbeefalo} onClick={()=> navigate("/asset?id=bank-"+smallhash("wilsonbeefalo"))}/>
-          <SubCard title="特效" imgSrc={""} onClick={()=> toStatic("multi_entry", "Fx")}/>
-          <SubCard title="主界面" imgSrc={""} onClick={()=> toStatic("multi_entry", "Home???")}/>
+          <SubCard title="特效" imgSrc={clips.fx} onClick={()=> toStatic("multi_entry", "Fx")}/>
+          <SubCard title="主界面" imgSrc={clips.mainscreen} onClick={()=> toStatic("multi_entry", "Home???")}/>
         </div>
         <H5>声音</H5>
         <div className={style["card-box"]}>
