@@ -27,7 +27,6 @@ globalListen("tauri://destroyed", (e)=> {
 function generateDocument(data: {[K: string]: ArchiveItem[]}) {
   const result = []
   Object.entries(data).forEach(([k, v])=> {
-    console.log("generate for key: " + k, Array.isArray(v))
     if (!Array.isArray(v)) return
     for (let item of v){
       const {id, type} = item
@@ -85,6 +84,8 @@ function generateDocument(data: {[K: string]: ArchiveItem[]}) {
     }
   })
 
+  // console.log("Successfully generated docs", result.length)
+
   return result
 }
 
@@ -110,7 +111,6 @@ export default function AppInit() {
         if (v.type !== "entry" && typeof v.plain_desc === "string")
           doc.push({ id, plain_desc: v.plain_desc })
       })
-      console.log(doc)
       addDocuments("assets", doc)
     })
     return ()=> { unlisten.then(f=> f()) }
@@ -152,9 +152,6 @@ export default function AppInit() {
         }),
         await globalListen<string>("assets", ({payload})=> {
           const assets = JSON.parse(payload)
-          // TODO: fix this
-          delete assets["allfevfile"]
-          delete assets["allfsbfile"]
           window.assets = {...window.assets, ...assets}
           initStaticPageData()
           Object.values(assets).forEach((list: AllAssetTypes[])=> {
@@ -165,6 +162,7 @@ export default function AppInit() {
         }),
         await globalListen<string>("assetdesc", async ({payload})=> {
           const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
+          console.log("事件2")
           Object.entries(assetdesc).forEach(([k, v])=> {
             if (window.assets_map[k] === undefined){
               // @ts-ignore
@@ -248,7 +246,7 @@ export default function AppInit() {
         window.app_init = true
         // create meilisearch client before registering `assets` event handler
         const addr = await invoke<string>("meilisearch_get_addr")
-        setAddr(addr)
+        await setAddr(addr)
       }
       catch(error) {
         if (error.message === "window.__TAURI_IPC__ is not a function")

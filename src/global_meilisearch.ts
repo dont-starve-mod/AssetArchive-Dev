@@ -19,33 +19,49 @@ const queuedDocs: any[] = []
 
 export const SEARCHABLE_FIELDS = ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text"]
 
-export function setAddr(addr: string) {
-  state.addr = addr
+export async function setAddr(addr: string) {
+  if (state.addr === addr) return
   state.client = new MeiliSearch({host: addr})
   //@ts-ignore
   window.client = state.client
 
-  if (true) {
-    state.client.index("assets").deleteAllDocuments()
-    state.client.index("anims").deleteAllDocuments()
-  }
+  const tasks = [
+    await state.client.index("assets").deleteAllDocuments(),
+    await state.client.index("anims").deleteAllDocuments(),
 
-  state.client.index("assets").updateSettings({
-    filterableAttributes: ["type", "xml"],
-    searchableAttributes: SEARCHABLE_FIELDS,
-    separatorTokens: ["/"],
-    synonyms: SYNONYMS_MAP,
-    pagination: {
-      maxTotalHits,
+    await state.client.index("assets").updateSettings({
+      filterableAttributes: ["type", "xml"],
+      searchableAttributes: SEARCHABLE_FIELDS,
+      separatorTokens: ["/"],
+      synonyms: SYNONYMS_MAP,
+      pagination: {
+        maxTotalHits,
+      }
+    }),
+    await state.client.index("anims").updateSettings({
+      filterableAttributes: ["type", "bank"],
+      searchableAttributes: ["name", "assetpath"],
+      pagination: {
+        maxTotalHits,
+      }
+    }),
+  ]
+  // ensure all init tasks are done
+  let timer = setInterval(async()=> {
+    let count = 0
+    for (let task of tasks){
+      const id = task.taskUid
+      const response = await state.client.getTask(id)
+      if (response.status === "succeeded"){
+        count++
+      }
     }
-  })
-  state.client.index("anims").updateSettings({
-    filterableAttributes: ["type", "bank"],
-    searchableAttributes: ["name", "assetpath"],
-    pagination: {
-      maxTotalHits,
+    if (count === tasks.length){
+      console.log("All init tasks done")
+      clearInterval(timer)
+      state.addr = addr
     }
-  })
+  }, 200)
 }
 
 export function getAddr(): string {
@@ -59,6 +75,34 @@ export function isValid(): boolean {
 function checkValid() {
   if (!isValid())
     throw Error("Meilisearch client not valided")
+}
+
+function checkTaskStatus(id: number) {
+  let timer = 0
+  timer = setInterval(()=> {
+    state.client.getTask(id)
+      .then(
+        response=> {
+          switch (response.status) {
+            case "enqueued": return
+            case "processing": return
+            case "succeeded": {
+              console.log("Task succeeded: ", id, response.details)
+              return clearInterval(timer)
+            }
+            case "failed": {
+              console.error("Task failed: ", response)
+              return clearInterval(timer)
+            }
+            default: 
+              console.log(response)
+          }
+        },
+        error=> {
+          console.error("Error in get task status\n", error)
+        }
+      )
+    }, 200) as any
 }
 
 export function addDocuments(index: IndexName, docs: any[], options?: DocumentOptions) {
@@ -77,7 +121,7 @@ export function addDocuments(index: IndexName, docs: any[], options?: DocumentOp
       }
       return false
     })
-    if (pos !== -1){
+    if (pos === -1){
       queuedDocs.push({index, docs, options})
     }
     else {
@@ -87,12 +131,14 @@ export function addDocuments(index: IndexName, docs: any[], options?: DocumentOp
   else {
     queuedDocs.push({index, docs, options})
     queuedDocs.forEach(({index, docs, options})=> {
+      console.log("Adding meiliseach documents: " + index + "(" + docs.length + ")")
       state.client.index(index)
         .updateDocuments(docs, options)
         .then(
           response=> {
-            console.log("Updated meiliseach documents: " + index + "(" + docs.length + ")")
-            // console.log(response)
+            const id = response.taskUid
+            console.log("Updated meiliseach documents: " + index + "(" + docs.length + ") - ID: " + id)
+            checkTaskStatus(id)
           },
           error=> {
             console.error("Error in updating documents\n", error)

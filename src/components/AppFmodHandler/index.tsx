@@ -72,6 +72,7 @@ export default function AppFmodHandler() {
     data.forEach(([key, value]:
       ["allfmodevent" | "allinfo", string]) => {
       if (key === "allfmodevent") {
+        console.log("事件As")
         let project: {[K: string]: FmodProjectInfo} = JSON.parse(value)
         let allfmodevent = []
         let allfmodproject = []
