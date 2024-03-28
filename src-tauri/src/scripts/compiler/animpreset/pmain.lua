@@ -555,7 +555,11 @@ local function LinkBuildPresetForAnimation(env)
 			-- seperated anim & build
 			local related_files = GetAllFiles(files)
 			for k in pairs(related_files)do
-				if not index:GetZipFileAbstract(k).has_build then
+				local data = index:GetZipFileAbstract(k)
+				if data == nil then
+					print_info("Failed to get abstract: ", k)
+					related_files[k] = nil
+				elseif not data.has_build then
 					related_files[k] = nil
 				end
 			end
@@ -606,7 +610,8 @@ local function LinkBuildPresetForAnimation(env)
 				or bankname == "hound"
 				or bankname == "beefalo"
 				or bankname == "chesspiece"
-				or bankname == "spider" then
+				or bankname == "spider"
+				or bankname == "wall" then
 				-- add all build files to preset
 			else
 				-- TO MANY items!

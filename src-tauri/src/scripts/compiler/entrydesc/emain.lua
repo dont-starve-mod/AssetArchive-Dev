@@ -323,6 +323,7 @@ function EntryManager:AddTagFromScrapbook()
 		toolactions = "tool",
 		stacksize = "stackable",
 		picakble = "pickable",
+		pickable = "pickable",
 
 		["weapondamage"] = function(tags, v)
 			assert(type(v) == "string" or v >= 0, v)
