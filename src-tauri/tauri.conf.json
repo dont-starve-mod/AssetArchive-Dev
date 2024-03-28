@@ -74,6 +74,9 @@
       "windows": {
         "wix": {
           "language": "zh-CN"
+        },
+        "webviewInstallMode": {
+          "type": "embedBootstrapper"
         }
       }
     },
