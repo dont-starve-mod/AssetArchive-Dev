@@ -247,10 +247,15 @@ impl serde::Serialize for LuaBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer {
-        match self {
+        // #[cfg(debug_assertions)]
+        // let time = std::time::Instant::now();
+        let result = match self {
             LuaBytes::Bytes(b)=> b.serialize(serializer),
             LuaBytes::Utf8(s)=> s.serialize(serializer),
-        }
+        };
+        // #[cfg(debug_assertions)]
+        // println!("serialize LuaBytes: {:?}", time.elapsed());
+        result
     }
 }
 

@@ -14,7 +14,7 @@ function addPunc(s: string) {
   }
   return s
 }
-export type AssetTag = "#music" | "#ambient_sound" | "#character_voice" | "#fx"
+export type AssetTag = "#music" | "#ambient_sound" | "#character_voice" | "#fx" | "#main_screen"
 
 function TagLink(props: {tag: string}) {
   const {tag} = props

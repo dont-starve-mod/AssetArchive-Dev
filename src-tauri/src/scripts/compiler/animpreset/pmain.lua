@@ -446,26 +446,33 @@ ALL_PRESETLIST.terrarium = {
 	}
 }
 
--- public fixer
-table.foreach(ALL_PRESETLIST, function(k, v)
-	v.key = k
-	v.order = v.order or 0
+local function CheckPresets()
+	table.foreach(ALL_PRESETLIST, function(k, v)
+		v.key = k
+		v.order = v.order or 0
 
-	table.foreach(v.presets, function(_, p)
-		if p.key == nil then
-			p.key = "null"
-			p.title = "无"
-			p.cmds = p.cmds or {}
-		end
-	end)
+		table.foreach(v.presets, function(_, p)
+			if p.key == nil then
+				p.key = "null"
+				p.title = "无"
+				p.cmds = p.cmds or {}
+				for _,api in ipairs(p.cmds)do
+					if type(api.args) ~= "table" then
+						print("Warning: api args is string: "..api.args)
+						api.args = { api.args }
+					end
+				end
+			end
+		end)
 
-	table.foreach(v.presets, function(_, p)
-		for _,cmd in ipairs(p.cmds)do
-			assert(cmd.name ~= nil, p.key)
-			assert(cmd.args ~= nil, p.key)
-		end
+		table.foreach(v.presets, function(_, p)
+			for _,cmd in ipairs(p.cmds)do
+				assert(cmd.name ~= nil, p.key)
+				assert(cmd.args ~= nil, p.key)
+			end
+		end)
 	end)
-end)
+end
 
 local CreateReader = FileSystem.CreateReader
 
@@ -604,6 +611,8 @@ local function LinkBuildPresetForAnimation(env)
 				force_build = {"crow_kids"}
 			elseif bankname == "werebeaver" or bankname == "weregoose" or bankname == "weremoose" then
 				force_build = {bankname.."_build"}
+			elseif bankname == "dst_menu_webber" then
+				force_build = {"dst_menu_webber", "dst_menu_webber_carnival"}
 			elseif num <= 8
 				or bankname == "oceanfish_small"
 				or bankname == "oceanfish_medium"
@@ -672,6 +681,19 @@ local function LinkBuildPresetForAnimation(env)
 	for k,v in pairs(result)do
 		table.insert(data, {bankhash = k, build = v})
 	end
+
+	-- get dst_menu presets
+	table.foreach(env.dst_menu_presets, function(_, v)
+		local bank, presets = v.bank, v.presets
+		assert(ALL_PRESETLIST[bank] == nil)
+		ALL_PRESETLIST[bank] = {
+			title = bank,
+			condition = { "BankIs", bank },
+			presets = presets,
+		}
+	end)
+
+	CheckPresets()
 
 	env.write_json("animpreset", {
 		def = ALL_PRESETLIST,

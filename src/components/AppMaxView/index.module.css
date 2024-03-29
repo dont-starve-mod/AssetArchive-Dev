@@ -1,0 +1,7 @@
+:global(.bp4-spinner).white :global(.bp4-spinner-head) {
+  stroke: #ddd;
+}
+
+:global(.bp4-button).white-icon:hover {
+  background-color: #fff3!important;
+}

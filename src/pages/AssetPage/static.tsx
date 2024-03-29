@@ -114,9 +114,9 @@ export function initStaticPageData(){
       </>
     },
     {
-      id: "?",
+      id: "MainScreen",
       title: "所有主界面动画（动态壁纸）",
-      tag: "#cccc",
+      tag: "#main_screen",
       type: "multi_entry",
       desc: <>
         <p>游戏主界面右上角展示的动画，通常和游戏近期的更新内容相关。</p>

@@ -77,14 +77,14 @@ local function main(GLOBAL)
 		path:write("return "..json.encode(str))
 	end
 
-	-- run animation preset
-	local run = require "compiler.animpreset.pmain"
-	run(GLOBAL)
 	-- run asset annotator
 	local run = require "compiler.assetdesc.dmain"
 	run(GLOBAL)
 	-- run entry annotator
 	local run = require "compiler.entrydesc.emain"
+	run(GLOBAL)
+	-- run animation preset
+	local run = require "compiler.animpreset.pmain"
 	run(GLOBAL)
 
 	-- finally, write static file

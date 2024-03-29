@@ -1004,6 +1004,8 @@ function Provider:GetImage(args)
 			bytes = CropBytes(bytes, w, h, rect[1], rect[2], ew, eh)
 			if args.format == "rgba" then
 				return { width = ew, height = eh, bytes = bytes }
+			elseif args.format == "json" then
+				return Image.EncodeJson(bytes, ew, eh)
 			elseif args.format == "img" then
 				return Image.From_RGBA(bytes, ew, eh)
 			elseif args.format == "png" then

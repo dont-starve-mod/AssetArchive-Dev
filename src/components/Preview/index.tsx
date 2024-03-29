@@ -13,6 +13,7 @@ import { EntryPreviewData } from '../../searchengine'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import AnimCore from '../AnimCore_Canvas'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
+import { useQuickLookCmds } from '../AnimQuickLook/util'
 
 interface PreviewProps {
   width?: number,
@@ -527,12 +528,14 @@ function Zip(props: {file: string} & PreviewProps) {
 }
 
 function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps & {
-  forcePercent?: number, isPlaying?: boolean, onInitAnimState?: (animstate: AnimState)=> void}) {
+  forcePercent?: number, isPlaying?: boolean, autoScale?: boolean, fixedScale?: number, onInitAnimState?: (animstate: AnimState)=> void}) {
   const {ref, canvas, appeared, width, height, renderWidth, renderHeight, loadingSize} = useCanvasPreviewSetup(props, [80, 80])
   // const [loadingState, setState] = useState(LoadingState.Loading)
   const {bank, build, anim, animpercent, facing, alpha, overridebuild, overridesymbol, hidesymbol, hide} = props
-  const {forcePercent, isPlaying} = props
+  const {forcePercent, isPlaying, autoScale = true, fixedScale} = props
   const animstate = useRef(new AnimState()).current
+
+  const apiList = useQuickLookCmds({bank, build, animation: anim}, true)
   
   // convert preview data to animstate api list
   useEffect(()=> {
@@ -544,6 +547,8 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps & {
       alpha && {name: "SetMultColour", args: [1,1,1,alpha]},
       ...(hide || []).map(v=> ({name: "Hide", args: [v]})),
       ...(hidesymbol || []).map(v=> ({name: "HideSymbol", args: [v]})),
+
+      ...apiList,
     ]
     if (Array.isArray(overridesymbol)){
       overridesymbol.forEach((v)=> {
@@ -561,7 +566,8 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps & {
     animstate.getPlayer().setPercent(forcePercent || animpercent || 0)
     animstate.facing = facing
   }, [bank, build, anim, animpercent, forcePercent, facing, 
-    hide, hidesymbol, alpha, overridebuild, overridesymbol, animstate])
+    hide, hidesymbol, alpha, overridebuild, overridesymbol, 
+    animstate, apiList])
 
   const {onInitAnimState} = props
   useEffect(()=> {
@@ -572,6 +578,14 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps & {
 
   useEffect(()=> {
     const onChangeRect = ()=> {
+      if (fixedScale) {
+        if (render){
+          render.centerStyle = "center"
+          render.scale = fixedScale
+        }
+        return
+      }
+      if (!autoScale) return
       const {left, top, width: w, height: h} = animstate.rect
       const scaleW = width / w, scaleH = height / h
       const scale = Math.min(scaleW, scaleH)
@@ -595,7 +609,7 @@ function EntryAnim(props: EntryPreviewData["anim"] & PreviewProps & {
     }
     animstate.addEventListener("changerect", onChangeRect)
     return ()=> animstate.removeEventListener("changerect", onChangeRect)
-  }, [animstate, width, height, render])
+  }, [animstate, width, height, render, autoScale, fixedScale])
 
   useEffect(()=> {
     if (typeof isPlaying !== "boolean") return

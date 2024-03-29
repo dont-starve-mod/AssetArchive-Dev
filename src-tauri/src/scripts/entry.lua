@@ -3,11 +3,13 @@ Entry = Class(function(self, data)
 
 	self.alias = data.alias or {}   -- list of names (string)
 	self.desc = data.desc or {}     -- list of descrptions (richtext[])
-	self.tags = {}                  -- list of filter tag
-	self.preview_data = {tex = nil, anim = nil, sound = nil} -- entry preview icon / image
+	self.tags = data.tags or {}     -- list of filter tag
+	self.preview_data = data.preview_data or 
+		{tex = nil, anim = nil, sound = nil} -- preview icon / image / sfx sound
 	self.assets = data.assets or {} -- list of relative assets
 	self.deps = data.deps or {}     -- list of relative prefabs/entries
 	self.source = data.source or {} -- list of source file
+	self.any_data = nil   -- table for any other data
 end)
 
 function Entry:SetKey(key)

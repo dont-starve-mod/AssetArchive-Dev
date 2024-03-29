@@ -1,8 +1,6 @@
-import { v4 } from "uuid"
 import smallhash from "../../smallhash"
-import { DefinedPresetGroup, checkCondition } from "./preset"
+import { DefinedPresetGroup, Preset, checkCondition } from "./preset"
 import "./preset"
-import { BuildData } from "../AnimCore_Canvas/animcore"
 import { AnimState, Api } from "../AnimCore_Canvas/animstate"
 import { useSelector } from "../../redux/store"
 import { useCallback, useMemo } from "react"
@@ -25,7 +23,8 @@ const GLOBAL_PRESETS = {
 }
 
 export function useQuickLookPresets(
-  data: {bank?: string | number, animation?: string, build?: string}) {
+  data: {bank?: string | number, animation?: string, build?: string},
+  noAutoPreset?: boolean) {
     return useMemo(()=> {
     // NOTE: assume window.animpreset is loaded
     const result = [] as (Omit<DefinedPresetGroup, "condition">)[]
@@ -33,7 +32,7 @@ export function useQuickLookPresets(
       const bankHash = smallhash(data.bank)
       // collect auto preset
       const auto = window.animpreset.auto[bankHash]
-      if (Array.isArray(auto)) {
+      if (Array.isArray(auto) && !noAutoPreset) {
         result.push({
           key: "[BANK]"+ bankHash,
           title: "#build",
@@ -66,15 +65,17 @@ export function useQuickLookPresets(
     result.push(GLOBAL_PRESETS.COLOR)
 
     return result
-  }, [data.animation, data.bank, data.build])
+  }, [data.animation, data.bank, data.build, noAutoPreset])
 }
 
 export function useQuickLookCmds(
-  data: {bank: string | number, animation: string, build: string}
+  data: {bank: string | number, animation: string, build: string},
+  noAutoPreset?: boolean
 ) {
   const stored_presets = useSelector(({localstorage})=> localstorage.quicklook_presets)
-  const presets = useQuickLookPresets(data)
+  const presets = useQuickLookPresets(data, noAutoPreset)
   return useMemo(()=> {
+    console.log(presets)
     const list = [] as Api[]
     presets.forEach(v=> {
       const {key, presets} = v
@@ -84,6 +85,12 @@ export function useQuickLookCmds(
     })
     return list
   }, [stored_presets, presets])
+}
+
+export function useEntryPreviewCmds(
+  data: {bank: string, build: string, anim: string, presets?: Preset[]}
+) {
+  // ...
 }
 
 type ExportFormat = "gif" | "mp4" | "mov" | "snapshot"

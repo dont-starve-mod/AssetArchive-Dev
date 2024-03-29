@@ -17,6 +17,7 @@ import type { ArchiveItem, Bank, Entry, Shader, StaticArchiveItem } from './sear
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import type { DefinedPresetGroup } from './components/AnimQuickLook/preset'
 import { invoke } from '@tauri-apps/api'
+import AppMaxView from './components/AppMaxView'
 FocusStyleManager.onlyShowFocusOnTabs()
 
 // https://zhuanlan.zhihu.com/p/573735645 TODO:
@@ -52,6 +53,9 @@ declare global {
 			}
 		}
 		hash: Map<number, string>,
+		max_view_data: {
+			[uid: string]: {type: string, items: any[]},
+		}
 	}
 }
 
@@ -59,6 +63,7 @@ window.assets_map = {}
 window.assets_tag = {}
 window.entry = []
 window.entry_map = {}
+window.max_view_data = {}
 
 export default function App() {
 	const [metaLoaded, setMetaLoaded] = useState(false)
@@ -110,6 +115,7 @@ function AppMain() {
 			</footer>
 			{/* handlers */}
 			<AppInit/>
+			<AppMaxView/>
 			<AppToaster top={40}/>
 			<AppQuickSettings/>
 			<AppFmodHandler/>

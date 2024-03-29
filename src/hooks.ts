@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "./redux/store"
 import { FmodPlayingInfo } from "./components/AppFmodHandler"
 import { LocalStorage } from "./redux/reducers/localstorage"
 import { useSearchParams } from "react-router-dom"
+import { AppStates, setState } from "./redux/reducers/appstates"
 
 /* eslint-disable */
 
@@ -320,6 +321,18 @@ export function useAppSetting<K extends keyof AppSettings>(key: K):
   const set = (value: AppSettings[K])=> {
     dispatch(UpdateSetting({key, value})) 
     call({value})
+  }
+  return [ value, set ]
+}
+
+/** appstates getter & setter */
+export function useAppStates<K extends keyof AppStates>(key: K):
+[AppStates[K], (v: AppStates[K])=> void]
+{
+  const value = useSelector(({appstates})=> appstates[key])
+  const dispatch = useDispatch()
+  const set = (value: AppStates[K])=> {
+    dispatch(setState({key, value}))
   }
   return [ value, set ]
 }

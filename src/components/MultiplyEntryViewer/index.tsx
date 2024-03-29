@@ -19,12 +19,13 @@ import smallhash from '../../smallhash'
 import { appWindow } from '@tauri-apps/api/window'
 import AnimQuickLook from '../AnimQuickLook'
 import PopoverMenu from '../PopoverMenu'
-import { useQuickLookExport } from '../AnimQuickLook/util'
+import { useQuickLookExport, useQuickLookPresets } from '../AnimQuickLook/util'
 import { byte2facing } from '../../facing'
 
 type MultiplyEntryViewerProps = {
   entryList: ()=> Entry[],
   isFx?: true,
+  isMainScreen?: true,
 }
 
 export default function MultiplyEntryViewer(props: MultiplyEntryViewerProps) {
@@ -58,7 +59,7 @@ export default function MultiplyEntryViewer(props: MultiplyEntryViewerProps) {
     })
   }, [query])
 
-  const {isFx} = props
+  const {isFx, isMainScreen} = props
   const items = useMemo(()=> {
     let items = all
     if (isFx && selected["filter-sfx"]){
@@ -121,6 +122,10 @@ export default function MultiplyEntryViewer(props: MultiplyEntryViewerProps) {
             <PreviewCard key={id} 
               preview={preview_data} alias={alias} autoPlay={selected["autoplay"]} 
               onClick={()=> appWindow.emit("open_fx_detail", {id, alias, preview_data})}
+              // mainscreen use rectangle size
+              width={isMainScreen ? 220 : undefined}
+              height={isMainScreen ? 160 : undefined}
+              fixedScale={isMainScreen ? 0.1 : undefined}
               />
             )
         }
@@ -146,6 +151,8 @@ type PreviewCardProps = {
   alias: string[],
   autoPlay?: boolean,
   onClick?: ()=> void,
+
+  fixedScale?: number,  
 }
 
 function PreviewCard(props: PreviewCardProps) {
@@ -155,7 +162,7 @@ function PreviewCard(props: PreviewCardProps) {
   const muted = selected["muted"]
   const animRef = useRef<AnimState>(null)
   const navigate = useNavigate()
-  const {width = 160, height = 200} = props
+  const {width = 160, height = 200, fixedScale} = props
 
   const {preview, onClick} = props
 
@@ -207,6 +214,8 @@ function PreviewCard(props: PreviewCardProps) {
               onInitAnimState={onInitAnimState}
               width={width - 10} 
               height={height - 50}
+              autoScale={!fixedScale}
+              fixedScale={fixedScale}
             />
             <div className="absolute right-1 top-1">
               {
@@ -285,6 +294,26 @@ function FxDetail() {
     }
   }, [animstate])
 
+  const [selected, setSelected] = useLocalStorage("quicklook_presets")
+  const presets = useQuickLookPresets({bank: anim?.bank, build: anim?.build, animation: anim?.anim})
+  const filteredPreset = useMemo(()=> 
+    presets.find(v=> {
+      if (v.key.startsWith("[BANK]")) return false
+      if (v.key === "[COLOR]") return false
+      return true
+    })
+  , [presets])
+  const groupKey = filteredPreset?.key
+  const selectedIndex = Math.max(0, filteredPreset?.presets.findIndex(v=> selected[`${groupKey}-${v.key}`]) || 0)
+  const onSelect = useCallback((key: string)=> {
+    if (!filteredPreset) return
+    let data = {...selected}
+    filteredPreset.presets.forEach(v=> {
+      data[`${groupKey}-${v.key}`] = key === v.key ? true : undefined
+    })
+    setSelected(data)
+  }, [selected, filteredPreset?.presets, groupKey, setSelected])
+
   return (
     <Dialog 
       isOpen={isOpen} onClose={closeDialog}
@@ -344,6 +373,20 @@ function FxDetail() {
                     </tr>
                   </table>
                 </Card>
+                {
+                  filteredPreset && <>
+                    <H6 className="mt-3">预设</H6>
+                    <RadioGroup 
+                      selectedValue={filteredPreset.presets[selectedIndex].key}
+                      onChange={v=> onSelect(v.currentTarget.value)}
+                      className="ml-2">
+                      {
+                        filteredPreset.presets.map(v=> 
+                          <Radio key={v.key} value={v.key} label={v.key}/>)
+                      }
+                    </RadioGroup>
+                  </>
+                }
                 {/* <H6 className="mt-4">切换朝向</H6>
                 <RadioGroup>
                   {
@@ -377,4 +420,5 @@ const getMainScreen = ()=>
 MultiplyEntryViewer.Fx = ()=> 
   <MultiplyEntryViewer entryList={getFx} isFx/>
 
-// MultiplyEntryViewe
+MultiplyEntryViewer.MainScreen = ()=>  
+  <MultiplyEntryViewer entryList={getMainScreen} isMainScreen/>

@@ -573,9 +573,9 @@ function EntryManager:AddDSTMainScreen()
 			}
 			for _,c in ipairs(colors)do
 				table.insert(result, {key = c, cmds = {
-					{name = "OverrideSymbol", args = {"ear1", "dst_carrat_swaps", c.."_ear1"}},
-					{name = "OverrideSymbol", args = {"ear2", "dst_carrat_swaps", c.."_ear2"}},
-					{name = "OverrideSymbol", args = {"tail", "dst_carrat_swaps", c.."_tail"}},
+					{name = "OverrideSymbol", args = {"ear1", "dst_menu_carrat_swaps", c.."_ear1"}},
+					{name = "OverrideSymbol", args = {"ear2", "dst_menu_carrat_swaps", c.."_ear2"}},
+					{name = "OverrideSymbol", args = {"tail", "dst_menu_carrat_swaps", c.."_tail"}},
 				}})
 			end
 			return result 
@@ -583,17 +583,17 @@ function EntryManager:AddDSTMainScreen()
 		yotr = true,
 		halloween2 = true,
 		carnival = true,
+		webber = true,
 		webber_carnival = {bank = "dst_menu_webber", build = "dst_menu_webber_carnival"},
 		wes = true,
 		wes2 = true,
 		wendy = true,
-		webber = true,
 		wanda = {anim_list = {"loop_1", "loop_2", "loop_3"}},
 		terraria = true,
 		wolfgang = {presets = {
-			{key = "wimpy", cmds = {{name = "Hide", args = {"mid"}}, {name = "Hide", args = "mighty"}}},
-			{key = "mid", cmds = {{name = "Hide", args = {"wimpy"}}, {name = "Hide", args = "mighty"}}},
-			{key = "mighty", cmds = {{name = "Hide", args = {"wimpy"}}, {name = "Hide", args = "mid"}}},
+			{key = "wimpy", cmds = {{name = "Hide", args = {"mid"}}, {name = "Hide", args = {"mighty"}}}},
+			{key = "mid", cmds = {{name = "Hide", args = {"wimpy"}}, {name = "Hide", args = {"mighty"}}}},
+			{key = "mighty", cmds = {{name = "Hide", args = {"wimpy"}}, {name = "Hide", args = {"mid"}}}},
 		}},
 		wx78 = {bank = "dst_menu_wx", build = "dst_menu_wx"},
 		wickerbottom = true,
@@ -607,16 +607,17 @@ function EntryManager:AddDSTMainScreen()
 		rift2 = true,
 		meta2 = {bank = "dst_menu_meta2", build = "dst_menu_meta2_cotl"},
 		rift3_BG = {presets = {
-			{key = "normal", cmds = {{name = "Hide", args = "HOLLOW"}}},
+			{key = "normal", cmds = {{name = "Hide", args = {"HOLLOW"}}}},
 			{key = "hollow", cmds = {}},
-		}}, 
+		}},
 		rift3 = {presets = {
-			{key = "normal", cmds = {{name = "Hide", args = "HOLLOW"}}},
+			{key = "normal", cmds = {{name = "Hide", args = {"HOLLOW"}}}},
 			{key = "hollow", cmds = {}},
 		}},
 		meta3 = true,
-		menu_v2_bg = true,
-		menu_v2 = true,
+		riftsqol = {bank = "banner"},
+		v2_bg = true,
+		v2 = true,
 	}do
 		local data = {bank = "dst_menu_"..k, build = "dst_menu_"..k, anim = "loop"}
 		if type(v) == "table" then
@@ -633,6 +634,18 @@ function EntryManager:AddDSTMainScreen()
 				data[kk] = vv
 			end
 		end
+		local k = "dst_menu_"..k
+		self:AddEntry(Entry{
+			alias = {k:lower()},
+			preview_data = {anim = data},
+			tags = {["#main_screen"] = true},
+		}, {is_new = true})
+
+		if data.presets ~= nil then
+			table.insert(self.env.dst_menu_presets,
+				{bank = data.bank, presets = data.presets})
+			data.presets = nil
+		end
 	end
 end
 
@@ -640,6 +653,9 @@ end
 local function run(env)
 	local manager = EntryManager()
 
+	env.dst_menu_presets = {}
+
+	manager.env = env
 	manager.po = env.po
 	manager.root = env.root
 	manager.prov = env.prov
@@ -649,6 +665,7 @@ local function run(env)
 	manager:BuildPrefabs()
 	manager:AddTagFromScrapbook()
 	manager:AddTagFromFx()
+	manager:AddDSTMainScreen()
 
 	local output = FileSystem.Path(SCRIPT_ROOT)/"compiler"/"output/"
 	local path = output/"entry.dat"

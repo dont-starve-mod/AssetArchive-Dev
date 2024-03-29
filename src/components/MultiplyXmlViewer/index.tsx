@@ -3,13 +3,14 @@ import InputGroup from '../InputGroup'
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import SortableField from '../SortableField'
 import { search } from '../../global_meilisearch'
-import { useCopyTexElement, useLocalStorage, useLuaCall, useLuaCallOnce, usePagingHandler, useSaveFileCall } from '../../hooks'
+import { useAppStates, useCopyTexElement, useLocalStorage, useLuaCall, useLuaCallOnce, usePagingHandler, useSaveFileCall } from '../../hooks'
 import Preview from '../Preview'
 import PageTurner from '../PageTurner'
 import PopoverMenu from '../PopoverMenu'
 import { open } from '@tauri-apps/api/dialog'
 import { Tex } from '../../searchengine'
 import { appWindow } from '@tauri-apps/api/window'
+import { usePushItemsToMaxView } from '../AppMaxView'
 
 type MultiplyXmlViewerProps = {
   xml?: string,
@@ -168,6 +169,9 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
     return sortedItems
   }, [assetLoaded, hasQuery, filterDeprecated, filterDesc, allTex, queryResult, sort, deprecatedXmlList, resData])
 
+  const uid = usePushItemsToMaxView("tex", items)
+  const openMaxView = useAppStates("max_view_open")[1]
+
   const handler = usePagingHandler(items, {
     resetScroll: ()=> document.getElementById("app-article")?.scrollTo(0, 1)
   })
@@ -283,7 +287,9 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
                 </td>
                 <td>{resData[id] ? `${resData[id].width}✕${resData[id].height}` : "-"}</td>
                 <td>
-                  <Preview.Image xml={xml} tex={tex} width={40} height={40}/>
+                  <div className="cursor-zoom-in" onClick={()=> openMaxView({uid, index: i})}>
+                    <Preview.Image xml={xml} tex={tex} width={40} height={40}/>
+                  </div>
                 </td>
                 <td style={{minWidth: 100}}>
                   <Button icon="duplicate" style={{marginRight: 4}}  onClick={()=> {
