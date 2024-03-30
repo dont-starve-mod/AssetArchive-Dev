@@ -228,7 +228,7 @@ function ColorThemeIcon() {
 function ColorThemePicker(props: any) {
   const [theme, setTheme] = useAppSetting("theme")
   return (
-    <Menu style={{minWidth: 125}} onClick={()=> props.closeMenu()}>
+    <Menu style={{minWidth: 125}} onMouseDown={e=> e.stopPropagation()} onClick={()=> props.closeMenu()}>
       <MenuItem selected={theme === "light"} onClick={()=> setTheme("light")} icon="flash" text='浅色'/>
       <MenuItem selected={theme === "dark"} onClick={()=> setTheme("dark")} icon="moon" text='深色'/>
       <MenuItem selected={theme === "auto"} onClick={()=> setTheme("auto")} icon="desktop" text='跟随系统'/>
