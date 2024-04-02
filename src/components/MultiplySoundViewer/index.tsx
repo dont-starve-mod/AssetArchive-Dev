@@ -148,6 +148,7 @@ export default function MultiplySoundViewer(props: MultiplySoundViewerProps) {
           // value={query}
           // onChange={e=> setQuery(e.currentTarget.value)}
           onChange2={setQuery}
+          search
         />
       </div>
       <div>

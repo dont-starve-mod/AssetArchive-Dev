@@ -368,6 +368,7 @@ function XmlPage({id, file, texpath, _numtex}) {
         placeholder="筛选"
         className="max-w-40 mb-2"
         onChange2={setQuery}
+        search
       />
       <div className="mt-1">
         {
@@ -751,7 +752,11 @@ function ZipPage({type, file, id}) {
           {
             guessBankNames.length > 0 && <p>
               这些动画库可能与之相关：
-              {guessBankNames.map(v=> <Hash key={v} hash={v}/>)}
+              {guessBankNames.map(v=> 
+              <a onClick={()=> navigate("asset?id=bank-"+v)}>
+                <Hash key={v} hash={v}/>
+              </a>
+              )}
             </p>
           }
         </> :
@@ -1114,6 +1119,7 @@ function FmodProjectPage_(props: FmodProject) {
           small
           style={{maxWidth: 200}}
           onChange2={s=> setQuery(s)}
+          search
         />
         <Checkbox 
           style={{marginLeft: 10, marginTop: 4}}
@@ -1583,6 +1589,7 @@ function BankPage(props: BankPageProps) {
           small
           style={{maxWidth: 200}}
           onChange2={onChangeQuery}
+          search
         />
         <Checkbox style={{margin: 5}} className="no-select"
           checked={filter.indexOf("-pre/pst") !== -1}

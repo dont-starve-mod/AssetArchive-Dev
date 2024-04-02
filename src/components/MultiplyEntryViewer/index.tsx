@@ -87,6 +87,7 @@ export default function MultiplyEntryViewer(props: MultiplyEntryViewerProps) {
           small
           style={{maxWidth: 200}}
           onChange2={setQuery}
+          search
         />
         <Checkbox className="ml-3"
           checked={selected["autoplay"]}

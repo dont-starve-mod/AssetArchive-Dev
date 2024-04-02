@@ -25,13 +25,15 @@ const queuedDocs: any[] = []
 
 export const SEARCHABLE_FIELDS = ["id", "file", "tex", "fmodpath", "xml", "texpath", "plain_desc", "plain_alias", "search_text"]
 
-export async function setAddr(addr: string) {
+export async function initClient(addr: string) {
   if (state.addr === addr) return
   state.client = new MeiliSearch({host: addr})
   //@ts-ignore
   window.client = state.client
 
   const tasks = [
+    await state.client.index("assets").resetSettings(),
+    await state.client.index("anims").resetSettings(),
     await state.client.index("assets").deleteAllDocuments(),
     await state.client.index("anims").deleteAllDocuments(),
 

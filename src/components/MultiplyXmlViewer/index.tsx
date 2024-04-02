@@ -208,6 +208,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
           small
           style={{maxWidth: 200}}
           onChange2={setQuery}
+          search
         />
         {
           deprecatedXmlList.length > 0 && 

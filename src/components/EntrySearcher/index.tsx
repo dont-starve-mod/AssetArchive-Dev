@@ -270,6 +270,7 @@ export default function EntrySearcher(props: EntrySearcherProps) {
               className="w-40 flex-0"
               autoFocus
               onChange2={onChangeQuery}
+              search
             />
             <div className="overflow-auto flex-1 ml-1">
               {

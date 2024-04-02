@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from 'react'
-import { dialog, invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
 import { Alert, AlertProps, H3, useHotkeys } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
-import { searchengine } from '../../asyncsearcher'
 import { useDispatch, useSelector } from '../../redux/store'
 import { AppSettings, init as initSettings, update as updateSetting } from '../../redux/reducers/appsettings'
-import { MeiliSearch } from 'meilisearch'
 import type { AllAssetTypes, ArchiveItem, Entry } from '../../searchengine'
 import type { AssetDesc } from '../../assetdesc'
-import { setAddr, addDocuments, search } from '../../global_meilisearch'
+import { initClient, addDocuments } from '../../global_meilisearch'
 import { useOS } from '../../hooks'
 import { formatAlias } from '../AliasTitle'
 import RenderProgress from '../RenderProgress'
@@ -142,80 +140,81 @@ export default function AppInit() {
         //   console.log("UPDATE EVENT:", payload)
         // }),
         await globalListen<string>("settings", ({payload})=> {
-          const settings: AppSettings = JSON.parse(payload)
-          dispatch(initSettings(settings))
+          dispatch(initSettings(JSON.parse(payload) as AppSettings))
         }),
         await globalListen<string>("update_setting", ({payload})=> {
           const {key, value} = JSON.parse(payload)
           dispatch(updateSetting({key, value}))
-  
         }),
-        await globalListen<string>("assets", ({payload})=> {
-          const assets = JSON.parse(payload)
-          window.assets = {...window.assets, ...assets}
-          initStaticPageData()
-          Object.values(assets).forEach((list: AllAssetTypes[])=> {
-            list.forEach(item=> window.assets_map[item.id] = item)
-          })
-          appWindow.emit("update_assets", assets)
-          searchengine.initPayload = ()=> window.assets
-        }),
-        await globalListen<string>("assetdesc", async ({payload})=> {
-          const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
-          Object.entries(assetdesc).forEach(([k, v])=> {
-            if (window.assets_map[k] === undefined){
-              // @ts-ignore
-              window.assets_map[k] = {} // fmod event & fmod project
-            }
+        // await globalListen<string>("assets", ({payload})=> {
+        //   const assets = JSON.parse(payload)
+        //   window.assets = {...window.assets, ...assets}
+        //   initStaticPageData()
+        //   Object.values(assets).forEach((list: AllAssetTypes[])=> {
+        //     list.forEach(item=> window.assets_map[item.id] = item)
+        //   })
+        //   appWindow.emit("update_assets", assets)
+        // }),
+        // await globalListen<string>("assetdesc", async ({payload})=> {
+        //   const assetdesc: {[K: string]: AssetDesc} = JSON.parse(payload)
+        //   Object.entries(assetdesc).forEach(([k, v])=> {
+        //     if (window.assets_map[k] === undefined){
+        //       // @ts-ignore
+        //       window.assets_map[k] = {} // fmod event & fmod project
+        //     }
 
-            let desc = []
-            for (let i = 1; i < 100; ++i) {
-              const d = v[i.toString()]
-              if (d) {
-                desc.push(d)
-                if (typeof d === "string" && d.startsWith("#")){
-                  window.assets_tag[d] = window.assets_tag[d] || {}
-                  window.assets_tag[d][k] = window.assets_map[k]
-                }
-              }
-              else
-                break
-            }
-            // @ts-ignore
-            window.assets_map[k].desc = desc
-            // @ts-ignore
-            // TODO: 也许需要一个更好的写法来避免屎山
-            window.assets_map[k].plain_desc = v.plain_desc
-          })
-          appWindow.emit("update_assets_desc")
-        }),
-        await globalListen<string>("entry", async ({payload})=> {
-          const data: {items: any} = JSON.parse(payload)
-          // window.entry = data.items
-          window.entry_map = data.items
-          window.assets["entry"] = {}
-          Object.values(window.entry_map).forEach(v=> {
-            v.id = "e-" + v.key
-            v.type = "entry"
-            v.plain_alias = formatAlias(v.alias)
-            // for easy access
-            window.assets_map[v.id] = v
-            // register entry tag NOTE: desc is ignored!!!!!!!!!
-            Object.keys(v.tags).forEach(tag=> {
-              if (tag.startsWith("#")) {
-                window.assets_tag[tag] = window.assets_tag[tag] || {}
-                window.assets_tag[tag][v.id] = v
-              }
-            })
-          })
-          appWindow.emit("update_entry")
-        }),
-        await globalListen<string>("animpreset", ({payload})=> {
-          const data = JSON.parse(payload)
-          data.auto = Object.fromEntries(data.auto.map(({bankhash, build})=> [bankhash, build]))
-          data.def = data.def
-          window.animpreset = data
-        }),
+        //     let desc = []
+        //     for (let i = 1; i < 100; ++i) {
+        //       const d = v[i.toString()]
+        //       if (d) {
+        //         desc.push(d)
+        //         if (typeof d === "string" && d.startsWith("#")){
+        //           window.assets_tag[d] = window.assets_tag[d] || {}
+        //           window.assets_tag[d][k] = window.assets_map[k]
+        //         }
+        //       }
+        //       else
+        //         break
+        //     }
+        //     // @ts-ignore
+        //     window.assets_map[k].desc = desc
+        //     // @ts-ignore
+        //     // TODO: 也许需要一个更好的写法来避免屎山
+        //     window.assets_map[k].plain_desc = v.plain_desc
+        //   })
+        //   appWindow.emit("update_assets_desc")
+        // }),
+        // await globalListen<string>("entry", async ({payload})=> {
+        //   const data: {items: any} = JSON.parse(payload)
+        //   // window.entry = data.items
+        //   window.entry_map = data.items
+        //   window.assets["entry"] = {}
+        //   Object.values(window.entry_map).forEach(v=> {
+        //     v.id = "e-" + v.key
+        //     v.type = "entry"
+        //     v.plain_alias = formatAlias(v.alias)
+        //     // for easy access
+        //     window.assets_map[v.id] = v
+        //     // register entry tag NOTE: desc is ignored!!!!!!!!!
+        //     Object.keys(v.tags).forEach(tag=> {
+        //       if (tag.startsWith("#")) {
+        //         window.assets_tag[tag] = window.assets_tag[tag] || {}
+        //         window.assets_tag[tag][v.id] = v
+        //       }
+        //     })
+        //   })
+        //   appWindow.emit("update_entry")
+        // }),
+        // await globalListen<string>("animpreset", ({payload})=> {
+        //   const data = JSON.parse(payload)
+        //   data.auto = Object.fromEntries(data.auto.map(({bankhash, build})=> [bankhash, build]))
+        //   data.def = data.def
+        //   window.animpreset = data
+        // }),
+        // await globalListen<string>("entry_tags", ({payload})=> {
+        //   const data = JSON.parse(payload)
+        //   dispatch(setState({key: "entry_tags", value: data}))
+        // }),
         await globalListen<string>("anim_predictable_data", ({payload})=> {
           const data = JSON.parse(payload)
           const {hashmap, animation} = data
@@ -234,9 +233,88 @@ export default function AppInit() {
             window.assets_map[v.id] = v)
           appWindow.emit("update_assets", window.assets)
         }),
-        await globalListen<string>("entry_tags", ({payload})=> {
-          const data = JSON.parse(payload)
-          dispatch(setState({key: "entry_tags", value: data}))
+        await globalListen<string>("docs", ({payload})=> {
+          /* eslint-disable no-lone-blocks */
+          const TEXT_GUARD = "🦀️"
+          const kv = payload.split(TEXT_GUARD)
+          const docs = {} as any
+          for (let i = 0; i < kv.length; i += 2){
+            docs[kv[i]] = kv[i+1]
+          }
+          const assets = JSON.parse(docs.assets) as any[]
+          const assetdesc = JSON.parse(docs.assetdesc) as {[id: string]: AssetDesc}
+          const entry = JSON.parse(docs.entry) as any
+          const animpreset = JSON.parse(docs.animpreset) as any
+          const tags = JSON.parse(docs.tags) as any
+
+          // assets
+          {
+            Object.assign(window.assets, assets)
+            Object.values(assets).forEach((list: AllAssetTypes[])=> 
+              list.forEach(item=> window.assets_map[item.id] = item)
+            )
+            initStaticPageData()
+            appWindow.emit("update_assets", assets)
+          }
+          // assetdesc
+          {
+            Object.entries(assetdesc).forEach(([k, v])=> {
+              if (window.assets_map[k] === undefined){
+                // @ts-ignore
+                window.assets_map[k] = {} // fmod event & fmod project
+              }
+  
+              let desc = []
+              for (let i = 1; i < 100; ++i) {
+                const d = v[i.toString()]
+                if (d) {
+                  desc.push(d)
+                  if (typeof d === "string" && d.startsWith("#")){
+                    window.assets_tag[d] = window.assets_tag[d] || {}
+                    window.assets_tag[d][k] = window.assets_map[k]
+                  }
+                }
+                else break
+              }
+              // @ts-ignore
+              window.assets_map[k].desc = desc
+              // @ts-ignore
+              // TODO: 也许需要一个更好的写法来避免屎山
+              window.assets_map[k].plain_desc = v.plain_desc
+            })
+            appWindow.emit("update_assets_desc")
+          }
+          // entry
+          {
+            window.entry_map = entry.items
+            window.assets["entry"] = {}
+            Object.values(window.entry_map).forEach(v=> {
+              v.id = "e-" + v.key
+              v.type = "entry"
+              v.plain_alias = formatAlias(v.alias)
+              // for easy access
+              window.assets_map[v.id] = v
+              // register entry tag NOTE: desc is ignored!!!!!!!!!
+              Object.keys(v.tags).forEach(tag=> {
+                if (tag.startsWith("#")) {
+                  window.assets_tag[tag] = window.assets_tag[tag] || {}
+                  window.assets_tag[tag][v.id] = v
+                }
+              })
+            })
+            appWindow.emit("update_entry")
+          }
+          // animpreset
+          {
+            animpreset.auto = Object.fromEntries(animpreset.auto.map(({bankhash, build})=> [bankhash, build]))
+            animpreset.def = animpreset.def
+            window.animpreset = animpreset
+          }
+          // tags
+          {
+            dispatch(setState({key: "entry_tags", value: tags}))
+          }
+          /* eslint-enable no-lone-blocks */
         }),
       ]
 
@@ -245,7 +323,7 @@ export default function AppInit() {
         window.app_init = true
         // create meilisearch client before registering `assets` event handler
         const addr = await invoke<string>("meilisearch_get_addr")
-        await setAddr(addr)
+        await initClient(addr)
       }
       catch(error) {
         if (error.message === "window.__TAURI_IPC__ is not a function")

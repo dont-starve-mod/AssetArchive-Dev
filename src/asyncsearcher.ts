@@ -1,7 +1,7 @@
 import * as Comlink from "comlink"
 import { v4 } from "uuid"
 
-type WorkerFileName = "renderer_predict_worker" | "searchengine_worker" | "renderer_fuse_worker"
+type WorkerFileName = "renderer_predict_worker" | "renderer_fuse_worker"
 type ComlinkWorker = {
   core: Worker, 
   worker: Comlink.Remote<any>,
@@ -119,5 +119,4 @@ export default class Searcher {
 }
 
 export const predict = new Searcher("renderer_predict_worker")
-export const searchengine = new Searcher("searchengine_worker")
 export const fuseworker = new Searcher("renderer_fuse_worker")

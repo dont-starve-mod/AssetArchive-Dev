@@ -31,12 +31,20 @@ GLOBAL = {
 
 local function SendData()
 	print("Start emitting data to frontend...")
-	
-	IpcEmitEvent("assets", json.encode_compliant(GLOBAL.prov.assets))
-	IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
-	IpcEmitEvent("entry", require "compiler.output.entry")
-	IpcEmitEvent("animpreset", require "compiler.output.animpreset")
-	IpcEmitEvent("entry_tags", require "compiler.output.entry_tags")
+
+	IpcEmitEvent("docs", table.concat({
+		"assets", json.encode_compliant(GLOBAL.prov.assets),
+		"assetdesc", require "compiler.output.assetdesc",
+		"entry", require "compiler.output.entry",
+		"animpreset", require "compiler.output.animpreset",
+		"tags", require "compiler.output.entry_tags",
+	}, TEXT_GUARD))
+
+	-- IpcEmitEvent("assets", json.encode_compliant(GLOBAL.prov.assets))
+	-- IpcEmitEvent("assetdesc", require "compiler.output.assetdesc")
+	-- IpcEmitEvent("entry", require "compiler.output.entry")
+	-- IpcEmitEvent("animpreset", require "compiler.output.animpreset")
+	-- IpcEmitEvent("entry_tags", require "compiler.output.entry_tags")
 
 	print("All data sent")
 end
