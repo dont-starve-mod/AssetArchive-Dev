@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Button, Dialog, Icon, InputGroup } from '@blueprintjs/core'
 import { MultistepDialog, DialogStep, RadioGroup, Radio, H4 } from '@blueprintjs/core'
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
+import { Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
 import style from './index.module.css'
 import { useLuaCall } from '../../hooks'
@@ -170,7 +170,7 @@ export function DragFolderPanel(){
       call()
     })
     return ()=> { unlisten.then(f=> f()) }
-  }, [path])
+  }, [path, call])
 
   const openDialog = useCallback(()=> {
     open({directory: true, title: ""}).then(

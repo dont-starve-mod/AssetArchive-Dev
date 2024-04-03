@@ -1,4 +1,4 @@
-import React, { RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { InputGroup as BpInputGroup } from '@blueprintjs/core'
 import type { InputGroupProps2 } from '@blueprintjs/core'
 import { isSearchable } from '../../global_meilisearch'

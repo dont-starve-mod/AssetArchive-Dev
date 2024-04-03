@@ -9,6 +9,7 @@ import { appWindow } from '@tauri-apps/api/window'
 import { openInstaller } from '../FFmpegInstaller'
 import { listen } from '@tauri-apps/api/event'
 import { useNavigate } from 'react-router-dom'
+import { getGameTypeByRoot } from '../../components/AppFirstLaunch'
 
 type FFmpeg = {
   checking: boolean,
@@ -51,6 +52,8 @@ export default function SettingsPage() {
     })
   }, {}, [flag])
 
+  const guessedGameType = root && getGameTypeByRoot(root)
+
   const navigate = useNavigate()
   
   return <div className='no-select'>
@@ -69,6 +72,11 @@ export default function SettingsPage() {
     </div>
     {
       root && <>
+        {
+          guessedGameType === "ds" && <Callout className="mb-3" intent="warning">
+            <p>本软件尚未支持单机版DLC资源加载，请等待后续更新。</p>
+          </Callout>
+        }
         <Button text="打开文件夹" onClick={()=> root !== null && showRoot()} style={{marginRight: 10}}/>
         <Button text="修改" intent="primary" rightIcon="edit" onClick={()=> setEditingRoot(true)}/>
       </>

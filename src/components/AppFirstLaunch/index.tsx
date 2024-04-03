@@ -22,11 +22,39 @@ type IndexState = {
   type: "off"
 }
 
+export function getGameTypeByRoot(path: string): "ds" | "dst" | "unknown" {
+  // strip last /Contents/data or /data
+  if (path.endsWith("/Contents/data"))
+    path = path.slice(0, path.length - 14)
+  else if (path.endsWith("/data"))
+    path = path.slice(0, path.length - 5)
+
+  const stem = path.match(/[^/]+$/)?.[0]
+  if (!stem) return "unknown"
+
+  switch (stem) {
+    case "dontstarve_dedicated_server_nullrenderer.app":
+      return "dst"
+    case "dontstarve_steam.app":
+      return path.endsWith("Don't Starve Together/dontstarve_steam.app") ? "dst" : "ds"
+    case "Don't Starve Together":
+    case "Don't Starve Together Dedicated Server":
+      return "dst"
+    case "Don't Starve":
+      return "ds"
+    default:
+      // TGP platform
+      // not an accurate result on this branch...
+      return path.indexOf("(2000004)") !== -1 ? "dst" : "ds"
+  }
+}
+
 export default function AppFirstLaunch() {
   const [installed, setInstalled] = useState<"yes"|"no"|"">("")
   const [guideOpen, setGuideOpen] = useState<"steam-dst"|"wg-dst"|"">("")
   const [path, setPath] = useState("")
   const [indexState, setIndexState] = useState<IndexState>({type: "off"})
+  const [dsWarning, setDSWarning] = useState(false)
 
   const call = useLuaCall<"true"|"false">("setroot", result=> {
     if (result === "true") {
@@ -49,6 +77,9 @@ export default function AppFirstLaunch() {
         const data = JSON.parse(payload)
         if (data.key === "last_dst_root" && data.value){
           setIndexState({type: "start"})
+          if (getGameTypeByRoot(data.value) === "ds"){
+            setDSWarning(true)
+          }
         }
       }),
       listen<string>("index_progress", ({payload})=> {
@@ -148,6 +179,11 @@ export default function AppFirstLaunch() {
           {
             indexState.type === "finish" && <>
               <p>一切准备就绪。</p>
+              {
+                dsWarning && <Callout intent="warning">
+                  <p>请注意，本软件目前对单机版的支持并不完善，例如<b>DLC资源加载功能</b>还没做完，请等待后续更新。</p>
+                </Callout>
+              }
             </>
           }
         </DialogBody>
