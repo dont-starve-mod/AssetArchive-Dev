@@ -2,7 +2,6 @@
 import { createSlice } from "@reduxjs/toolkit"
 import type { PayloadAction, SliceCaseReducers } from "@reduxjs/toolkit"
 
-
 export type BankSort = "name.a-z" | "name.z-a" | "0-9" | "9-0" | "path.a-z" | "path.z-a" | (string & {}) // facing-0|1|..255
 type BankFilter = "-pre" | "-pst" | "-pre/pst" |  "-lag"
 export type FevSort = "path.a-z" | "path.z-a" | "project.a-z" | "project.z-a" | "len.0-9" | "len.9-0" | "len.loop" | 
@@ -12,7 +11,7 @@ type MultipleXmlSort = "name.a-z" | "name.z-a" |
   "res.width.9-0" | "res.width.0-9" | "res.height.9-0" | "res.height.0-9" | (string & {}) // xml-path/to/xml
 type MultipleXmlFilter = "-deprecated"
 
-export interface LocalStorage {
+export type LocalStorage = {
   num_search_results_per_page: number,
   xml_display_mode: "grid" | "list" | "atlas",
   atlas_view_show_border: boolean,
@@ -36,6 +35,15 @@ export interface LocalStorage {
   fmod_param_value: {[K: string]: number}, // 0-1 percent
   toast_max_num: number,
   toast_alive_time: number,
+} & {
+  anim_panel_bgc_type: "transparent" | "solid",
+  anim_panel_color_value: string,
+  anim_panel_axis: "none" | "front" | "back",
+  anim_export_format: "gif" | "mov" | "png" | "mp4",
+  anim_export_bgc_type: "use_current" | "transparent" | "solid",
+  anim_export_color_value: string,
+  anim_export_resolution: number,
+  anim_export_framerate: number,
 }
 
 type Key = keyof LocalStorage
@@ -91,6 +99,16 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     fmod_param_value: defaultFmodParam,
     toast_max_num: 5,
     toast_alive_time: 7,
+
+    anim_panel_axis: "back",
+    anim_panel_bgc_type: "solid",
+    anim_panel_color_value: "#cccccc",
+    anim_export_format: "gif",
+    anim_export_bgc_type: "use_current",
+    anim_export_color_value: "#cccccc",
+    anim_export_framerate: 30,
+    anim_export_resolution: 1,
+
     ...loadPersistant()
   }),
   reducers: {

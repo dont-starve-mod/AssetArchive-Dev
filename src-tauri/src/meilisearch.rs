@@ -119,9 +119,15 @@ pub mod meilisearch_handler {
   use crate::Meilisearch;
 
   fn check_process(state: &tauri::State<'_, Meilisearch>) -> Result<(), String> {
-    match state.meilisearch.lock().unwrap().as_ref() {
-      Some(_)=> Ok(()),
-      None=> Err("Meilisearch child process not exists".into()), 
+    match state.meilisearch.lock().unwrap().as_mut() {
+      Some(child)=> {
+        match child.inner.try_wait() {
+          Err(_)=> Err(format!("Meilisearch process error.\nTry restart app.")), 
+          Ok(Some(s))=> Err(format!("Meilisearch process exited ({}).\nTry restart app.", s)),
+          Ok(None)=> Ok(()),
+        }
+      },
+      None=> Err("Meilisearch process not exists".into()), 
     }
   }
 

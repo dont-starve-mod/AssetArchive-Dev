@@ -90,7 +90,7 @@ function Normal_Installed() {
 }
 
 function Normal() {
-  const [progress, setProgress] = useState<number|"start"|"finish">("start")
+  const [progress, setProgress] = useState<number|"start"|"finish"|"error">("start")
 
   useLuaCallOnce("ffmpeg_install", ()=> {}, {type: "start"}, [])
 
@@ -100,6 +100,9 @@ function Normal() {
     if (data.success) {
       setProgress("finish")
       emit("ffmpeg_installed")
+    }
+    else if (data.status && data.status.startsWith("ERROR")){
+      setProgress("error")
     }
     else {
       const {current_downloaded, status} = data
@@ -119,20 +122,18 @@ function Normal() {
       <H5>一键安装</H5>
       <div style={{marginTop: 100}}>
         {
-          progress !== "finish" ?
-          <Spinner intent="primary" value={typeof progress === "number" ? progress : undefined}/> :
-          <Icon icon="tick-circle" intent="success" size={40}/>
+          progress === "finish" ? <Icon icon="tick-circle" intent="success" size={40}/> :
+          progress === "error" ? <Icon icon="error" intent="danger" size={40}/> :
+          <Spinner intent="primary" value={typeof progress === "number" ? progress : undefined}/>
         }
       </div>
       <div style={{marginTop: 10}}>
         {
-          progress === "start" && <p>加载中，请稍候...</p>
-        }
-        {
-          typeof progress === "number" && <p>正在下载（{Math.floor(progress*100)}%）</p>
-        }
-        {
-          progress === "finish" && <p>安装成功</p>
+          progress === "start" ? <p>加载中，请稍候...</p> :
+          progress === "error" ? <p>下载失败，请检查网络连接。</p> :
+          progress === "finish" ? <p>安装成功</p> :
+          typeof progress === "number" ? <p>正在下载（{Math.floor(progress*100)}%）</p> :
+          <></>
         }
       </div>
     </>

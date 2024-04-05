@@ -2,16 +2,15 @@ import { Button, H3, H6, Icon, Radio, RadioGroup, Spinner, TabId, Tag } from '@b
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SEARCH_RESULT_TYPE } from '../../strings'
-import { AllAssetTypes } from "../../searchengine"
 import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import style from "./index.module.css"
-import { maxTotalHits, Response, isValid, search, SEARCHABLE_FIELDS, isSearchable } from '../../global_meilisearch'
+import { maxTotalHits, Response, search, SEARCHABLE_FIELDS, isSearchable } from '../../global_meilisearch'
 import { AccessableItem } from '../../components/AccessableItem'
 import { appWindow } from '@tauri-apps/api/window'
 import { killPreviewSfx } from '../../components/Preview'
 import { useSelector } from '../../redux/store'
 import { Classes, Popover2 } from '@blueprintjs/popover2'
-import { useChangeParams, useLocalStorage } from '../../hooks'
+import { useLocalStorage } from '../../hooks'
 import PageTurner from '../../components/PageTurner'
 
 // TODO: 该组件的保活机制还有一些问题，需要深入测试

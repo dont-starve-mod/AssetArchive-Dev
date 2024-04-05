@@ -8,7 +8,7 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
 import { save, open } from '@tauri-apps/api/dialog'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
-import { useLuaCall } from '../../hooks'
+import { useLuaCall, useSharedLocalStorage } from '../../hooks'
 import NumericInputGroup from '../NumericInputGroup'
 import { v4 } from 'uuid'
 
@@ -107,27 +107,23 @@ function ApiPanel() {
 }
 
 function Export() {
-  const [fileExtension, setFileExtension] = useState<"gif"|"mp4"|"mov"|"png">("gif")
+  const [fileExtension, setFileExtension] = useSharedLocalStorage("anim_export_format")
   const handleExtensionCheck = useCallback((e: React.FormEvent<HTMLInputElement>, value: typeof fileExtension)=> {
     if (e.currentTarget.checked){
       setFileExtension(value)
     }
-  }, [])
-  const [bgcType, setBgcType] = useState<"use_current"|"transparent"|"solid">("solid")
-  const [colorValue, setColorValue] = useState<string>("#c0c0c0")
+  }, [setFileExtension])
+  const [bgcType, setBgcType] = useSharedLocalStorage("anim_export_bgc_type")
+  const [colorValue, setColorValue] = useSharedLocalStorage("anim_export_color_value")
   const onChangeColor = useCallback((e: React.ChangeEvent<HTMLInputElement>)=> {
     setBgcType("solid")
     setColorValue(e.currentTarget.value)
   }, [setBgcType, setColorValue])
 
   const {render, animstate} = useContext(animstateContext)
-  const takeCurrentBgc = useCallback(()=> {
-    setBgcType(render.bgcType)
-    setColorValue(render.bgc)
-  }, [render])
 
-  const [resolution, setResolution] = useState(1)
-  const [rate, setRate] = useState(30)
+  const [resolution, setResolution] = useSharedLocalStorage("anim_export_resolution")
+  const [rate, setRate] = useSharedLocalStorage("anim_export_framerate")
 
   const call = useLuaCall("render_animation_sync", ()=> {}, {}, [])
   const requestExportTo = useCallback((path: string)=> {
@@ -150,7 +146,8 @@ function Export() {
           bgcType === "transparent" ? "transparent" : colorValue,
       }  
     })
-  }, [fileExtension, resolution, rate, bgcType, colorValue, call])
+  }, [fileExtension, resolution, rate, bgcType, colorValue, call,
+    animstate, render])
 
   const onClickExport = useCallback(()=> {
     if (fileExtension === "png") {
@@ -269,13 +266,13 @@ function Export() {
             numericValue={rate}
             disabled={fileExtension === "png"}
             small
-            intent={rate === rate ? "none" : "danger"}
+            intent={!isNaN(rate) ? "none" : "danger"}
             onChangeNumericValue={setRate}/>
             {
-              rate !== rate && fileExtension !== "png" &&
+              isNaN(rate) && fileExtension !== "png" &&
               <div style={{position: "absolute", right: -3, top: -3}}>
                 <Tooltip2 content={"输入1–100之间的数，建议30"}>
-                  <Button icon="warning-sign" minimal intent="danger" onClick={()=> setRate(30)}/>
+                  <Button icon="warning-sign" minimal intent="danger" className="ml-3" onClick={()=> setRate(30)}/>
                 </Tooltip2>
               </div>
                 

@@ -95,7 +95,7 @@ export default function SettingsPage() {
     </RadioGroup>
     <hr/>
     <H4>搜索</H4>
-    <RadioGroup
+    {/* <RadioGroup
       label="搜索提示中是否显示简介"
       onChange={(e)=> setShowDesc(e.currentTarget.value as typeof showDesc)}
       selectedValue={showDesc}
@@ -104,7 +104,7 @@ export default function SettingsPage() {
       <Radio label='是' value={"on"}/>
       <Radio label='否' value={"off"}/>
     </RadioGroup>
-    <br/>
+    <br/> */}
     <RadioGroup
       label="每页展示搜索结果的数量"
       onChange={e=> setNumResults(Number(e.currentTarget.value))}

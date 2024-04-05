@@ -42,6 +42,8 @@ use es::es_handler::*;
 
 use include_lua::ContextExt;
 
+const TEXT_GUARD: &str = "🦀️";
+
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 fn _menu() -> Menu {
     // 这里 `"quit".to_string()` 定义菜单项 ID，第二个参数是菜单项标签。
@@ -146,6 +148,7 @@ fn main() {
             fmod_get_data,
             meilisearch_get_addr,
             select_file_in_folder,
+            text_guard,
             dev_host,
             set_drag_data,
             get_drag_data,
@@ -219,6 +222,11 @@ fn open_url(url: String) -> bool {
 fn dev_host() -> String {
     std::env::var("ASSET_ARCHIVE_DEV_HOST")
         .unwrap_or("".to_string())
+}
+
+#[tauri::command]
+fn text_guard() -> String {
+    TEXT_GUARD.to_string()
 }
 
 #[tauri::command]
@@ -447,6 +455,9 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         globals.set("SCRIPT_ROOT", format!("{}{}", 
             script_root_str,
             std::path::MAIN_SEPARATOR))?;
+
+        // magic text guard
+        globals.set("TEXT_GUARD", TEXT_GUARD.to_string())?;
 
         // static scripts loading
         #[allow(non_upper_case_globals)]

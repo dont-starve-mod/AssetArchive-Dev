@@ -5,7 +5,7 @@ import { open, save } from "@tauri-apps/api/dialog"
 import type { AppSettings } from "./redux/reducers/appsettings"
 import { update as UpdateSetting } from "./redux/reducers/appsettings"
 import { update as UpdateLocal } from "./redux/reducers/localstorage"
-import { useDispatch, useSelector } from "./redux/store"
+import store, { useDispatch, useSelector } from "./redux/store"
 import { FmodPlayingInfo } from "./components/AppFmodHandler"
 import { LocalStorage } from "./redux/reducers/localstorage"
 import { useSearchParams } from "react-router-dom"
@@ -339,16 +339,31 @@ export function useAppStates<K extends keyof AppStates>(key: K):
 
 /** localstorage getter & setter */
 export function useLocalStorage<K extends keyof LocalStorage>(key: K):
-[LocalStorage[K], (v: LocalStorage[K])=> void]
+[LocalStorage[K], React.Dispatch<LocalStorage[K]>]
 {
   const value = useSelector(({localstorage})=> localstorage[key])
   const dispatch = useDispatch()
-  const set = (value: LocalStorage[K])=> {
+  const set = useCallback((value: LocalStorage[K])=> {
     dispatch(UpdateLocal({key, value}))
-    
-  }
+  }, [])
+
   return [ value, set ]
 }
+
+/** shared localstorage getter & setter */
+export function useSharedLocalStorage<K extends keyof LocalStorage>(key: K):
+[LocalStorage[K], React.Dispatch<LocalStorage[K]>]
+{
+  const [value, setValue] = useState(()=> store.getState().localstorage[key])
+  const dispatch = useDispatch()
+  const set = useCallback((value: LocalStorage[K])=> {
+    setValue(value)
+    dispatch(UpdateLocal({key, value}))
+  }, [])
+
+  return [value, set]
+}
+
 
 /** a observer to test if widget is into view */
 export function useIntersectionObserver(param: {ref: React.MutableRefObject<HTMLElement>} & IntersectionObserverInit){
@@ -426,11 +441,4 @@ export function usePagingHandler<T>(items: Array<T>, options?: PageOptions) {
   return {
     prev, next, first, last, page: clampedPage, totalPage, range
   }
-}
-
-export function useChangeParams() {
-  const [params, setParams] = useSearchParams()
-  console.log(params, setParams)
-  return [params, setParams]
-
 }

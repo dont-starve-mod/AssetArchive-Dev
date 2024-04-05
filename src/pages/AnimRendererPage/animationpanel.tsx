@@ -3,12 +3,10 @@ import style from './animation.module.css'
 import * as PIXI from 'pixi.js'
 import animstateContext from './globalanimstate'
 import { byte2facing } from '../../facing'
-import { AnimState } from '../../components/AnimCore_Canvas/animstate'
-import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
 import { Button, ButtonGroup, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
-import { useMouseDrag, useMouseScroll } from '../../hooks'
+import { useMouseDrag, useMouseScroll, useSharedLocalStorage } from '../../hooks'
 import AnimPlayerWidget from '../../components/AnimPlayerWidget'
 
 const int = (i: number)=> Math.round(i)
@@ -33,12 +31,8 @@ const getImgIndex = (imgList: any[], index: number)=> {
   }
 }
 
-interface IProps {
-  left: number,
-}
-
 /** Don't Starve anim player based on pixi.js */
-export default function AnimationPanel(props: IProps) {
+export default function AnimationPanel(props: {left: number}) {
   const {animstate, render} = useContext(animstateContext)
   const [currentApp, setApp] = useState<PIXI.Application>()
   const ref = useRef<HTMLDivElement>()
@@ -134,11 +128,12 @@ export default function AnimationPanel(props: IProps) {
       app.destroy()
       setApp(undefined)
     }
-  }, [])
+  }, [animstate, render])
 
   const {left} = props
-  const [colorType, setColorType] = useState<"solid" | "transparent">("solid")
-  const [colorValue, setColorValue] = useState("#aaaaaa")
+  const [colorType, setColorType] = useSharedLocalStorage("anim_panel_bgc_type")
+  const [colorValue, setColorValue] = useSharedLocalStorage("anim_panel_color_value")
+  const [axis, setAxis] = useSharedLocalStorage("anim_panel_axis")
   const gridStyle: React.CSSProperties = colorType === "transparent" && {
     backgroundImage: "linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%)",
     backgroundSize: "16px 16px",
@@ -149,7 +144,6 @@ export default function AnimationPanel(props: IProps) {
       return "#333"
     const value = rgb2value(colorValue)
     const delta = Math.abs(value[0]*255-200) + Math.abs(value[1]*255-200) + Math.abs(value[2]*255-200)
-    console.log(delta)
     return delta < 180 ? "#333" : "#FFF"
   }, [colorType, colorValue])
   
@@ -163,6 +157,12 @@ export default function AnimationPanel(props: IProps) {
     render.scroll(y)
     appWindow.emit("forceupdate")
   }, [render])
+  
+  useEffect(()=> {
+    render.axis = axis
+    appWindow.emit("forceupdate")
+  }, [axis, render])
+
   const [onScroll, onMouseEnter, onMouseLeave] = useMouseScroll(onSrollChange)
 
   return (
@@ -267,12 +267,16 @@ function BackgroundSetter(props: any) {
 
 function AxisSetter() {
   const {render} = useContext(animstateContext)
+  const [axis, setAxis] = useSharedLocalStorage("anim_panel_axis")
+
   return (
     <div className={style["tools-panel"]}>
       <H6>坐标轴</H6>
       <div className={style["tools-panel-sep"]} />
       <RadioGroup selectedValue={render.axis} onChange={e=> {
-        render.axis = e.currentTarget.value as typeof render.axis
+        const axis = e.currentTarget.value as typeof axis
+        render.axis = axis
+        setAxis(axis)
         appWindow.emit("forceupdate")
       }}>
         <Radio label="显示在前" value="front"/>
@@ -284,13 +288,14 @@ function AxisSetter() {
 }
 
 function Facing() {
+  // TODO: save preview facing in renderer
   const {animstate, render} = useContext(animstateContext)
   const facingList = animstate.facingList
   const onChangeFacing = useCallback((value: string)=> {
     let facing = Number(value)
     animstate.facing = facing
     appWindow.emit("forceupdate", "ChangeFacingTo<" + byte2facing(facing) + ">")
-  }, [])
+  }, [animstate])
   return (
     <ButtonGroup vertical minimal>
       <Popover2 minimal placement="left-end" popoverClassName={style["tools-popover"]}

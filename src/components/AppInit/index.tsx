@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api'
 import { writeText } from '@tauri-apps/api/clipboard'
 import { appWindow } from '@tauri-apps/api/window'
-import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
+import { listen as globalListen } from '@tauri-apps/api/event'
 import { Alert, AlertProps, H3, useHotkeys } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
 import { useDispatch, useSelector } from '../../redux/store'
@@ -63,6 +63,12 @@ function generateDocument(data: {[K: string]: ArchiveItem[]}) {
       }
       else if (type === "multi_xml"){
         // TODO: push static entry to meilisearch?
+      }
+      else if (type === "multi_sound"){
+
+      }
+      else if (type === "multi_entry"){
+
       }
       else {
         console.warn("Invalid asset type", item)
