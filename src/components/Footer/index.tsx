@@ -4,15 +4,12 @@ import { getVersion } from '@tauri-apps/api/app'
 import { Icon } from '@blueprintjs/core'
 import { useLocation } from 'react-router-dom'
 
-const BRANCH = "alpha"
+const BRANCH = "beta"
 
 export default function Footer() {
-  const location = useLocation()
-  const currentURL = useMemo(()=> 
-    window.location.href
-      .replace("tauri://", "")
-      .replace("tauri.localhost", "")
-  , [location.key])
+  const currentURL = window.location.href
+    .replace("tauri://", "")
+    .replace("tauri.localhost", "")
     
   const copyURL = ()=> {
     writeText(currentURL).then(

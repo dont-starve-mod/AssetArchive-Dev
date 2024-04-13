@@ -7,8 +7,8 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "Asset Archive (alpha)",
-    "version": "0.0.7"
+    "productName": "Asset Archive",
+    "version": "0.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -73,7 +73,7 @@
       "targets": "all",
       "windows": {
         "wix": {
-          "language": "zh-CN"
+          "language": ["zh-CN", "en-US"]
         },
         "webviewInstallMode": {
           "type": "embedBootstrapper"
@@ -95,7 +95,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "Asset Archive - alpha",
+        "title": "Asset Archive",
         "width": 960,
         "height": 720,
         "minWidth": 700,

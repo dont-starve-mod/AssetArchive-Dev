@@ -1763,7 +1763,7 @@ function AssetInvalidPage(props: AssetInvalidPageProps) {
           }
           <p>这是一个bug，不应该出现这个页面！</p>
           <hr/>
-          <Button icon="envelope" onClick={()=> navigate("/report-bug")}>反馈</Button>
+          {/* <Button icon="envelope" onClick={()=> navigate("/report-bug")}>反馈</Button> */}
           &nbsp;&nbsp;&nbsp;&nbsp;
           <Button onClick={()=> navigate("/home")}>回到首页</Button>
         </div>}
