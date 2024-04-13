@@ -360,6 +360,7 @@ MultiplyXmlViewer.Minimaps = ()=> {
     <MultiplyXmlViewer
       xmlList={()=> window.assets.allxmlfile.map(v=> v.file).filter(
         v=> v.indexOf("minimap/minimap_data") !== -1)}
+      deprecatedXmlList={v=> v === "minimap/minimap_data.xml"}
     />
   )
 }

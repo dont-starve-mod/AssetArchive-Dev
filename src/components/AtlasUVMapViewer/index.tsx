@@ -36,30 +36,42 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
   const imgRef = useRef<HTMLImageElement>()
   const appeared = useIntersectionObserver({ref: boxRef}).appeared
   const [error, setError] = useState("")
-  const [offset, setOffset] = useState([0, 0])
+  // const [offset, setOffset] = useState([0, 0])
+  const [imgSize, setImgSize] = useState([0, 0])
   const onDrag = useCallback((x: number, y: number)=> {
-    setOffset(([px, py])=> [px + x, py + y])
+    setCanvasData(({x: px, y: py, scale})=> ({x: px + x, y: py + y, scale}))
+    // setOffset(([px, py])=> [px + x, py + y])
   }, [])
   const [basicScale, setBasicScale] = useState(0)
-  const [scale, setScale] = useState(1)
+  const [canvasData, setCanvasData] = useState({x: 0, y: 0, scale: 1})
+
   const onScroll = useCallback((v: number, e: React.WheelEvent)=> {
-    console.log(">>>>")
+    const {scale} = canvasData
     const newScale = Math.min(Math.max(scale * Math.pow(.99, v*0.5), 0.2), 8.0)
+    const offset = [canvasData.x, canvasData.y]
     const delta = newScale - scale
-    setScale(newScale)
     const {clientX, clientY} = e
+    console.log(scale, "-->", newScale, "Delta", delta)
     const {x, y} = boxRef.current.getBoundingClientRect()
     const relX = clientX - x, relY = clientY - y
-    console.log(relX - offset[0],relY - offset[1])
-    setOffset([
-      offset[0]-(relX-offset[0])*delta*basicScale,
-      offset[1]-(relY-offset[1])*delta*basicScale
-    ])
+    console.log("refOff", relX - offset[0],relY - offset[1])
+    console.log("deltaOff", (relX - offset[0])*delta*basicScale, (relY - offset[1])*delta*basicScale)
+
+    setCanvasData({
+      // x: offset[0]-(relX-offset[0])*delta*basicScale,
+      // y: offset[1]-(relX-offset[1])*delta*basicScale,
+      ...canvasData,
+      scale: newScale,
+    })
+    // setOffset([
+    //   offset[0]-(relX-offset[0])*delta*basicScale,
+    //   offset[1]-(relY-offset[1])*delta*basicScale
+    // ])
     // TODO: fix this
-  }, [scale, offset])
+  }, [canvasData, basicScale])
+
   const [onMouseDown] = useMouseDrag(onDrag)
   const [onWheel, onMouseEnter, onMouseLeave] = useMouseScroll(onScroll)
-  const [imgSize, setImgSize] = useState([0, 0])
   const {texpath, data, xml} = props
 
   const PADDING = 8
@@ -80,11 +92,13 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
         const y_scale = (boxHeight - 2*PADDING) / h
         if (x_scale < y_scale){
           setBasicScale(x_scale)
-          setOffset([PADDING, (boxHeight - h * x_scale)* 0.5])
+          setCanvasData({x: PADDING, y: (boxHeight - h * x_scale)* 0.5, scale: 1})
+          // setOffset([PADDING, (boxHeight - h * x_scale)* 0.5])
         }
         else{
           setBasicScale(y_scale)
-          setOffset([(boxWidth - w * y_scale)* 0.5, PADDING])
+          setCanvasData({x: (boxWidth - w * y_scale) * 0.5, y: PADDING, scale: 1})
+          // setOffset([(boxWidth - w * y_scale)* 0.5, PADDING])
         }
       }
       catch(e){
@@ -98,21 +112,23 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
   [appeared])
 
   const onClickReset = useCallback(()=> {
-    setScale(1)
     const [w, h] = imgSize
     const {width: boxWidth, height: boxHeight} = boxRef.current.getBoundingClientRect()
     const x_scale = (boxWidth - 2*PADDING) / w
     const y_scale = (boxHeight - 2*PADDING) / h
     if (x_scale < y_scale){
-      setOffset([PADDING, (boxHeight - h * x_scale)* 0.5])
+      setCanvasData({x: PADDING, y: (boxHeight - h * x_scale)* 0.5, scale: 1})
+      // setOffset([PADDING, (boxHeight - h * x_scale)* 0.5])
     }
     else{
-      setOffset([(boxWidth - w * y_scale)* 0.5, PADDING])
+      setCanvasData({x: (boxWidth - w * y_scale) * 0.5, y: PADDING, scale: 1})
+      // setOffset([(boxWidth - w * y_scale)* 0.5, PADDING])
     }
+    // setOffset([0,0])
   }, [imgSize])
 
-  const renderWidth = imgSize[0]* basicScale * scale
-  const renderHeight = imgSize[1]* basicScale * scale
+  const renderWidth = imgSize[0]* basicScale * canvasData.scale
+  const renderHeight = imgSize[1]* basicScale * canvasData.scale
   const [hoveredInfo, setHoveredInfo] = useState<ElementInfo>()
 
   const [onElementDown, onElementUp, isElementDragClick] = useMouseDragClick()
@@ -151,6 +167,13 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
           }
         </p>
       </div>
+      <div style={{display: "none"}}>
+        <p>state.offset: {canvasData.x}, {canvasData.y}</p>
+        <p>size: {renderWidth} x {renderHeight}</p>
+        <p>state.scale: {canvasData.scale}</p>
+        <p>state.gscale: {basicScale}</p>
+        
+      </div>
       <div className={style["box"]} ref={boxRef}
         onMouseDown={onMouseDown}
         onWheel={onWheel}
@@ -166,12 +189,12 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
           <img 
             ref={imgRef} 
             draggable={false}
-            style={{position: "absolute", left: offset[0], top: offset[1], outline: showBorder ? "4px solid green" : null}}
+            style={{position: "absolute", left: canvasData.x, top: canvasData.y, outline: showBorder ? "4px solid green" : null}}
               width={renderWidth}
               height={renderHeight}
               />
           <div
-            style={{position: "absolute", left: offset[0]-2, top: offset[1]-2,
+            style={{position: "absolute", left: canvasData.x-2, top: canvasData.y-2,
               width: 4, height: 4, backgroundColor: "pink",
             }}/>
           <div className={style["uv-box-container"]}>
@@ -185,10 +208,10 @@ export default function AtlasUVMapViewer(props: ImageAtlasProps) {
                 const colorStyle = showUV ? undefined : { borderColor: "transparent" }
                 return (
                   <div key={index} className={style["uv-box"]} style={{
-                    left: offset[0] + Math.floor(u1* renderWidth),
-                    top: offset[1] + Math.floor((1-v2)* renderHeight),
-                    width: width* basicScale* scale + 1,
-                    height: height* basicScale* scale + 1,
+                    left: canvasData.x + Math.floor(u1* renderWidth),
+                    top:  canvasData.y + Math.floor((1-v2)* renderHeight),
+                    width: width* basicScale* canvasData.scale + 1,
+                    height: height* basicScale* canvasData.scale + 1,
                     ...colorStyle, 
                     ...selectedStyle,
                          

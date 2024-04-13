@@ -20,8 +20,6 @@ import { invoke } from '@tauri-apps/api'
 import AppMaxView from './components/AppMaxView'
 FocusStyleManager.onlyShowFocusOnTabs()
 
-// https://zhuanlan.zhihu.com/p/573735645 TODO:
-
 declare global {
 	interface Window {
 		meta: {debug: boolean},

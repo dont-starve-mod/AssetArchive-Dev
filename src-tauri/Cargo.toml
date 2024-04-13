@@ -16,7 +16,7 @@ edition = "2021"
 tauri-build = { version = "1.2", features = [] }
 
 [dependencies]
-tauri = { version = "1.2", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-start-dragging", "window-unmaximize"] }
+tauri = { version = "1.2", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-center", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-set-size", "window-start-dragging", "window-unmaximize"] }
 clap = "4.4.8"
 clippers = "0.1.2"
 num_cpus = "1.16.0"

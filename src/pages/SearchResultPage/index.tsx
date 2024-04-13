@@ -12,6 +12,7 @@ import { useSelector } from '../../redux/store'
 import { Classes, Popover2 } from '@blueprintjs/popover2'
 import { useLocalStorage } from '../../hooks'
 import PageTurner from '../../components/PageTurner'
+import { invoke } from '@tauri-apps/api'
 
 // TODO: 该组件的保活机制还有一些问题，需要深入测试
 
@@ -50,7 +51,7 @@ export default function SearchResultPage() {
         setSearchResult({
           ...result,
           hits: result.hits.map(({id, _matchesPosition})=> {
-            return window.assets_map[id] && 
+            return window.assets_map[id] && window.assets_map[id].type &&
             {
               matches: _matchesPosition,
               ...window.assets_map[id],
@@ -317,7 +318,7 @@ function NoResult() {
       <p>
         <Icon icon="search" style={{color: "#ccc", marginLeft: -10, marginRight: 5}}/>
         没找到想要的结果？
-        <a onClick={()=> alert("这个还没写")}>反馈...</a></p>
+        <a onClick={()=> invoke("open_url", { url: "https://support.qq.com/product/632056/" })}>反馈...</a></p>
     </div>
   )
 }

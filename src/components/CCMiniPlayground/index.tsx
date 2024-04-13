@@ -3,7 +3,6 @@ import * as PIXI from 'pixi.js'
 import { MIPMAP_MODES, SCALE_MODES } from 'pixi.js'
 import React, { useEffect, useRef, useState } from 'react'
 import shader from './shader'
-// @ts-ignore
 import sample_img from "./sample_image.jpg"
 
 type CCMiniPlaygroundProps = {
@@ -29,31 +28,39 @@ export default function CCMiniPlayground(props: CCMiniPlaygroundProps) {
 
   useEffect(()=> {
     if (ref.current) {
-      ref.current.innerHTML = ""
+      async function mount(){
+        const tex = await PIXI.Texture.fromURL(sample_img)
+        const img = new PIXI.Sprite(tex)
+        const {width, height} = img      
+        
+        const app = new PIXI.Application({width: width / 4, height: height / 4})
+        app.view.style.width = "100%"
+        ref.current.innerHTML = ""
+        ref.current.appendChild(app.view as any)
+  
+        img.width = app.screen.width
+        img.height = app.screen.height
+        app.stage.addChild(img)
+  
+        let filter = new PIXI.Filter(null, shader, {
+            percent: 0.0,
+            uCCTexture: PIXI.Texture.from(cc, {mipmap: MIPMAP_MODES.OFF, scaleMode: SCALE_MODES.LINEAR}),
+        })
+        img.filters = [filter]
+  
+        app.ticker.add(() => {
+          filter.uniforms.percent = appUniforms.current.percent
+        })
 
-      // const img = PIXI.Sprite.from("https://pic.imgdb.cn/item/6510184ec458853aef81aff4.png") //  TODO: 图片来源？
-      const img = PIXI.Sprite.from(sample_img)
-      const {width, height} = img
-      
-      const app = new PIXI.Application({width: width / 4, height: height / 4})
-      app.view.style.width = "100%"
-      ref.current.appendChild(app.view as any)
+        return app
+      }
 
-      img.width = app.screen.width
-      img.height = app.screen.height
-      app.stage.addChild(img)
-
-      let filter = new PIXI.Filter(null, shader, {
-          percent: 0.0,
-          uCCTexture: PIXI.Texture.from(cc, {mipmap: MIPMAP_MODES.OFF, scaleMode: SCALE_MODES.LINEAR}),
-      })
-      img.filters = [filter]
-
-      app.ticker.add(() => {
-        filter.uniforms.percent = appUniforms.current.percent
-      })
-
-      return ()=> app.destroy()
+      const app = mount()
+      const div = ref.current
+      return ()=> {
+        app.then(app=> app.destroy())
+        div.innerHTML = ""
+      }
     }
   }, [cc])
 

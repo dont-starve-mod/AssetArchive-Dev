@@ -28,7 +28,7 @@
       },
       "window": {
         "all": false,
-        "center": false,
+        "center": true,
         "close": true,
         "create": true,
         "hide": true,
@@ -51,7 +51,7 @@
         "setMinSize": false,
         "setPosition": false,
         "setResizable": false,
-        "setSize": false,
+        "setSize": true,
         "setSkipTaskbar": false,
         "setTitle": false,
         "show": false,

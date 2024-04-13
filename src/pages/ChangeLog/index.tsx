@@ -16,6 +16,11 @@ function Img(props: {src: string}) {
 export default function ChangeLog() {
   return (
     <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
+      <H5>alpha - 0.0.7</H5>
+      <UL>
+        <li>动画渲染器的配置项目和导出参数可保存。</li>
+        <li>修复部分情况下搜索功能异常的问题。</li>
+      </UL>
       <H5>alpha - 0.0.6</H5>
       <UL>
         <li>修复最小化、最大化和关闭按钮无法点击的问题。</li>

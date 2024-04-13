@@ -25,7 +25,7 @@ export default function ApiList() {
     insertApi("SetBank", [bank])
     insertApi("PlayAnimation", [animation])
     setInitDialog("none")
-  }, [])
+  }, [insertApi])
 
   // TODO: fix this bug
   useEffect(()=> {
@@ -234,7 +234,7 @@ function ApiItem(props: Api & {index: number, onInsertHover: (index: number)=> v
       }
       <MenuItem icon="trash" text="删除" intent="danger" onClick={()=> deleteApi(props.index)}/>
     </Menu>
-  , [props])
+  , [props, deleteApi, enableApi, disableApi])
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
       e.preventDefault()

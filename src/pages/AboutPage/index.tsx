@@ -23,7 +23,7 @@ export default function About() {
         </Tag>
       </H3>
       <p>一站式饥荒游戏资源检索工具——只需轻点几下，即可快速导出图片、动画、音效、滤镜等游戏资源。</p>
-      <SimpleLink url="https://archive.lwdocs.cn">网站首页（施工中）</SimpleLink>
+      <SimpleLink url="https://archive.lwdocs.cn">网站首页</SimpleLink>
       <a className="ml-5" onClick={()=> openChangeLog()}>
         更新日志
         <Icon icon="share" size={12} className="align-middle ml-1" />
@@ -38,7 +38,7 @@ export default function About() {
       <H5 id="bug">
         bug反馈
       </H5>
-      <p>该版本为抢先预览版本，处于活跃更新状态，如遇bug可直接私戳老王。(๑•̀ㅂ•́)و✧</p>
+      <p>该版本为测试版本，处于活跃更新状态，如遇bug可在<a onClick={()=> openURL("https://support.qq.com/product/632056/")}>讨论区</a>反馈 (๑•̀ㅂ•́)و✧</p>
       <H5>
         友情链接
       </H5>

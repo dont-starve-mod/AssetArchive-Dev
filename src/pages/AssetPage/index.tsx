@@ -1676,8 +1676,8 @@ function BankPage(props: BankPageProps) {
           {
             sortedAnimationList.map((v, i)=> {
               const reposition = {} as any
-              if (i < range[0] || i > range[1]) return
-              return <tr key={v.id}>
+              return i >= range[0] && i <= range[1] &&
+              <tr key={v.id}>
                 <td>
                   <PopoverMenu placement="top" menu={[
                     {text: "拷贝名字", icon: "duplicate", copyText: v.name},

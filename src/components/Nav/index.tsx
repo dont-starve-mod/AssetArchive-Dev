@@ -47,7 +47,7 @@ export default function Nav() {
               matches: _matchesPosition,
               ...window.assets_map[id]
             }
-          }))
+          }).filter(v=> Boolean(v.type)))
           setNumHits(result.estimatedTotalHits)
           setLoading(false)
         }
