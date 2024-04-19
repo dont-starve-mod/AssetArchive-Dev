@@ -775,6 +775,20 @@ pub mod lua_filesystem {
         table.set("Filenamify", lua_ctx.create_function(|_, path: String|{
             Ok(filenamify::filenamify(path))
         })?)?;
+        table.set("IsFile", lua_ctx.create_function(|_, path: String|{
+            Ok(Path::from(&path).is_file())
+        })?)?;
+        table.set("IsDir", lua_ctx.create_function(|_, path: String|{
+            Ok(Path::from(&path).is_dir())
+        })?)?;
+        table.set("GetInfo", lua_ctx.create_function(|lua, path: String|{
+            let path = Path::from(&path);
+            let info = lua.create_table()?;
+            info.set("is_file", path.is_file())?;
+            info.set("is_dir", path.is_dir())?;
+            info.set("exists", path.exists())?;
+            Ok(info)
+        })?)?;
         table.set("DynLoader_Ctor", lua_ctx.create_function(|lua: Context, (loader, fs): (Table, AnyUserData)|{
             fs.borrow_mut::<ReadStream>().and_then(|mut fs|{
                 let mut buf = Vec::with_capacity(10000);

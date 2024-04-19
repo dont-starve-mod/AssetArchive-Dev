@@ -122,7 +122,7 @@ pub mod meilisearch_handler {
     match state.meilisearch.lock().unwrap().as_mut() {
       Some(child)=> {
         match child.inner.try_wait() {
-          Err(_)=> Err(format!("Meilisearch process error.\nTry restart app.")), 
+          Err(e)=> Err(format!("Meilisearch process error ({}).\nTry restart app.", e)), 
           Ok(Some(s))=> Err(format!("Meilisearch process exited ({}).\nTry restart app.", s)),
           Ok(None)=> Ok(()),
         }

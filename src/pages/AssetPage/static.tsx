@@ -42,7 +42,7 @@ export function initStaticPageData(){
       id: "Scrapbooks",
       title: "所有图鉴",
       desc: <>
-        <p>下方输入“icon”可快速筛选圆形图标，这些也许对你很有用。</p>
+        <p>下方输入“icon_”可快速筛选圆形图标，这些也许对你很有用。</p>
       </>,
       type: "multi_xml",
     },

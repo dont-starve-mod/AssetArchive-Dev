@@ -196,8 +196,13 @@ pub mod lua_ffmpeg {
         let rate = args.get::<_, f32>("rate").unwrap_or(30.0);
         let width = args.get::<_, u32>("width")?;
         let height = args.get::<_, u32>("height")?;
+        let quiet = args.get::<_, bool>("quiet").unwrap_or(false);
 
         let mut command = FfmpegCommand::new_with_path(bin);
+        if quiet {
+            command.args(["-loglevel", "quiet"]);
+        }
+    
         command.hide_banner()
             .args(["-f", "rawvideo"])
             .args(["-video_size", format!("{}x{}", width, height).as_str()])

@@ -434,6 +434,8 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         })?)?;
 
         let workdir = state.get_debug_script_root(std::env::current_dir().unwrap_or_default());
+        globals.set("WORK_DIR", format!("{}{}", 
+            &workdir.as_os_str().to_string_lossy(), std::path::MAIN_SEPARATOR))?;
         let script_root = if !get_is_release() && workdir.join("Cargo.toml").exists() {
             println!("[DEBUG] Enable dynamic script loading");
             workdir.join("src").join("scripts")

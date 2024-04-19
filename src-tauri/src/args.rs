@@ -66,36 +66,45 @@ pub mod lua_args {
                     .visible_aliases(["animation", "anim", "a", "r"])
                     .args(generic_args.clone())
                     .args([
-                        arg!(--bank <BANK> "SetBank, 设置动画库名").required(true),
-                        arg!(--build <BUILD> "SetBuild, 设置材质名").required(true),
+                        arg!(-k --bank <BANK> "SetBank, 设置动画库名").required(true),
+                        arg!(-b --build <BUILD> "SetBuild, 设置材质名").required(true),
                         arg!(-a --animation <ANIMATION> "PlayAnimation, 设置动画名").required(true),
                         arg!(-f --facing <FACING> "SetFacing, 设置动画朝向"),
-                        arg!(-o <BUILD> "AddOverrideBuild, 添加材质覆盖")
-                            .long("override-build"),
-                        Arg::new("overryde_symbol")
+                        Arg::new("override_build")
+                            .value_name("BUILD")
+                            .long("add-override-build")
+                            .aliases(["override-build"])
+                            .help("AddOverrideBuild, 添加材质覆盖")
+                            .action(ArgAction::Append),
+                        Arg::new("override_symbol")
                             .value_names(["SYMBOL", "BUILD", "SYMBOL"])
                             .long("override-symbol")
                             .help("OverrideSymbol, 覆盖符号")
-                            .num_args(2..=3),
+                            .num_args(2..=3)
+                            .action(ArgAction::Append),
                         Arg::new("clear_override_build")
                             .value_name("BUILD")
                             .long("clear-override-build")
                             .aliases(["clearoverridebuild"])
-                            .help("ClearOverrideBuild, 清除覆盖材质"),
+                            .help("ClearOverrideBuild, 清除覆盖材质")
+                            .action(ArgAction::Append),
                         Arg::new("clear_override_symbol")
                             .value_name("SYMBOL")
                             .long("clear-override-symbol")
                             .aliases(["clearoverridesymbol"])
-                            .help("ClearOverrideSymbol, 清除覆盖符号"),
+                            .help("ClearOverrideSymbol, 清除覆盖符号")
+                            .action(ArgAction::Append),
                         Arg::new("hide_symbol")
                             .value_name("SYMBOL")
                             .long("hide-symbol")
-                            .help("HideSymbol, 隐藏符号"),
+                            .help("HideSymbol, 隐藏符号")
+                            .action(ArgAction::Append),
                         Arg::new("hide_layer")
                             .value_name("LAYER")
                             .long("hide-layer")
                             .help("Hide, 隐藏图层")
-                            .visible_alias("hide"),
+                            .visible_alias("hide")
+                            .action(ArgAction::Append),
                         Arg::new("mult_color")
                             .value_name("COLOR")
                             .long("mult-color")
@@ -110,12 +119,16 @@ pub mod lua_args {
                             .value_names(["SYMBOL", "COLOR"])
                             .long("symbol-mult-color")
                             .aliases(["symbol-mult-colour", "symbolmultcolour"])
+                            .num_args(2)
+                            .action(ArgAction::Append)
                             .help("SetSymbolMultColour, 符号颜色乘法"),
                         Arg::new("symbol_add_color")
                             .value_names(["SYMBOL", "COLOR"])
                             .long("symbol-add-color")
                             .aliases(["symbol-add-colour", "symboladdcolour"])
-                            .help("SymbolAddColour, 符号颜色加法"),
+                            .num_args(2)
+                            .action(ArgAction::Append)
+                            .help("SetSymbolAddColour, 符号颜色加法"),
                         Arg::new("background_color")
                             .value_name("COLOR")
                             .long("background-color")
@@ -140,7 +153,16 @@ pub mod lua_args {
                             .value_name("FORMAT")
                             .value_parser(["gif", "mp4", "mov", "png"])
                             .ignore_case(true)
-                            .help("导出格式")
+                            .help("导出格式"),
+                        Arg::new("output")
+                            .value_name("PATH")
+                            .long("output")
+                            .help("输出文件路径, 例如: path/to/output.gif"),
+                        Arg::new("override")
+                            .long("override")
+                            .short('y')
+                            .action(ArgAction::SetTrue)
+                            .help("overwrite output files without asking")
                     ])
                     .args(index_args.clone())
                     
@@ -180,7 +202,17 @@ pub mod lua_args {
                             .map(|(i, s)|(i + 1, s.to_owned())))), // lua table index starts at 1
                         None=> Ok(lua.create_table()),
                     },
-                    Err(_)=> Err(LuaError::RuntimeError(format!("Invalid arg name: {}", key))),
+                    Err(_)=> Err(LuaError::RuntimeError(format!("invalid arg name: {}", key))),
+                }
+            });
+            _methods.add_method("list_indices", |lua, args, key: String|{
+                match args.inner.subcommand_matches(
+                    args.inner.subcommand_name().unwrap()
+                ).unwrap().indices_of(key.as_str()) {
+                    Some(list)=> Ok(lua.create_table_from(list
+                        .enumerate()
+                        .map(|(i, s)|(i + 1, s)))), // lua table index starts at 1
+                    None=> Ok(lua.create_table()),
                 }
             });
             _methods.add_meta_method(MetaMethod::Index, |lua, args, value: Value|{

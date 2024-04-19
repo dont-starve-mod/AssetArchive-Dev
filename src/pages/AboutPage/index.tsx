@@ -38,7 +38,10 @@ export default function About() {
       <H5 id="bug">
         bug反馈
       </H5>
-      <p>该版本为测试版本，处于活跃更新状态，如遇bug可在<a onClick={()=> openURL("https://support.qq.com/product/632056/")}>讨论区</a>反馈 (๑•̀ㅂ•́)و✧</p>
+      {/* <p>该版本为测试版本，处于活跃更新状态，如遇bug可在<a onClick={()=> openURL("https://support.qq.com/product/632056/")}>讨论区</a>反馈 (๑•̀ㅂ•́)و✧</p> */}
+      <p>该版本为测试版本，处于活跃更新状态，如遇bug可在
+        <SimpleLink url="https://support.qq.com/product/632056/">讨论区</SimpleLink>
+        &nbsp;反馈。 (๑•̀ㅂ•́)و✧</p>
       <H5>
         友情链接
       </H5>

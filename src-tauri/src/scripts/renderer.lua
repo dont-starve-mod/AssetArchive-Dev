@@ -303,6 +303,13 @@ function Render:TryInterrupt()
 	end
 end
 
+function Render:IsFileOutput(format)
+	format = format or self.format
+	return format == "gif"
+		or format == "mov"
+		or format == "mp4"
+end
+
 function Render:Run()
 	IpcEmitEvent("render_event", json.encode_compliant{
 		session_id = self.session_id,
@@ -615,7 +622,7 @@ function Render:Run()
 
 	local composite_tasks = {
 		["@canvas"] = Image.From_RGBA(
-			string.rep(self.bgc == "transparent" and "\0\0\0\0" or string.char(HexToRGB(self.bgc)).."\255", width* height),
+			string.rep(self.bgc_string or self.bgc == "transparent" and "\0\0\0\0" or string.char(HexToRGB(self.bgc)).."\255", width* height),
 			width, height),
 		["@numframe"] = #framebuffer,
 		["@encoder"] = function(img, index) enc:encode_frame(img, index) end,
