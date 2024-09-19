@@ -82,7 +82,7 @@ local PREDEF_ALIAS_GROUP = {
 		"pigelitefighter3", "pigelite3",
 		"pigelitefighter4", "pigelite4",
 	},
-	{"shadowthrall_hands", "shadowthrall_horns", "shadowthrall_wings"},
+	{"shadowthrall_hands", "shadowthrall_horns", "shadowthrall_wings", "shadowthrall_mouth"},
 	{"stageusher", "stagehand"},
 	{"statue_marble", "sculpture_rookbody", "sculpture_knightbody", "sculpture_bishopbody"},
 	{"lunarrift_portal", "shadowrift_portal"},

@@ -14,6 +14,7 @@ use rlua::prelude::{LuaResult, LuaError, LuaString};
 extern crate simplelog;
 extern crate log;
 use simplelog::*;
+#[allow(unused_imports)]
 use log::{info, error, warn};
 
 use tauri::Manager;
@@ -126,16 +127,17 @@ fn init_logger(app: &mut tauri::App) -> Result<(), String> {
         TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
     ];
     // log file
-    let log_path = app.path_resolver().app_log_dir().unwrap().join("log.txt");
-    if let Ok(f) = std::fs::File::create(log_path) {
-        loggers.push(WriteLogger::new(LevelFilter::Info, Config::default(), f));
-
+    let log_dir = app.path_resolver().app_data_dir().unwrap().join("log");
+    if create_dir_all(log_dir.clone()).is_ok() {
+        loggers.push(WriteLogger::new(LevelFilter::Info, Config::default(), 
+            std::fs::File::create(log_dir.join("log.txt")).unwrap()));
     }
     CombinedLogger::init(loggers).map_err(|e|e.to_string())
 }
 
 
 fn main() {
+    let mut init_results = std::collections::HashMap::<_, Result<(), String>>::new();
     
     tauri::Builder::default()
         .manage(LuaEnv::new())
@@ -143,16 +145,30 @@ fn main() {
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
         .setup(move|app| {
-            init_logger(app)?;
-            lua_init(app)?;
-            init_fmod(app)?;
-            init_meilisearch(app)?;
+            init_results.insert("logger", init_logger(app));
+            init_results.insert("lua", init_lua(app).map_err(|v| v.to_string()));
+            init_results.insert("fmod", init_fmod(app));
+            init_results.insert("meilisearch", init_meilisearch(app));
             #[cfg(target_os="windows")]
             {
-                init_windows_select(app)?;
-                // init_es(app)?; 
+                init_results.insert("select", init_windows_select(app));
+                // init_results.insert("es", init_es(app));
             }
-            
+            for (name, result) in init_results.iter() {
+                match result {
+                    Ok(_) => info!("Setup() -> {} initialized", name),
+                    Err(e) => {
+                        error!("Setup() -> {} error:\n{}", name, e);
+                        use tauri::api::dialog::*;
+                        MessageDialogBuilder::new(
+                            "Error",
+                            &format!("In setup {}\n{}", name, e))
+                            .buttons(MessageDialogButtons::Ok)
+                            .kind(MessageDialogKind::Error)
+                            .show(|_|std::process::exit(1));
+                    },
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -357,21 +373,21 @@ fn lua_interrupt(state: tauri::State<'_, LuaEnv>) {
     *state.interrupt_flag.lock().unwrap() = true;
 }
 
-fn lua_init(app: &mut tauri::App) -> LuaResult<()> {
+fn init_lua(app: &mut tauri::App) -> LuaResult<()> {
     let resolver = app.path_resolver();
     let state = app.state::<LuaEnv>();
-    lua_init_impl(resolver, state)
+    init_lua_impl(resolver, state)
 }
 
 #[tauri::command]
 fn lua_reload<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: tauri::State<'_, LuaEnv>) -> Result<(), String> {
     let resolver = app.path_resolver();
     state.reload();
-    lua_init_impl(resolver, state)
+    init_lua_impl(resolver, state)
         .map_err(|e|e.to_string())
 }
 
-fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>) -> LuaResult<()> {
+fn init_lua_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>) -> LuaResult<()> {
     let app_dir = |path: Option<PathBuf>, create: bool|{
         if let Some(path) = path {
             #[allow(clippy::collapsible_if)]
@@ -390,6 +406,8 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
     let lua = state.lua.lock().unwrap();
     lua.context(|lua_ctx| -> LuaResult<()>{
         let globals = lua_ctx.globals();
+
+        info!("\t[LUA] register app paths");
  
         globals.set("APP_CACHE_DIR", app_dir(resolver.app_cache_dir(), true))?;
         globals.set("APP_CONFIG_DIR", app_dir(resolver.app_config_dir(), true))?;
@@ -419,6 +437,8 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
                 process::exit(1);
             }
         };
+
+        info!("\t[LUA] init basic modules");
             
         // Lua modules
         image::lua_image::init(lua_ctx).unwrap_or_else(init_error("lua_image"));
@@ -428,6 +448,8 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         args::lua_args::init(lua_ctx).unwrap_or_else(init_error("lua_args"));
         ffmpeg::lua_ffmpeg::init(lua_ctx).unwrap_or_else(init_error("ffmpeg"));
         fmod::lua_fmod::init(lua_ctx).unwrap_or_else(init_error("fmod"));
+
+        info!("\t[LUA] remove default loaders");
 
         // delete some functions
         globals.set("dofile", Nil)?;
@@ -452,11 +474,13 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
             }
         })?)?;
 
+        info!("\t[LUA] register package loader");
+
         let workdir = state.get_debug_script_root(std::env::current_dir().unwrap_or_default());
-        globals.set("WORK_DIR", format!("{}{}", 
-            &workdir.as_os_str().to_string_lossy(), std::path::MAIN_SEPARATOR))?;
+        info!("\t[LUA] current workdir: {:?}", &workdir);
+        globals.set("APP_WORK_DIR", LuaPath::new(workdir.clone()))?;
         let script_root = if !get_is_release() && workdir.join("Cargo.toml").exists() {
-            println!("[DEBUG] Enable dynamic script loading");
+            info!("[DEBUG] Enable dynamic script loading");
             workdir.join("src").join("scripts")
         }
         else {
@@ -464,13 +488,14 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         };
         // package.path
         let package = globals.get::<_, Table>("package")?;
-        let ori_path = package.get::<_, String>("path")?;
+        let ori_path = package.get::<_, LuaString>("path")?;
+        info!("ori_path = {:?}", ori_path.as_bytes());
         let script_root_str = script_root.as_os_str().to_string_lossy();
         if script_root_str.len() > 0 {
-            package.set("path", format!("{}{}?.lua;{}", 
+            info!("[DEBUG] SCRIPT_ROOT = {}", script_root_str);
+            package.set("path", format!("{}{}?.lua;",
                 script_root_str, 
-                std::path::MAIN_SEPARATOR, 
-                ori_path))?;
+                std::path::MAIN_SEPARATOR))?;
         }
         // SCRIPT_ROOT
         globals.set("SCRIPT_ROOT", format!("{}{}", 
@@ -484,6 +509,8 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         #[allow(non_upper_case_globals)]
         let module = include_lua_macro::include_lua!("scripts");
         lua_ctx.add_modules(module)?;
+
+        info!("\t[LUA] run main script");
 
         // run
         let (success, err) = lua_ctx.load("
@@ -499,11 +526,11 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
                 Value::String(s)=> {
                     let mut s = String::from_utf8_lossy(s.as_bytes()).to_string();
                     s.push('\n');
-                    error!("Error init lua: {:?}", &s);
+                    error!("[LUA] Error init lua: {:?}", &s);
                     state.init_error.lock().unwrap().push_str(&s);
                 },
                 _ => {
-                    error!("Error init lua: unknown error");
+                    error!("[LUA] Error init lua: unknown error");
                     state.init_error.lock().unwrap().push_str("unknown error");
                 }
             }
@@ -513,6 +540,8 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         if let Value::UserData(_) = globals.raw_get::<_, Value>("Args")? {
             std::process::exit(0);
         }
+
+        info!("\t[LUA] init done");
         
         Ok(())
     })

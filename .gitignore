@@ -27,12 +27,12 @@ dist-ssr
 # Rust
 src-tauri/target
 
-# py scripts
+# Py scripts
 publish.py
 
-# release
+# Release
 windows
 macos
 
-# compile
+# Compile
 src-tauri/src/scripts/compiler/output/

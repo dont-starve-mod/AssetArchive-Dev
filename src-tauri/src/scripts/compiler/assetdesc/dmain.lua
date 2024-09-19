@@ -262,7 +262,7 @@ local AssetAnnotator = {
 						if prefab_label then
 							self:AddDesc(v, skin_label.."的物品栏图片（"..prefab_label.."的皮肤）"..extra)
 						else
-							error("Warning: Failed to get skin prefab: "..name.." - "..skin_label)
+							-- error("Warning: Failed to get skin prefab: "..name.." - "..skin_label)
 							self:AddDesc(v, skin_label.."的物品栏图片（皮肤）")
 						end
 					else

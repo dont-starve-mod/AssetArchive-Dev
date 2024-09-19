@@ -13,10 +13,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.2", features = [] }
+tauri-build = { version = "1.5.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.2", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-center", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-set-size", "window-start-dragging", "window-unmaximize"] }
+tauri = { version = "1.6", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-center", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-set-size", "window-start-dragging", "window-unmaximize"] }
 clap = "4.4.8"
 clippers = "0.1.2"
 num_cpus = "1.16.0"
@@ -39,6 +39,8 @@ base64 = "0.21.6"
 json = "0.12.4"
 ffmpeg-sidecar = "0.5.1"
 simplelog = "^0.12.0"
+rand = "0.8"
+md5 = "0.7.0"
 log = "0.4"
 
 include_lua = { path = "./include_lua" }

@@ -278,7 +278,7 @@ function EntryManager:AddTagFromScrapbook()
 	}
 
 	local PREVIEW_KEYS = {
-		"bank", "build", "anim", "animpercent", "facing", "alpha",
+		"bank", "build", "anim", "animpercent", "facing", "alpha", "multcolour",
 		"overridebuild", "overridesymbol", "hidesymbol", "hide",
 	}
 
@@ -287,6 +287,7 @@ function EntryManager:AddTagFromScrapbook()
 		"specialinfo", "harvestable", "activatable", "stewer", 
 		"oar_velocity", "oar_force", "repairitems", "forgerepairable",
 		"animoffsetx", "animoffsety", "animoffsetbgx", "animoffsetbgy", "scale",
+		"floater",
 
 	}
 

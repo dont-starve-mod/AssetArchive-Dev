@@ -41,9 +41,11 @@ local function GeneratePreviewSnapshot(list, use_cache)
 					{name = "Hide", args = {name}})
 			end
 		end
-		if v.alpha then
+		if v.alpha or v.multcolour then
+			local r, g, b = unpack(v.multcolour or {1, 1, 1})
+			local a = v.alpha or 1
 			table.insert(api_list,
-				{name = "SetMultColour", args = {1, 1, 1, tonumber(v.alpha)}})
+				{name = "SetMultColour", args = {r, g, b, a}})
 		end
 
 		local r = Renderer(api_list)
@@ -64,19 +66,19 @@ local function GeneratePreviewSnapshot(list, use_cache)
 		end
 
 		-- convert to thumbnail
-		local thumbnail_size = 100
-		local path1 = r.path
-		local path2 = r.path:gsub("/preview/", "/preview_thumbnail/")
-		local img = Image.Open(path1)
-		local w, h = img:size()
+		-- local thumbnail_size = 100
+		-- local path1 = r.path
+		-- local path2 = r.path:gsub("/preview/", "/preview_thumbnail/")
+		-- local img = Image.Open(path1)
+		-- local w, h = img:size()
 		
-		local mult = thumbnail_size / math.max(w, h)
-		if mult < 1 then
-			w = mult* w
-			h = mult* h
-			img = img:resize(w, h, Image.BILINEAR)
-		end
-		img:save(path2, true)
+		-- local mult = thumbnail_size / math.max(w, h)
+		-- if mult < 1 then
+		-- 	w = mult* w
+		-- 	h = mult* h
+		-- 	img = img:resize(w, h, Image.BILINEAR)
+		-- end
+		-- img:save(path2, true)
 	end
 end
 
@@ -85,9 +87,7 @@ local function main(env)
 	prov = env.prov -- assign "global" var
 
 	local list = json.decode(require "compiler/output/anim_preview_list")
-	GeneratePreviewSnapshot(list, not Args.disable_preview_cache 
-		-- and false
-	)
+	GeneratePreviewSnapshot(list, true)
 end
 
 return {
