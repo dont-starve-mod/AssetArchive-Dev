@@ -16,6 +16,14 @@ function Img(props: {src: string}) {
 export default function ChangeLog() {
   return (
     <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
+      <H5>beta - 0.1.2</H5>
+      <UL>
+        <li>【MacOS】修复在老版本Mac系统中的运行错误。</li>
+      </UL>
+      <H5>beta - 0.1.1</H5>
+      <UL>
+        <li>修复加载音效引起的报错。</li>
+      </UL>
       <H5>beta - 0.1.0</H5>
       <UL>
         <li>添加反馈链接。</li>

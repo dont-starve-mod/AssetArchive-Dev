@@ -11,6 +11,10 @@ use std::sync::Mutex;
 use std::fs::create_dir_all;
 use rlua::{Lua, StdLib, InitFlags, Function, Table, Nil, Value};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
+extern crate simplelog;
+extern crate log;
+use simplelog::*;
+use log::{info, error, warn};
 
 use tauri::Manager;
 
@@ -117,6 +121,20 @@ struct FeCommuni {
     drag_data: Mutex<HashMap<String, String>>,
 }
 
+fn init_logger(app: &mut tauri::App) -> Result<(), String> {
+    let mut loggers: Vec<Box<dyn SharedLogger>> = vec![
+        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
+    ];
+    // log file
+    let log_path = app.path_resolver().app_log_dir().unwrap().join("log.txt");
+    if let Ok(f) = std::fs::File::create(log_path) {
+        loggers.push(WriteLogger::new(LevelFilter::Info, Config::default(), f));
+
+    }
+    CombinedLogger::init(loggers).map_err(|e|e.to_string())
+}
+
+
 fn main() {
     
     tauri::Builder::default()
@@ -125,6 +143,7 @@ fn main() {
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
         .setup(move|app| {
+            init_logger(app)?;
             lua_init(app)?;
             init_fmod(app)?;
             init_meilisearch(app)?;
@@ -231,7 +250,7 @@ fn text_guard() -> String {
 
 #[tauri::command]
 fn shutdown<R: tauri::Runtime>(app: tauri::AppHandle<R>, reason: String) {
-    println!("App shutdown <{}>", reason);
+    info!("App shutdown <{}>", reason);
     app.exit(0);
 }
 
@@ -358,7 +377,7 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
             #[allow(clippy::collapsible_if)]
             if !path.is_dir() && create {
                 if std::fs::create_dir_all(path.clone()).is_err() {
-                    eprintln!("Cannot create app directory: {}", path.to_string_lossy());
+                    error!("Cannot create app directory: {}", path.to_string_lossy());
                 }
             }
             if path.is_dir() {
@@ -396,7 +415,7 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
 
         let init_error = |name: &'static str|{
             move |err|{
-                eprintln!("Error in initializing {}: {:?}", name, err);
+                error!("Error in initializing {}: {:?}", name, err);
                 process::exit(1);
             }
         };
@@ -480,11 +499,11 @@ fn lua_init_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
                 Value::String(s)=> {
                     let mut s = String::from_utf8_lossy(s.as_bytes()).to_string();
                     s.push('\n');
-                    eprintln!("Error init lua: {:?}", &s);
+                    error!("Error init lua: {:?}", &s);
                     state.init_error.lock().unwrap().push_str(&s);
                 },
                 _ => {
-                    eprintln!("Error init lua: unknown error");
+                    error!("Error init lua: unknown error");
                     state.init_error.lock().unwrap().push_str("unknown error");
                 }
             }
@@ -509,14 +528,14 @@ fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
     
     match FmodChild::new(bin_dir) {
         Ok(child)=> {
-            println!("[FMOD] child process spawned");
+            info!("[FMOD] child process spawned");
             #[allow(unused_must_use)]
             {
                 state.fmod.lock().unwrap().insert(child);
             }
         },
         Err(e)=> {
-            eprintln!("[FMOD] Error in init: {}", &e);
+            error!("[FMOD] Error in init: {}", &e);
             state.init_error.lock().unwrap().push_str(e.as_str())
         },
     }
@@ -532,14 +551,14 @@ fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
         .map_err(|e|format!("Failed to create bin dir: {} {}", bin_dir.display(), e))?;
     match MeilisearchChild::new(bin_dir) {
         Ok(child)=> {
-            println!("[Meilisearch] child process spawned");
+            info!("[Meilisearch] child process spawned");
             #[allow(unused_must_use)]
             {
                 state.meilisearch.lock().unwrap().insert(child);
             }
         },
         Err(e)=> {
-            eprintln!("[Meilisearch] Error in init: {}", &e);
+            error!("[Meilisearch] Error in init: {}", &e);
             state.init_error.lock().unwrap().push_str(e.as_str())
         }
     }

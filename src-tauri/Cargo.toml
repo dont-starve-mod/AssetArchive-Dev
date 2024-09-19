@@ -38,6 +38,8 @@ base64 = "0.21.6"
 # meilisearch-sdk = "0.24.3"
 json = "0.12.4"
 ffmpeg-sidecar = "0.5.1"
+simplelog = "^0.12.0"
+log = "0.4"
 
 include_lua = { path = "./include_lua" }
 include_lua_macro = { path = "./include_lua_macro" }

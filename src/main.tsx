@@ -10,6 +10,7 @@ import "./styles.css"
 import { BrowserRouter } from "react-router-dom"
 import store from "./redux/store"
 import "./pixiconfig"
+import "./polyfill"
 import { Provider } from "react-redux"
 import KeepAliveProvider from "./components/KeepAlive/KeepAliveProvider"
 

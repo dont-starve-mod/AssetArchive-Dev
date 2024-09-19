@@ -1220,9 +1220,8 @@ function FsbLoader:GetFileExtension(format)
 end
 
 function FsbLoader:GetSampleInfoByIndex(index)
-    index = index + 1
-    return assert(self.sample_list[index], 
-        "Failed to get sample in ["..index.."] (max = "..#self.sample_list..")")
+    return self.sample_list[index + 1] or
+        print("Failed to get fsb sample in ["..index.."] (max = "..#self.sample_list..")")
 end
 
 function FsbLoader:GetSampleRaw(index_list)
@@ -1288,7 +1287,11 @@ function FevLoader:LinkToFsb(map)
                 local fsb = map[ref.fsb_name]
                 if fsb ~= nil then
                     ref.file_info = fsb:GetSampleInfoByIndex(ref.file_index)
-                    ref.file_info.fsb_name = ref.fsb_name
+                    if ref.file_info == nil then
+                        ref.file_info = { error = "SampleNotFound" }
+                    else
+                        ref.file_info.fsb_name = ref.fsb_name
+                    end
                 else
                     ref.file_info = { error = "FsbNotFound" }
                 end
