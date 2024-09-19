@@ -677,7 +677,8 @@ function Provider:GetAnimation(args)
 				local anim = self:LoadAnim(k)
 				if anim then
 					for _,v in ipairs(anim.animlist)do
-						if v.name == args.name and v.bankhash == bank then
+						if (string.lower(v.name) == string.lower(args.name))
+							and v.bankhash == bank then
 							anim:ParseFrames(v)
 							table.insert(result, v) -- TODO: v.assetpath ?
 						end
@@ -1469,7 +1470,7 @@ function Provider:ShowAssetInFolder(args)
 				else
 				 	local extracted_path = self.root:GetDataBundlesRoot()/file
 				 	if extracted_path:is_file() then
-				 		return SelectFileInFolder(extracted_path)
+				 		return SelectFileInFolder(extracted_path:as_string())
 				 	else
 						return json.encode_compliant({is_databundle = true, path = v.filepath:name()})
 					end

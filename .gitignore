@@ -1,6 +1,7 @@
 # Logs
 logs
 *.log
+log.txt
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -32,3 +33,6 @@ publish.py
 # release
 windows
 macos
+
+# compile
+src-tauri/src/scripts/compiler/output/

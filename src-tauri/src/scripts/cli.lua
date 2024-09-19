@@ -20,7 +20,7 @@ local function load_root()
 	local path = Args.game_data_directory
 	local root = DST_DataRoot(path)
 	if root:IsValid() then
-		print_info("[INFO] 加载成功, 路径: "..tostring(root:as_string()))
+		print_info("[INFO] 加载成功, 路径: "..(root:as_string()))
 		env.root = root
 	elseif path ~= nil then
 		print_error("[ERROR] 游戏资源目录加载失败, 请检查提供的路径是否有效: "..path)
@@ -221,9 +221,9 @@ local function render_animation()
 	end
 	if output == nil then
 		if r.format ~= "png" then
-			output = WORK_DIR.."export."..r.format
+			output = APP_WORK_DIR/("export."..r.format)
 		else
-			output = WORK_DIR.."export"
+			output = APP_WORK_DIR/"export"
 		end
 	else
 		-- check if format and file extension match
@@ -258,6 +258,7 @@ local function compile()
 	local Provider =  require "assetprovider".Provider
 	local root = env.root
 	local prov = Provider(root)
+	local rImage = Image
 	prov:DoIndex(Args.force_index)
 	prov:ListAsset()
 	env.prov = prov
@@ -269,9 +270,9 @@ local function compile()
 	
 	require("compiler.cmain").main(env)
 
-	if Args.preview then
-		require("compiler.preview_gen").main(env)
-	end
+	-- override Image from @widgets/image.lua
+	Image = rImage
+	require("compiler.preview_gen").main(env)
 end
 
 local function install_ffmpeg()
