@@ -1,9 +1,5 @@
 import { H5, UL } from '@blueprintjs/core'
 import { WebviewWindow } from '@tauri-apps/api/window'
-import React from 'react'
-
-import v005 from "./imgs/Snipaste_2024-03-23_16-23-10.jpg"
-import v006 from "./imgs/v006.jpg"
 
 function Img(props: {src: string}) {
   return (
@@ -16,6 +12,13 @@ function Img(props: {src: string}) {
 export default function ChangeLog() {
   return (
     <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
+      <H5>beta - 0.1.3</H5>
+      <UL>
+        <li>修复软件更新提示。</li>
+        <li>修复安装在中文路径下无法启动的问题。</li>
+        <li>修复无任何信息的白屏问题。</li>
+        <li>修复软件在多开情况下的报错：Meilisearch process exited。</li>
+      </UL>
       <H5>beta - 0.1.2</H5>
       <UL>
         <li>【MacOS】修复在老版本Mac系统中的运行错误。</li>
@@ -28,7 +31,7 @@ export default function ChangeLog() {
       <UL>
         <li>添加反馈链接。</li>
       </UL>
-      <H5>alpha - 0.0.7</H5>
+      {/* <H5>alpha - 0.0.7</H5>
       <UL>
         <li>动画渲染器的配置项目和导出参数可保存。</li>
         <li>修复部分情况下搜索功能异常的问题。</li>
@@ -46,7 +49,7 @@ export default function ChangeLog() {
         <li>修复暂停状态下动画无法被移动和缩放的bug。</li>
         <li>新增动画预设中的人物模型选项。</li>
         <Img src={v005}/>
-      </UL>
+      </UL> */}
     </div>
   )
 }

@@ -13,15 +13,19 @@ import "./pixiconfig"
 import "./polyfill"
 import { Provider } from "react-redux"
 import KeepAliveProvider from "./components/KeepAlive/KeepAliveProvider"
+import ErrorDisplay from "./components/ErrorDisplay" 
+import { ErrorBoundary } from "react-error-boundary"
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Provider store={store}>
-        <KeepAliveProvider>
-          <App />
-        </KeepAliveProvider>
-      </Provider>
-    </BrowserRouter>
+    <ErrorBoundary FallbackComponent={ErrorDisplay}>
+      <BrowserRouter>
+        <Provider store={store}>
+          <KeepAliveProvider>
+            <App />
+          </KeepAliveProvider>
+        </Provider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 )

@@ -424,7 +424,7 @@ export function ErrorHandler(){
           <code>{initError}</code>
           </pre>
         <br/>
-        <p>如果反复出现该问题，请向作者反馈。</p>
+        <p>如果反复出现该问题，可以找作者反馈。</p>
     </Alert>
     <Alert
       icon="warning-sign"
