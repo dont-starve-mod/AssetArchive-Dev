@@ -1,5 +1,7 @@
+use std::fmt::format;
 use std::path::{PathBuf, Path};
 use std::process::{Child, Command, Stdio};
+// use md5::compute;
 use crate::CommandExt;
 
 #[allow(unreachable_code)]
@@ -47,6 +49,14 @@ fn get_license_bytes() -> &'static [u8] {
 fn unpack_meilisearch_binary(bin_dir: &Path) -> Result<(), String> {
   let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
       let path = bin_dir.join(name);
+      if name.contains("meilisearch") && path.is_file() {
+        // do not overwrite if content is the same
+        if let Ok(content) = std::fs::read(&path){
+          if content == bytes {
+            return Ok(());
+          }
+        }
+      }
       std::fs::write(path, bytes).map_err(|e|format!("Error in installing meilisearch [{}]: {}", name, e))
   };
 
@@ -77,6 +87,19 @@ fn get_addr() -> String {
     .to_string()
 }
 
+/// generate a random db path
+// fn get_db_path() -> String {
+//   use rand::distributions::Alphanumeric;
+//   use rand::{thread_rng, Rng};
+//   let rand_string: String = thread_rng()
+//     .sample_iter(&Alphanumeric)
+//     .take(16)
+//     .map(char::from)
+//     .collect();
+
+//   format!("./db_{}.ms", rand_string)
+// }
+
 pub struct MeilisearchChild {
   inner: Child,
   addr: String,
@@ -93,6 +116,7 @@ impl MeilisearchChild {
       .args(["--env", "development"])
       .args(["--log-level", "WARN"])
       .args(["--http-addr", addr.as_str()])
+      // .args(["--db-path", get_db_path().as_str(), "--auto-remove-db"])
       .stdin(Stdio::piped())
       .spawn()
       .map_err(|e|format!("Failed to spawn meilisearch process: {}", e))?;

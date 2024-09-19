@@ -160,9 +160,17 @@ impl FmodChild {
 fn unpack_fmod_binary(bin_dir: &Path) -> Result<(), String> {
     let unpack_file = |name: &str, bytes: &[u8]| -> Result<(), String>{
         let path = bin_dir.join(name);
-        // dynamic library is static
-        if path.is_file() && (path.ends_with(".dylib") || path.ends_with(".dll")) {
-            return Ok(());
+        if path.is_file(){
+            if path.ends_with(".dylib") || path.ends_with(".dll") {
+                // dynamic library is static
+                return Ok(())
+            }
+            if let Ok(content) = std::fs::read(&path){
+                // do not override if content is same
+                if content == bytes {
+                    return Ok(());
+                }
+            }
         }
         if bytes.is_empty() {
             return Err(format!("binary byte stream is empty: {}", name));
