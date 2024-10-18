@@ -6,6 +6,8 @@ pub mod lua_filesystem {
     use std::path::PathBuf;
     #[cfg(unix)]
     use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
+    #[cfg(unix)]
+    use libc;
     #[cfg(windows)]
     use std::os::windows::io::{RawHandle, AsRawHandle, OwnedHandle, FromRawHandle};
     use image::EncodableLayout;
@@ -199,7 +201,6 @@ pub mod lua_filesystem {
         fn wrap_bytes(bytes: Vec<u8>) -> Self {
             let len = bytes.len();
             ReadStream {
-                // f: Box::new(BytesReader{index: 0, bytes}),
                 inner: Box::new(Cursor::new(bytes)),
                 len: Some(len),
                 data_mode: DataMode::LittleEndian,
@@ -404,12 +405,17 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("drop", |_, fs: &mut Self, ()|{
                 if let Some(fd) = fs.inner.get_fd() {
+                    // prevent double drop
+                    fs.inner = Box::new(BytesReader{index: 0, bytes: Vec::<u8>::new()});
+                    // #[cfg(unix)]
+                    // drop(unsafe { OwnedFd::from_raw_fd(fd) });
+                    // 
+                    // 2024.10.18 bypass debug_assert_fd_is_open checking
+                    // https://doc.rust-lang.org/src/std/os/fd/owned.rs.html#174-196
                     #[cfg(unix)]
-                    drop(unsafe { OwnedFd::from_raw_fd(fd) });
+                    let _ = unsafe {libc::close(fd)};
                     #[cfg(windows)]
                     drop(unsafe { OwnedHandle::from_raw_handle(fd)});
-                    // prevent second call for drop()
-                    fs.inner = Box::new(BytesReader{index: 0, bytes: Vec::<u8>::new()});
                 };
                 Ok(())
             });

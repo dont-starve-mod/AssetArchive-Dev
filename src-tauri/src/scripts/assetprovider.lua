@@ -97,7 +97,6 @@ function DST_DataRoot:SetRoot(path, explicit)
 
 	self.root = path
 	local databundles = self:GetDataBundlesRoot()
-
 	if databundles:is_dir() then
 		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts", "shaders"}do
 			local zippath = databundles/(k..".zip")

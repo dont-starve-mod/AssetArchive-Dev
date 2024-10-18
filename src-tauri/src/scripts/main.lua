@@ -24,6 +24,7 @@ local Provider =  require "assetprovider".Provider
 local AnimProjectManager = require "animproject".AnimProjectManager
 require "cli"
 
+
 GLOBAL = {
 	root = nil,
 	prov = nil,

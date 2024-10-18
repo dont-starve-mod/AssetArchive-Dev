@@ -170,6 +170,7 @@ dependencies = [
  "include_lua_macro",
  "indicatif",
  "json",
+ "libc",
  "libdeflater",
  "log",
  "md5",

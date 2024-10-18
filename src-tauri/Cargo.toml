@@ -18,6 +18,7 @@ tauri-build = { version = "^1.5", features = [] }
 [dependencies]
 tauri = { version = "1.8", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-center", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-set-size", "window-start-dragging", "window-unmaximize"] }
 clap = "4.4.8"
+libc = "^0.2"
 clippers = "0.1.2"
 num_cpus = "1.16.0"
 walkdir = "2.3.3"
