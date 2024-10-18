@@ -13,10 +13,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5.5", features = [] }
+tauri-build = { version = "^1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.6", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-center", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-set-size", "window-start-dragging", "window-unmaximize"] }
+tauri = { version = "1.8", features = ["clipboard-all", "devtools", "dialog-all", "notification-all", "shell-open", "updater", "window-center", "window-close", "window-create", "window-hide", "window-maximize", "window-minimize", "window-set-decorations", "window-set-focus", "window-set-size", "window-start-dragging", "window-unmaximize"] }
 clap = "4.4.8"
 clippers = "0.1.2"
 num_cpus = "1.16.0"
@@ -46,6 +46,10 @@ log = "0.4"
 include_lua = { path = "./include_lua" }
 include_lua_macro = { path = "./include_lua_macro" }
 include-crypt-bytes = "^0.1"
+miniz_oxide = "0.8.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+coreaudio-rs = { version = "0.11", default-features = false, features = ["audio_unit", "core_audio"] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
@@ -54,7 +58,7 @@ custom-protocol = ["tauri/custom-protocol"]
 release = []
 
 [patch.crates-io]
-rlua-lua51-sys = { path = "rlua-lua51-sys" }
+rlua-lua51-sys = { path = "rlua-lua51-sys-0.1.7" }
 
 [profile.dev]
 opt-level = 1

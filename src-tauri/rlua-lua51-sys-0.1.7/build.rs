@@ -10,6 +10,8 @@ fn main() {
 
     if cfg!(feature = "lua51-pkg-config") {
         let _library = pkg_config::Config::new().probe("lua5.1").unwrap();
+    } else if cfg!(feature = "luajit-pkg-config") {
+        let _library = pkg_config::Config::new().probe("luajit").unwrap();
     } else {
         let lua_dir = PathBuf::from(lua_folder).join("src");
         let target_os = env::var("CARGO_CFG_TARGET_OS");
@@ -64,8 +66,6 @@ fn main() {
                 .file(lua_dir.join("loslib.c"))
                 .file(lua_dir.join("linit.c"));
         }
-
-        cc_config_build.flag("-w");
 
         cc_config_build
             .out_dir(dst.join("lib"))

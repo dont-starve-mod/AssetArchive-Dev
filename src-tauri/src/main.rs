@@ -28,6 +28,7 @@ mod algorithm;
 mod misc;
 mod ffmpeg;
 mod fmod;
+mod audio;
 mod unzip;
 mod args;
 mod meilisearch;
@@ -568,6 +569,14 @@ fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
             state.init_error.lock().unwrap().push_str(e.as_str())
         },
     }
+
+    // add tracker
+    let handle = app.handle();
+    audio::start_tracking(move |v| {
+        handle.emit_all("test", v).ok();
+        info!("[Audio] Default output device changed to: {}", v)
+    });
+
     Ok(())
 }
 

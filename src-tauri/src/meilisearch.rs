@@ -1,4 +1,3 @@
-use std::fmt::format;
 use std::path::{PathBuf, Path};
 use std::process::{Child, Command, Stdio};
 // use md5::compute;

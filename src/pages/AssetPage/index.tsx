@@ -344,7 +344,6 @@ function XmlPage({id, file, texpath, _numtex}) {
 
   useEffect(()=> {
     if (!hasQuery) return
-    a.a = 1
     search("assets", query, {
       limit: 200,
       filter: "type = tex",

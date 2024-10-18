@@ -918,7 +918,7 @@ pub mod lua_image {
                 }
                 if let Some(ref onprogress) = onprogress {
                     let current = total - keys.len();
-                    onprogress.call((current, total, current as f64 / total as f64))?;
+                    onprogress.call::<_, ()>((current, total, current as f64 / total as f64))?;
                 }
                 if keys.is_empty() && !threads.iter().any(|v|!v.2) {
                     break;
@@ -1023,11 +1023,11 @@ pub mod lua_image {
                         *current_index += 1;
                         cond.notify_all();
                     }
-                    encoder.call((task.canvas, task.index))?;
+                    encoder.call::<_, ()>((task.canvas, task.index))?;
                 }
                 if let Some(ref onprogress) = onprogress {
                     let current = total - keys.len();
-                    onprogress.call((current, total, current as f64 / total as f64))?;
+                    onprogress.call::<_, ()>((current, total, current as f64 / total as f64))?;
                 }
                 if keys.is_empty() && !threads.iter().any(|v|!v.2) {
                     break;

@@ -7,19 +7,20 @@ pub mod lua_algorithm {
     use rlua::Error as LuaError;
     use sevenz_rust::decompress_with_extract_fn;
     use zune_inflate::{DeflateDecoder, errors::InflateDecodeErrors};
+    use miniz_oxide::inflate::decompress_to_vec;
     // use libdeflater::Decompressor;
 
-    #[inline]
-    fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, InflateDecodeErrors> {
-        let mut decoder = DeflateDecoder::new(compressed_data);
-        match decoder.decode_deflate() {
-            Ok(raw_data)=> Ok(raw_data),
-            Err(e)=> {
-                eprintln!("Failed to decompress: {:?}", e);
-                Err(e)
-            },
-        }
-    }
+    // #[inline]
+    // fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, InflateDecodeErrors> {
+    //     let mut decoder = DeflateDecoder::new(compressed_data);
+    //     match decoder.decode_deflate() {
+    //         Ok(raw_data)=> Ok(raw_data),
+    //         Err(e)=> {
+    //             eprintln!("Failed to decompress: {:?}", e);
+    //             Err(e)
+    //         },
+    //     }
+    // }
 
     // #[inline]
     // fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, String> {
@@ -29,6 +30,11 @@ pub mod lua_algorithm {
     //         Err(e)=> { println!("{:?}", e); Err(e.to_string()) }
     //     }
     // }
+
+    #[inline]
+    fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, String> {
+        decompress_to_vec(compressed_data).map_err(|e|e.to_string())
+    }
 
     fn sevenz_decompress(compressed_data: &[u8], ) -> Result<Vec<u8>, String> {
         let f = Cursor::new(compressed_data);
