@@ -3,6 +3,9 @@
 #[cfg(target_os = "macos")]
 use coreaudio::audio_unit::macos_helpers::{get_default_device_id, get_device_name};
 
+#[cfg(windows)]
+use cpal::traits::{DeviceTrait, HostTrait};
+
 #[cfg(target_os = "macos")]
 fn get_default_output_device() ->String {
   let is_input = false;
@@ -19,7 +22,10 @@ fn get_default_output_device() ->String {
 
 #[cfg(windows)]
 fn get_default_output_device() ->String {
-  unimplemented!()
+    match cpal::default_host() {
+      Ok(host)=> host.default_output_device().unwrap_or_else(|_|"Unknown device".to_string()),
+      Err(_)=> "Unknown device".to_string(),
+    }
 }
 
 use std::time::{Instant, Duration};

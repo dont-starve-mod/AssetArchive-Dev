@@ -110,6 +110,8 @@ impl LuaEnv {
 pub struct FmodHandler {
     fmod: Mutex<Option<FmodChild>>,
     init_error: Mutex<String>,
+    /// save bin path for reset command
+    bin_dir: Mutex<PathBuf>,
 }
 
 #[derive(Default)]
@@ -182,6 +184,7 @@ fn main() {
             fmod_send_message,
             fmod_update,
             fmod_get_data,
+            fmod_reset,
             meilisearch_get_addr,
             select_file_in_folder,
             text_guard,
@@ -555,6 +558,7 @@ fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
     let bin_dir = app_data_dir.join("bin").join("fmod");
     create_dir_all(bin_dir.clone())
         .map_err(|e|format!("Failed to create bin dir: {} {}", bin_dir.display(), e))?;
+    *state.bin_dir.lock().unwrap() = bin_dir.clone();
     
     match FmodChild::new(bin_dir) {
         Ok(child)=> {
@@ -573,7 +577,7 @@ fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
     // add tracker
     let handle = app.handle();
     audio::start_tracking(move |v| {
-        handle.emit_all("test", v).ok();
+        handle.emit_all("fmod_audio_device", v).ok();
         info!("[Audio] Default output device changed to: {}", v)
     });
 

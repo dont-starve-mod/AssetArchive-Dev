@@ -32,7 +32,7 @@ impl FmodChild {
         unpack_fmod_binary(bin_dir.as_path())?;
         std::env::set_current_dir(&bin_dir)
             .map_err(|e| e.to_string())?;
-        let name = if cfg!(target_os="windows") { "fmodcore.exe" } else { "fmodcore" };
+        let name = format!("fmodcore{}", std::env::consts::EXE_SUFFIX);
         let mut child = Command::new(bin_dir.join(name))
             .set_no_console()
             .stdin(Stdio::piped())
@@ -98,6 +98,11 @@ impl FmodChild {
             Ok(status)=> Ok(status.is_none()),
             Err(e)=> Err(e.to_string())
         }
+    }
+
+    pub fn kill(&mut self) -> FmodChildResult<()> {
+        self.inner.kill().map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     pub fn update(&mut self) -> FmodChildResult<()> {
@@ -209,6 +214,8 @@ fn unpack_fmod_binary(bin_dir: &Path) -> Result<(), String> {
 
 pub mod fmod_handler {
     use crate::FmodHandler;
+    use crate::fmod::FmodChild;
+    use log::info;
 
     #[tauri::command(async)]
     pub fn fmod_send_message(state: tauri::State<'_, FmodHandler>, data: String) -> Result<String, String> {
@@ -262,6 +269,22 @@ pub mod fmod_handler {
             _=> Ok("".into()),
         }
     }
+
+    #[tauri::command]
+    pub fn fmod_reset(state: tauri::State<'_, FmodHandler>, data: String) -> Result<bool, String> {
+        info!("[FMOD] reseting child process");
+        if let Some(ref mut fmod) = state.fmod.lock().unwrap().as_mut() {
+            let ok = fmod.kill().is_ok();
+            info!("[FMOD] killed child process: {}", ok);
+        }
+        let bin_dir = state.bin_dir.lock().unwrap().clone();
+        let _ = state.fmod.lock().unwrap().insert(FmodChild::new(bin_dir)?);
+        info!("[FMOD] child process respawned");
+
+        // init message (sound root)
+        fmod_send_message(state, data)?;
+        Ok(true)
+    }
 }
 
 pub mod lua_fmod {
@@ -279,7 +302,7 @@ pub mod lua_fmod {
             unpack_fmod_binary(&bin.get_inner()).ok();
             std::env::set_current_dir(&fmod_workdir)
                 .map_err(|e| LuaError::RuntimeError(format!("Failed to change work directory: {}", e)))?;
-            let name = if cfg!(target_os="windows") { "fmodext.exe" } else { "fmodext" };
+            let name = format!("fmodext{}", std::env::consts::EXE_SUFFIX);
             let result = Command::new(fmod_workdir.join(name))
                 .set_no_console()
                 .stdin(Stdio::null())
@@ -322,6 +345,33 @@ pub mod lua_fmod {
 
             // Ok(true)
         })?)?;
+        globals.set("FsbExtractAsync", lua.create_function(|lua: _, (fsb_filepath, index_list, dir): (String, Vec<u32>, Path)|{
+            // non-blocking version
+            unimplemented!();
+            // // get exec path from Lua globals (assigned in main.rs)
+            // // not elegant, but should run correctly
+            // let globals = lua.globals();
+            // let bin: Path = globals.get("APP_BIN_DIR")?;
+            // let fmod_workdir = bin.get_inner().join("fmod");
+            // unpack_fmod_binary(&bin.get_inner()).ok();
+            // std::env::set_current_dir(&fmod_workdir)
+            //     .map_err(|e| LuaError::RuntimeError(format!("Failed to change work directory: {}", e)))?;
+            // let name = format!("fmodext{}", std::env::consts::EXE_SUFFIX);
+            // let child = Command::new(fmod_workdir.join(name))
+            //     .set_no_console()
+            //     .stdin(Stdio::null())
+            //     .stdout(Stdio::piped())
+            //     .stderr(Stdio::inherit())
+            //     .args([
+            //         fsb_filepath,
+            //         index_list.iter().map(|v|v.to_string()).collect::<Vec<String>>().join(","),
+            //         dir.get_inner().to_string_lossy().to_string()])
+            //     .spawn()
+            //     .map_err(|e| LuaError::RuntimeError(format!("Failed to execute fmodext child process: {}", e)))?;
+            //     
+            Ok(true)
+        })?)?;
+
         Ok(())
     }
 }

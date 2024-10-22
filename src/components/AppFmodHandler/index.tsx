@@ -4,6 +4,8 @@ import { invoke } from '@tauri-apps/api'
 import { appWindow } from '@tauri-apps/api/window'
 import { useAppSetting } from '../../hooks'
 import { setState } from '../../redux/reducers/appstates'
+import { listen } from '@tauri-apps/api/event'
+import { inv } from '../../pages/HomePage/clips'
 
 export type FmodEventInfo = {
   id: string,
@@ -36,10 +38,7 @@ export default function AppFmodHandler() {
 
   useEffect(()=> {
     invoke("fmod_send_message", {
-      data: JSON.stringify({
-        api: "SetVolume",
-        args: [volume/100],
-      })
+      data: JSON.stringify({ api: "SetVolume", args: [volume/100], })
     }).then(
       ()=> {},
       console.error
@@ -47,19 +46,26 @@ export default function AppFmodHandler() {
   }, [volume])
 
   useEffect(()=> {
-    if (root) {
-      invoke<string>("fmod_send_message", {
-        data: JSON.stringify({
-          api: "LoadGameAssets",
-          args: [
-            root + "/sound"
-          ]
-        })
+    if (!root) return
+    invoke<string>("fmod_send_message", {
+      data: JSON.stringify({ api: "LoadGameAssets", args: [ root + "/sound" ] })
+    }).then(
+      ()=> {},
+      console.error
+    )
+  }, [root])
+
+  useEffect(()=> {
+    let unlisten = listen<string>("fmod_audio_device", ({payload})=> {
+      console.log("fmod audio device: ", payload)
+      invoke<string>("fmod_reset", {
+        data: JSON.stringify({ api: "LoadGameAssets", args: [ root + "/sound" ] })
       }).then(
-        ()=> {},
+        console.log,
         console.error
       )
-    }
+    })
+    return ()=> { unlisten.then(f=> f()) }
   }, [root])
 
   /** string value from backend, convert it to json only on changed */

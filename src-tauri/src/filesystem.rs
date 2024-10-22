@@ -5,7 +5,8 @@ pub mod lua_filesystem {
     use std::convert::TryInto;
     use std::path::PathBuf;
     #[cfg(unix)]
-    use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
+    use std::os::fd::{RawFd, AsRawFd};
+    // use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
     #[cfg(unix)]
     use libc;
     #[cfg(windows)]
