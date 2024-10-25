@@ -8,27 +8,13 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { appWindow } from '@tauri-apps/api/window'
 import { useMouseDrag, useMouseScroll, useSharedLocalStorage } from '../../hooks'
 import AnimPlayerWidget from '../../components/AnimPlayerWidget'
+import { getImgIndex } from '../../components/AnimCore_Canvas/animcore'
 
 const int = (i: number)=> Math.round(i)
 
 const rgb2value = (s: string): number[] => {
   s = s.replace("#", "")
   return ([0,1,2]).map(i=> parseInt(s.substring(i*2, i*2+2), 16) / 255)
-}
-
-const getImgIndex = (imgList: any[], index: number)=> {
-  if (imgList.length === 1) return 0
-  let i = 0, j = imgList.length - 1
-  if (imgList[j].index < index) return j
-  while (1){
-    if (imgList[i].index === index) return i
-    if (imgList[j].index === index) return j
-    let k = Math.floor((i+j)/2)
-    if (i === k) return i
-    if (imgList[k].index === index) return k
-    else if (imgList[k].index > index) j = k
-    else i = k
-  }
 }
 
 /** Don't Starve anim player based on pixi.js */
@@ -81,6 +67,7 @@ export default function AnimationPanel(props: {left: number}) {
         if (!imgList || imgList.length === 0) return
         const index = getImgIndex(imgList, imgindex)
         const img = imgList[index]
+        if (img.index + img.duration <= imgindex) return // check duration
         // add sprite
         const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
         const atlas: ImageBitmap & {imgs: {[K: string]: PIXI.Texture}} = anim.atlasLoader({build: sourceBuild.name, sampler}) as any

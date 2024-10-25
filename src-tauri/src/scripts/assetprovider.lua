@@ -906,6 +906,9 @@ function Provider:GetSymbolElement(args)
 					end
 					return nil
 				end
+				if img.index + img.duration <= args.index then
+					return nil
+				end
 				local atlas = atlaslist[img.sampler]
 				if atlas == nil then
 					error("Failed to get atlas: "..json.encode(img).." -> "..args.build.."["..tostring(img.sampler).."]")

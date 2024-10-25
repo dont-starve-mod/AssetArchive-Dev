@@ -57,7 +57,7 @@ export default function AppFmodHandler() {
 
   useEffect(()=> {
     let unlisten = listen<string>("fmod_audio_device", ({payload})=> {
-      console.log("fmod audio device: ", payload)
+      console.log("audio device:", payload)
       invoke<string>("fmod_reset", {
         data: JSON.stringify({ api: "LoadGameAssets", args: [ root + "/sound" ] })
       }).then(

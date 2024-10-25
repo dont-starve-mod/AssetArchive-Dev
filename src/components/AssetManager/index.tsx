@@ -131,6 +131,7 @@ function onUpdate(time: number){
           const imgList = sourceBuild && sourceBuild.symbolMap[symbol]
           if (!imgList || imgList.length === 0) return
           const index = getImgIndex(imgList, imgindex)
+          if (index === -1) return
           const img = imgList[index]
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
@@ -156,9 +157,11 @@ function onUpdate(time: number){
 /** bisearch the actual image index to render */
 const getImgIndex = (imgList: ImageData[], index: number): number=> {
   if (imgList.length === 1) return 0
-  let i = 0, j = index
-  if (imgList[j].index < index) return j
-  while (1){
+  let i = 0, j = Math.min(index, imgList.length - 1)
+  if (imgList[j].index < index) return imgList[j].index + imgList[j].duration > index ? j : -1
+  if (imgList[0].index > 0 && imgList[0].index >= index) return imgList[0].index === index ? 0 : -1
+  for (let n = 0; n < 1000; ++n){
+    console.log(i, j)
     if (imgList[i].index === index) return i
     if (imgList[j].index === index) return j
     let k = Math.floor((i+j)/2)

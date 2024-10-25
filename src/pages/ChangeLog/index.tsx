@@ -12,6 +12,11 @@ function Img(props: {src: string}) {
 export default function ChangeLog() {
   return (
     <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
+      <H5>beta - 0.1.4</H5>
+      <UL>
+        <li>修复切换音频输出后，声音播放错误的问题。</li>
+        <li>修复部分贴图（如尾巴）的渲染错误。</li>
+      </UL>
       <H5>beta - 0.1.3</H5>
       <UL>
         <li>修复软件更新提示。</li>

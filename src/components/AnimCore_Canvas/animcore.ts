@@ -304,6 +304,7 @@ function onUpdate(time: number){
           if (!imgList || imgList.length === 0) continue
           const index = getImgIndex(imgList, imgindex)
           const img = imgList[index]
+          if (img.index + img.duration <= imgindex) continue // check duration
           /* sprite */
           const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
           if (anim.DEV_usingElementLoader && anim.elementLoader){
@@ -403,14 +404,6 @@ function addAnimState(
   canvas.anims.push(animstate as AnimState)
 }
 
-// const getImgIndex = (imgList: ImageData[], index: number): number=> {
-//   let result = 0
-//   imgList.forEach((img, i)=> {
-//     if (img.index <= index) result = i
-//   })
-//   return result
-// }
-
 /** bisearch the actual image index to render */
 const getImgIndex = (imgList: ImageData[], index: number): number=> {
   if (imgList.length === 1) return 0
@@ -432,6 +425,7 @@ const getImgIndex = (imgList: ImageData[], index: number): number=> {
 export {
   addAnimState,
   removeCanvas,
+  getImgIndex,
 }
 
 export type CanvasRenderer = HTMLCanvasElement & CanvasRendererExt
