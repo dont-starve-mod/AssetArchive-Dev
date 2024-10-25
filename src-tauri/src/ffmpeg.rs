@@ -245,7 +245,7 @@ pub mod lua_ffmpeg {
             command.args(["-vf", filters.join(",").as_str()]);
         }
 
-        command.args(["-y"]).output(path);
+        command.args(["-y", "-f", format.as_str()]).output(path);
 
         command.print_command();
         // spawn child process
