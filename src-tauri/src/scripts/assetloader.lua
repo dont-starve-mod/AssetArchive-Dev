@@ -349,7 +349,16 @@ function AnimLoader:ParseFrames(anim)
     end
 end
 
+function AnimLoader:GetAnimList()
+    -- parse frames
+    for _,v in ipairs(self.animlist)do
+        self:ParseFrames(v)
+    end
+    return self.animlist
+end
+
 -- loader for *.xml file
+-- TODO: support other xml file, like FONT
 XmlLoader = Class(function(self, f, skip_image_parser)
     local function error(e)
         self.error = e
@@ -589,6 +598,19 @@ function TexLoader:GetImageBytes(i)
     end
 end
 
+TexLoader.PIXEL_FORMAT = {
+    DXT1 = 0,
+    DXT3 = 1,
+    DXT5 = 2,
+    ARGB = 4,
+    RGB = 5,
+    UNKNOWN = 7,
+}
+
+function TexLoader:GetPixelFormatString()
+    return self.pixelformat ~= nil and self.PIXEL_FORMAT[self.pixelformat] or "UNKNOWN"
+end
+
 function TexLoader:GetImageBytesWithRegion(i, bbox --[[x, y, w, h]])
     i = self:NormalizeMipIndex(i)
     local m = self.mipmaps[i]
@@ -616,6 +638,47 @@ function TexLoader:__tostring()
 end
 
 -- loader for .ksh file
+-- KshLoader = Class(function(self, f)
+--     local function error(e)
+--         self.error = e
+--         funcprint("Error in KshLoader._ctor(): "..e)
+--         f:close()
+--     end
+
+--     if not f:seek_to_string(".vs") then
+--         return error("Failed to found *.vs file identifier")
+--     end
+--     local len = f:read_u32()
+--     local vs = f:read_exact(len)
+--     if #vs ~= len then
+--         return error("Failed to parse *.vs file content: size not match")
+--     elseif not string.is_utf8(vs) then
+--         return error("Failed to parse *.vs file content: not valid utf-8 string")
+--     end
+--     if not f:seek_to_string(".ps") then
+--         return error("Failed to found *.ps file identifier")
+--     end
+--     local len = f:read_u32()
+--     local ps = f:read_exact(len)
+--     if #ps ~= len then
+--         return error("Failed to parse *.ps file content: size not match")
+--     elseif not string.is_utf8(ps) then
+--         return error("Failed to parse *.ps file content: not valid utf-8 string")
+--     end
+
+--     while ps:endswith("\0")do
+--         ps = ps:sub(1, #ps - 1)
+--     end
+--     while vs:endswith("\0")do
+--         vs = vs:sub(1, #vs - 1)
+--     end
+    
+--     self.ps = ps
+--     self.vs = vs
+--     f:close()
+-- end)
+
+-- https://github.com/TohsakaKuro/DST-ksh-analyze
 KshLoader = Class(function(self, f)
     local function error(e)
         self.error = e
@@ -623,25 +686,37 @@ KshLoader = Class(function(self, f)
         f:close()
     end
 
-    if not f:seek_to_string(".vs") then
-        return error("Failed to found *.vs file identifier")
+    local name = f:read_variable_length_string()
+    local numuniforms = f:read_u32()
+    if numuniforms == nil then
+        return error(ERROR.UNEXPECTED_EOF)
     end
-    local len = f:read_u32()
-    local vs = f:read_exact(len)
-    if #vs ~= len then
-        return error("Failed to parse *.vs file content: size not match")
-    elseif not string.is_utf8(vs) then
-        return error("Failed to parse *.vs file content: not valid utf-8 string")
+
+    for i = 1, numuniforms do
+        local var = f:read_variable_length_string()
+        local scope = f:read_u32()
+        local type = f:read_u32()
+        local array_length = f:read_u32()
+        if type ~= 43 then -- sampler2D
+            local data_length = f:read_u32()
+            f:seek_forward(data_length * 4)
+        end
     end
-    if not f:seek_to_string(".ps") then
-        return error("Failed to found *.ps file identifier")
+
+    local vs_name = f:read_variable_length_string()
+    local vs = f:read_variable_length_string()
+    local ps_name = f:read_variable_length_string()
+    local ps = f:read_variable_length_string()
+
+    if ps == nil then
+        return error(ERROR.UNEXPECTED_EOF)
     end
-    local len = f:read_u32()
-    local ps = f:read_exact(len)
-    if #ps ~= len then
-        return error("Failed to parse *.ps file content: size not match")
-    elseif not string.is_utf8(ps) then
-        return error("Failed to parse *.ps file content: not valid utf-8 string")
+
+    if not string.is_utf8(vs) then
+        return error("*.vs content is not utf-8")
+    end
+    if not string.is_utf8(ps) then
+        return error("*.ps content is not utf-8")
     end
 
     while ps:endswith("\0")do
@@ -650,8 +725,11 @@ KshLoader = Class(function(self, f)
     while vs:endswith("\0")do
         vs = vs:sub(1, #vs - 1)
     end
-    
+
+    self.name = name
+    self.ps_name = ps_name
     self.ps = ps
+    self.vs_name = vs_name
     self.vs = vs
     f:close()
 end)
@@ -685,7 +763,7 @@ ZipLoader = Class(function(self, f, name_filter)
         elseif method == 8 then
             method = "deflated"
         else
-            return error(ERROR.UNSUPORTED_ZIP_COMPRESS_METHOD)
+            return error(ERROR.UNSUPPORTED_ZIP_COMPRESS_METHOD)
         end
         local mtime = f:read_u32() -- 4 bytes
         local crc = f:read_u32()
@@ -706,7 +784,7 @@ ZipLoader = Class(function(self, f, name_filter)
                 if method == "stored" then
                     self.contents[name] = { raw_data = compressed_data, mtime = mtime }
                 elseif name_filter == self.NAME_FILTER.ALL_LAZY then
-                    self.contents[name] = { compressed_data = compressed_data, mtime = mtime, lazy = true }
+                    self.contents[name] = { compressed_data = compressed_data, mtime = mtime, lazy = true, raw_len = raw_len }
                 else
                     local raw_data = Deflate(compressed_data)
                     self.contents[name] = raw_data ~= nil and { raw_data = raw_data, mtime = mtime } or nil
@@ -714,7 +792,7 @@ ZipLoader = Class(function(self, f, name_filter)
             end
         else
             f:seek_forward(compressed_len)
-            self.contents[name] = { data_starts = data_starts, compressed_len = compressed_len, mtime = mtime }
+            self.contents[name] = { data_starts = data_starts, compressed_len = compressed_len, mtime = mtime, raw_len = raw_len }
         end
     end
     
@@ -737,6 +815,13 @@ end
 function ZipLoader:GetModified(name)
     local data = self.contents[name]
     return data and data.mtime
+end
+
+function ZipLoader:GetRawSize(name)
+    local data = self.contents[name]
+    if data then
+        return data.raw_len or data.raw_data ~= nil and #data.raw_data or nil
+    end
 end
 
 function ZipLoader:Exists(name)
