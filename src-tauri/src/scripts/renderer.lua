@@ -404,7 +404,8 @@ function Render:Run()
 							break
 						end
 					end
-					if img ~= nil then
+					if img ~= nil
+						and img.index + img.duration > imgindex --[[ check duration ]] then
 						element._img = img
 						local w, h = img.w, img.h
 						local x, y = img.x, img.y

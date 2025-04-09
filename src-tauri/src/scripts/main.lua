@@ -17,6 +17,8 @@ require "richtext"
 require "entry"
 require "color"
 require "ffmpeg"
+require "encrypt"
+require "quicklook"
 local Renderer = require "renderer"
 local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot

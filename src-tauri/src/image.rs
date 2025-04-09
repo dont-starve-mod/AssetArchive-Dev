@@ -939,7 +939,6 @@ pub mod lua_image {
             let num_threads = tasks.get::<_, usize>("@thread")
                 .unwrap_or_else(|_|num_cpus::get())
                 .clamp(1, 64);
-            // println!("[MultiThreadedCompositeAndRender] spawn {} threads", num_threads);
             let onprogress = tasks.get::<_, Option<Function>>("@progress")?;
             let encoder = tasks.get::<_, Function>("@encoder")?;
             let canvas = tasks.get::<_, AnyUserData>("@canvas")?;

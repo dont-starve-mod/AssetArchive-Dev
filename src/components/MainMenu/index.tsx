@@ -42,7 +42,7 @@ export default function MainMenu() {
       <MenuNavLink icon="git-repo" to="/asset-group" text="游戏资源" redirectNoRoot/>
       <MenuNavLink icon="walk" to="/anim-list" text="动画渲染器" redirectNoRoot/>
       {/* <div onClick={()=> alert("这个功能还没做完 _(:з」∠)_")}><MenuNavLink icon="color-fill" to="/filter" text="滤镜渲染器" /></div> */}
-      {/* <MenuNavLink icon="build" to="/modtools" text="模组工具" /> */}
+      <MenuNavLink icon="build" to="/mod-tools" text="模组工具箱" />
       {/* <MenuNavLink icon="bug" to="/about#bug" text="反馈bug" /> */}
       <MenuDivider />
       {

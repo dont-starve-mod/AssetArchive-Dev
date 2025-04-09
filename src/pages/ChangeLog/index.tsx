@@ -16,6 +16,7 @@ export default function ChangeLog() {
       <UL>
         <li>修复切换音频输出后，声音播放错误的问题。</li>
         <li>修复部分贴图（如尾巴）的渲染错误。</li>
+        <li>新增模组工具。</li>
       </UL>
       <H5>beta - 0.1.3</H5>
       <UL>

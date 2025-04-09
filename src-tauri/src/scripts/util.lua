@@ -148,12 +148,26 @@ function BitAnd(a, b)
 end
 
 function NameOf(path)
-	local name = select(3, path:find("([^/.]+)%.?[a-z]*$"))
+	local name = select(3, path:find("([^/.]+)%.?[^/.]*$"))
 	if name ~= nil then
 		return name
 	else
 		error("Failed to get name of "..path)
 	end
+end
+
+function ExtOf(path)
+	local ext = select(3, path:find("([^/.]+)$"))
+	return ext
+end
+
+function PackInt(num, size)
+    local bytes = {}
+    for i = 1, size do
+        bytes[i] = string.char(num % 256)
+        num = math.floor(num / 256)
+    end
+    return table.concat(bytes)
 end
 
 function Counter()

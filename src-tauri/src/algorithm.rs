@@ -8,6 +8,7 @@ pub mod lua_algorithm {
     use sevenz_rust::decompress_with_extract_fn;
     use zune_inflate::{DeflateDecoder, errors::InflateDecodeErrors};
     use miniz_oxide::inflate::decompress_to_vec;
+    use miniz_oxide::deflate::compress_to_vec;
     // use libdeflater::Decompressor;
 
     // #[inline]
@@ -35,6 +36,12 @@ pub mod lua_algorithm {
     fn deflate(compressed_data: &[u8]) -> Result<Vec<u8>, String> {
         decompress_to_vec(compressed_data).map_err(|e|e.to_string())
     }
+
+    #[inline]
+    fn inflate(raw_data: &[u8], level: Option<u8>) -> Result<Vec<u8>, String> {
+        Ok(compress_to_vec(raw_data, level.unwrap_or(8)))
+    }
+
 
     fn sevenz_decompress(compressed_data: &[u8], ) -> Result<Vec<u8>, String> {
         let f = Cursor::new(compressed_data);
@@ -176,6 +183,13 @@ pub mod lua_algorithm {
                 Err(_) => Ok(None)
             }
         })?)?;
+        table.set("Inflate", lua_ctx.create_function(|lua_ctx: Context, (raw_data, level): (LuaString, Option<u8>)|{
+            match inflate(raw_data.as_bytes(), level) {
+                Ok(compressed_data) => Ok(Some(Value::String(lua_ctx.create_string(&compressed_data[..])?))),
+                Err(_) => Ok(None)
+            }
+        })?)?;
+
         table.set("Sevenz_Decompress", lua_ctx.create_function(|lua_ctx: Context, compressed_data: LuaString|{
             lua_ctx.create_string(sevenz_decompress(compressed_data.as_bytes()).unwrap().as_slice())
         })?)?;
