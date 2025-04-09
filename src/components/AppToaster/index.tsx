@@ -1,11 +1,12 @@
 import { OverlayToaster, ToastProps, Position, ProgressBar } from "@blueprintjs/core"
 import React, { useEffect, useRef } from 'react'
-import { appWindow } from "@tauri-apps/api/window"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { listen } from "@tauri-apps/api/event"
-import { invoke } from "@tauri-apps/api"
+import { invoke } from "@tauri-apps/api/core"
 import { useSelector } from "../../redux/store"
 import { openAnimSubwindow } from "../../pages/AnimListPage/util"
 import { useLocalStorage } from "../../hooks"
+const appWindow = getCurrentWebviewWindow()
 
 type AppToasterProps = {
   top?: number

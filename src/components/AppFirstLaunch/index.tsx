@@ -1,7 +1,7 @@
 import React, { KeyboardEvent, useCallback, useEffect, useState } from 'react'
 import style from './index.module.css'
 import { Button, Callout, Collapse, Dialog, DialogBody, DialogFooter, H3, H5, Icon, InputGroup, ProgressBar } from '@blueprintjs/core'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useLuaCall } from '../../hooks'
 import { listen } from '@tauri-apps/api/event'
 
@@ -10,6 +10,7 @@ import steam_dst from '../../media/steam-dst.mp4'
 // @ts-ignore
 import wg_dst from '../../media/wg-dst.mp4'
 import { useNavigate } from 'react-router-dom'
+const appWindow = getCurrentWebviewWindow()
 
 type IndexState = {
   type: "start"

@@ -1,7 +1,8 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { appWindow, getCurrent } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { FocusStyleManager } from "@blueprintjs/core"
-import "./App.css"
 import Nav from './components/Nav'
 import MainMenu from './components/MainMenu'
 import Footer from './components/Footer'
@@ -10,18 +11,22 @@ import AppToaster from './components/AppToaster'
 import AppFmodHandler from './components/AppFmodHandler'
 import AppQuickSettings from './components/AppQuickSettings'
 import cacheContext from './components/KeepAlive/cacheContext'
+import AppMaxView from './components/AppMaxView'
 import MainRoutes from './mainRoutes'
 import SubRoutes from './subRoutes'
 import { useAppSetting } from './hooks'
 import type { ArchiveItem, Bank, Entry, Shader, StaticArchiveItem } from './searchengine'
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import type { DefinedPresetGroup } from './components/AnimQuickLook/preset'
-import { invoke } from '@tauri-apps/api'
-import AppMaxView from './components/AppMaxView'
+import "./App.css"
+
 FocusStyleManager.onlyShowFocusOnTabs()
 
 declare global {
 	interface Window {
+		appWindow: WebviewWindow,
+		emit: <T>(event: string, payload?: T)=> Promise<void>,
+		listen: <T>(event: string, callback: (event: {payload: T})=> void)=> Promise<() => void>,
 		meta: {debug: boolean},
 		app_init?: boolean,
 		keystate: {[key: string]: boolean},
@@ -62,6 +67,9 @@ window.assets_tag = {}
 window.entry = []
 window.entry_map = {}
 window.max_view_data = {}
+window.appWindow = getCurrentWebviewWindow()
+window.emit = window.appWindow.emit
+window.listen = window.appWindow.listen
 
 export default function App() {
 	const [metaLoaded, setMetaLoaded] = useState(false)
@@ -74,7 +82,7 @@ export default function App() {
 		load().then(()=> setMetaLoaded(true))
 	}, [])
 
-	const isSubwindow = getCurrent().label !== "main"
+	const isSubwindow = WebviewWindow.getCurrent().label !== "main"
 	return metaLoaded && (!isSubwindow ? <AppMain/> : <AppSub/>)
 }
 
@@ -93,7 +101,7 @@ function AppMain() {
   return (
 		<div className={isDarkMode ? "bp4-dark": undefined}>
 			<header>
-				<div onMouseDown={()=> appWindow.startDragging()}>
+				<div onMouseDown={()=> WebviewWindow.getCurrent().startDragging()}>
 
 				</div>
 				<div>

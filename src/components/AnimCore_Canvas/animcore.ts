@@ -1,9 +1,10 @@
 import smallhash from "../../smallhash"
 import { hash, AnimState } from "./animstate"
 import { RenderParams, IRenderParams } from "./renderparams"
-import { invoke } from "@tauri-apps/api"
+import { invoke } from "@tauri-apps/api/core"
 import { base64DecToArr } from "../../base64_util"
-import { appWindow } from "@tauri-apps/api/window"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
+const appWindow = getCurrentWebviewWindow()
 
 /* Animation assets */
 const buildLoading: {[K: string]: true} = {}

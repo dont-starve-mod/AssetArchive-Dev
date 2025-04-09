@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react'
-import { appWindow } from '@tauri-apps/api/window'
 import { listen as globalListen, once as globalListenOnce } from '@tauri-apps/api/event'
 import { ErrorHandler} from '../AppInit'
 import { PredictableData } from '../../renderer_predict'
@@ -58,7 +57,7 @@ export default function AppRendererInit() {
           return
         }
         else {
-          appWindow.emit("lua_init_error", error)
+          window.emit("lua_init_error", error)
         }
       }
     }

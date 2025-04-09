@@ -6,13 +6,12 @@ import KeepAlivePage from '../../components/KeepAlive/KeepAlivePage'
 import style from "./index.module.css"
 import { maxTotalHits, Response, search, SEARCHABLE_FIELDS, isSearchable } from '../../global_meilisearch'
 import { AccessableItem } from '../../components/AccessableItem'
-import { appWindow } from '@tauri-apps/api/window'
 import { killPreviewSfx } from '../../components/Preview'
 import { useSelector } from '../../redux/store'
 import { Classes, Popover2 } from '@blueprintjs/popover2'
 import { useLocalStorage } from '../../hooks'
 import PageTurner from '../../components/PageTurner'
-import { invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
 
 // TODO: 该组件的保活机制还有一些问题，需要深入测试
 
@@ -62,7 +61,7 @@ export default function SearchResultPage() {
       },
       e=> {
         console.error(e)
-        appWindow.emit("runtime_error", e)
+        window.emit("runtime_error", e)
       }
     )
   }, [query, flag])

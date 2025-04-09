@@ -5,8 +5,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppSetting, useIntersectionObserver, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Button, Dialog, Icon, IconName, Spinner, Tag } from '@blueprintjs/core'
-import { appWindow } from '@tauri-apps/api/window'
-import { invoke } from '@tauri-apps/api'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+import { invoke } from '@tauri-apps/api/core'
 import store, { useSelector } from '../../redux/store'
 import { base64DecToArr } from '../../base64_util'
 import { EntryPreviewData } from '../../searchengine'
@@ -14,6 +14,7 @@ import { AnimState } from '../AnimCore_Canvas/animstate'
 import AnimCore from '../AnimCore_Canvas'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
 import { useQuickLookCmds } from '../AnimQuickLook/util'
+const appWindow = getCurrentWebviewWindow()
 
 interface PreviewProps {
   width?: number,

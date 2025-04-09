@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import style from './index.module.css'
-import { WebviewWindow } from '@tauri-apps/api/window'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { Button, Card, H5, H6, Icon, InputGroup, Spinner, Tag } from '@blueprintjs/core'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import { emit } from '@tauri-apps/api/event'

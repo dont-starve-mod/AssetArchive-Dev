@@ -8,8 +8,7 @@ use cpal::traits::{DeviceTrait, HostTrait};
 
 #[cfg(target_os = "macos")]
 fn get_default_output_device() ->String {
-  let is_input = false;
-  match get_default_device_id(is_input) {
+  match get_default_device_id(false /* output device */) {
     Some(id) => {
       match get_device_name(id) {
         Ok(name)=> format!("{} [{}]", name, id),

@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Menu, MenuDivider, MenuItem, IconName } from '@blueprintjs/core'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAppSetting } from '../../hooks'
-import { invoke } from '@tauri-apps/api'
-import { LogicalSize, PhysicalSize, appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+import { LogicalSize } from '@tauri-apps/api/dpi'
+const appWindow = getCurrentWebviewWindow()
 
 function MenuNavLink(props: 
   {icon: IconName, text: string, to: string, redirectNoRoot?: boolean}) {
@@ -42,7 +44,7 @@ export default function MainMenu() {
       <MenuNavLink icon="git-repo" to="/asset-group" text="游戏资源" redirectNoRoot/>
       <MenuNavLink icon="walk" to="/anim-list" text="动画渲染器" redirectNoRoot/>
       {/* <div onClick={()=> alert("这个功能还没做完 _(:з」∠)_")}><MenuNavLink icon="color-fill" to="/filter" text="滤镜渲染器" /></div> */}
-      <MenuNavLink icon="build" to="/mod-tools" text="模组工具箱" />
+      {/* <MenuNavLink icon="build" to="/mod-tools" text="模组工具箱" /> */}
       {/* <MenuNavLink icon="bug" to="/about#bug" text="反馈bug" /> */}
       <MenuDivider />
       {

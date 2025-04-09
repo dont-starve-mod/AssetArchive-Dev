@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { writeText } from '@tauri-apps/api/clipboard'
+import { writeText } from '../../clipboard'
 import { getVersion } from '@tauri-apps/api/app'
 import { Icon } from '@blueprintjs/core'
 import { useLocation } from 'react-router-dom'

@@ -3,10 +3,11 @@ import style from './index.module.css'
 import { H5, H6, InputGroup, Tag, Button, PanelStack2, PanelProps, H4, Dialog, DialogBody, DialogFooter, Alert, useHotkeys } from '@blueprintjs/core'
 import { Api, getDefaultArgs, isUnstandardApi} from '../AnimCore_Canvas/animstate'
 import { useDragData } from '../../hooks'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { API_DOC } from './api_doc'
 import ArgInput from '../ApiArgInput'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
+const appWindow = getCurrentWebviewWindow()
 
 const buttonStyle: React.CSSProperties = {
   margin: "4px 0",

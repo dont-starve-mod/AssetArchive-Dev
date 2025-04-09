@@ -4,8 +4,7 @@ import { RadioGroup, Radio, Button, Slider } from '@blueprintjs/core'
 import { useAppSetting, useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { DragFolderPanel } from '../../components/GameRootSetter'
-import { invoke } from '@tauri-apps/api'
-import { appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
 import { openInstaller } from '../FFmpegInstaller'
 import { listen } from '@tauri-apps/api/event'
 import { useNavigate } from 'react-router-dom'
@@ -143,7 +142,7 @@ export default function SettingsPage() {
     <H4>快捷消息</H4>
     <p>设置右上角弹出信息的显示方式。
       <Button icon="rocket-slant" onClick={
-        ()=> appWindow.emit("toast", {
+        ()=> window.emit("toast", {
           message: "测试信息",
           icon: "emoji", 
           intent: "success",

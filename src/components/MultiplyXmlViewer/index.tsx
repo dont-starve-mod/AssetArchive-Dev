@@ -7,10 +7,11 @@ import { useAppStates, useCopyTexElement, useLocalStorage, useLuaCall, useLuaCal
 import Preview from '../Preview'
 import PageTurner from '../PageTurner'
 import PopoverMenu from '../PopoverMenu'
-import { open } from '@tauri-apps/api/dialog'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Tex } from '../../searchengine'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { usePushItemsToMaxView } from '../AppMaxView'
+const appWindow = getCurrentWebviewWindow()
 
 type MultiplyXmlViewerProps = {
   xml?: string,

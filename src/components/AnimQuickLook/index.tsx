@@ -5,9 +5,10 @@ import { RenderParams } from '../AnimCore_Canvas/renderparams'
 import { Button, Menu, MenuItem } from '@blueprintjs/core'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { useQuickLookCmds, useQuickLookExport } from './util'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import MiniAnimPlayerWidget from '../MiniAnimPlayerWidget'
 import { useLocalStorage } from '../../hooks'
+const appWindow = getCurrentWebviewWindow()
 
 type Placement = {
   width: number,

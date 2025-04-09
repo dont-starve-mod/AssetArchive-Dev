@@ -6,7 +6,6 @@ import style from './style.module.css'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
 import { EditableText } from '@blueprintjs/core'
 import AnimCore from '../../components/AnimCore_Canvas'
-import { appWindow } from '@tauri-apps/api/window'
 import { AnimState } from '../../components/AnimCore_Canvas/animstate'
 import AnimProjectSetter, { AnimProjectSetterAction } from '../../components/AnimProjectSetter'
 import { openAnimSubwindow } from './util'
@@ -83,7 +82,7 @@ export default function AnimListPage() {
       // @ts-ignore
       anim_subwindow_id: id,
     }
-    appWindow.emit("toast", payload)
+    window.emit("toast", payload)
   }, [])
 
   const delete_call =  useLuaCall("animproject", (result: string)=> {

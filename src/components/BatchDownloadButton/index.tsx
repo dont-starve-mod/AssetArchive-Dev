@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react'
 import { Button } from '@blueprintjs/core'
 import { useLuaCall } from '../../hooks'
-import { open } from '@tauri-apps/api/dialog'
-import { appWindow } from '@tauri-apps/api/window'
+import { open } from '@tauri-apps/plugin-dialog'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+const appWindow = getCurrentWebviewWindow()
 
 type BatchDownloadButtonProps = {
   text?: string,

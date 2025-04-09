@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { Button, Checkbox, Dialog, DialogBody, DialogFooter, H3, H5, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Event } from '@tauri-apps/api/event'
 import AnimQuickLook from '../AnimQuickLook'
@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from '../../redux/store'
 import { useLocalStorage } from '../../hooks'
 import { AnimState } from '../AnimCore_Canvas/animstate'
 import { Preset } from '../AnimQuickLook/preset'
+const appWindow = getCurrentWebviewWindow()
 
 type QuickSettingsKey = "XmlMap.dot" | "AnimQuickLook"
 

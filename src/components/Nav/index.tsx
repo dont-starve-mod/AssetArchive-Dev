@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef, useReducer } from 'react'
 import { Navbar, Alignment, Button, InputGroup, Menu, MenuItem, Checkbox, Icon, IconName } from '@blueprintjs/core'
 import { useNavigate } from 'react-router-dom'
-import { appWindow } from '@tauri-apps/api/window'
 import MatchText from '../MatchText'
 import { useAppSetting, useOS } from '../../hooks'
 import style from './style.module.css'
@@ -65,7 +64,7 @@ export default function Nav() {
         if (v.contains(target)) return
       }
     }
-    appWindow.startDragging()
+    window.appWindow.startDragging()
   }
 
   const handleSearch = ({target})=> {

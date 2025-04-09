@@ -5,12 +5,13 @@ import ApiPicker from '../ApiPicker'
 import ApiOperator from '../ApiOperator'
 import ApiList from '../ApiList'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
-import { appWindow } from '@tauri-apps/api/window'
-import { save, open } from '@tauri-apps/api/dialog'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+import { save, open } from '@tauri-apps/plugin-dialog'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { useLuaCall, useSharedLocalStorage } from '../../hooks'
 import NumericInputGroup from '../NumericInputGroup'
 import { v4 } from 'uuid'
+const appWindow = getCurrentWebviewWindow()
 
 interface ActionProps {
   icon: IconName,

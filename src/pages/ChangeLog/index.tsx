@@ -1,5 +1,5 @@
 import { H5, UL } from '@blueprintjs/core'
-import { WebviewWindow } from '@tauri-apps/api/window'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
 function Img(props: {src: string}) {
   return (
@@ -60,9 +60,9 @@ export default function ChangeLog() {
   )
 }
 
-export function openChangeLog() {
+export async function openChangeLog() {
   let label = "change-log"
-  let subwindow = WebviewWindow.getByLabel(label)
+  let subwindow = await WebviewWindow.getByLabel(label)
   if (subwindow)
     subwindow.setFocus().then(console.log, console.error)
   else

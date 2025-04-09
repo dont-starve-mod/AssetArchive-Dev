@@ -1,12 +1,11 @@
-import { appWindow } from "@tauri-apps/api/window"
-import { WebviewWindow } from "@tauri-apps/api/window"
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { v5 as uuidv5 } from 'uuid'
 
 const uuidNS = uuidv5("AnimProject", uuidv5.URL)
 
-export function openAnimSubwindow({id}: {id: string}) {
+export async function openAnimSubwindow({id}: {id: string}) {
   const label = uuidv5(id, uuidNS)
-  let subwindow = WebviewWindow.getByLabel(label)
+  let subwindow = await WebviewWindow.getByLabel(label)
   if (subwindow) {
     console.log(`Window <${id}> - ${label} is open`)
     subwindow.setFocus()
@@ -17,9 +16,9 @@ export function openAnimSubwindow({id}: {id: string}) {
       url: "/anim/" + encodeURIComponent(id).replace(".", "%2E"),
       minWidth: 700,
       minHeight: 500,
-      fileDropEnabled: false,
+      dragDropEnabled: false,
     })
-    subwindow.once("tauri://error", (e)=> appWindow.emit("alert", {
+    subwindow.once("tauri://error", (e)=> window.emit("alert", {
       title: "警告", 
       message: "无法创建窗口 - " + label + " \n" + e.payload
     }))

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import style from './index.module.css'
 import { Button, InputGroup, useHotkeys } from '@blueprintjs/core'
 import { AnimState } from '../AnimCore_Canvas/animstate'
-import { appWindow } from '@tauri-apps/api/window'
 import TinySlider from '../TinySlider'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { useMouseDrag } from '../../hooks'
@@ -12,7 +11,7 @@ interface IProps {
 }
 
 function forceUpdate() {
-  appWindow.emit("forceupdate", "AnimPlayerWidget")
+  window.appWindow.emit("forceupdate", "AnimPlayerWidget")
 }
 
 export default function AnimPlayerWidget(props: IProps) {
@@ -31,7 +30,7 @@ export default function AnimPlayerWidget(props: IProps) {
   const toggleReverse = useCallback(()=> {
     player.reversed = !player.reversed
     forceUpdate()
-  }, [animstate])
+  }, [player, animstate])
 
   const stopPlaying = useCallback(()=> {
     animstate.pause()
@@ -42,13 +41,13 @@ export default function AnimPlayerWidget(props: IProps) {
     stopPlaying()
     player.step(-1)
     forceUpdate()
-  }, [animstate])
+  }, [player, animstate])
 
   const forward = useCallback(()=> {
     stopPlaying()
     player.step(1)
     forceUpdate()
-  }, [animstate])
+  }, [player, animstate])
 
   const speed2barValue = (v: number)=> {
     // 0.05 .. 1 ..  5

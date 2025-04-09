@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Button, Dialog, Icon, InputGroup } from '@blueprintjs/core'
 import { MultistepDialog, DialogStep, RadioGroup, Radio, H4 } from '@blueprintjs/core'
 import { Tooltip2 } from '@blueprintjs/popover2'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import style from './index.module.css'
 import { useLuaCall } from '../../hooks'
-import { open } from '@tauri-apps/api/dialog'
+import { open } from '@tauri-apps/plugin-dialog'
 // @ts-ignore
 import steam_dst from '../../media/steam-dst.mp4'
 // @ts-ignore
 import wg_dst from '../../media/wg-dst.mp4'
+const appWindow = getCurrentWebviewWindow()
 
 const NEXT_TEXT = "下一步"
 const PREV_TEXT = "上一步"

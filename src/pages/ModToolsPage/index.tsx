@@ -1,7 +1,5 @@
 import { Card, H3, H5 } from '@blueprintjs/core'
-import React from 'react'
-import { appWindow } from '@tauri-apps/api/window'
-import { WebviewWindow } from '@tauri-apps/api/window'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
 type ModToolProps = {
   title: string,
@@ -9,9 +7,9 @@ type ModToolProps = {
   bin: "maketex" | "makecc" | "lockanim",
 }
 
-function openToolSubwindow(title: string, bin: string) {
+async function openToolSubwindow(title: string, bin: string) {
   const label = "modtool-" + bin
-  let subwindow = WebviewWindow.getByLabel(label)
+  let subwindow = await WebviewWindow.getByLabel(label)
   if (subwindow) {
     console.log(`Window ${label} is open`)
     subwindow.setFocus()
@@ -22,9 +20,9 @@ function openToolSubwindow(title: string, bin: string) {
       url: "/tool/" + encodeURIComponent(bin),
       // minWidth: 700,
       // minHeight: 500,
-      fileDropEnabled: true,
+      dragDropEnabled: true,
     })
-    subwindow.once("tauri://error", (e)=> appWindow.emit("alert", {
+    subwindow.once("tauri://error", (e)=> window.emit("alert", {
       title: "警告", 
       message: "无法创建窗口 - " + label + " \n" + e.payload
     }))

@@ -1,7 +1,7 @@
-import { invoke } from "@tauri-apps/api"
+import { invoke } from "@tauri-apps/api/core"
 import { useCallback, useEffect, useState, useMemo, useRef } from "react"
-import { appWindow } from "@tauri-apps/api/window"
-import { open, save } from "@tauri-apps/api/dialog"
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
+import { open, save } from "@tauri-apps/plugin-dialog"
 import type { AppSettings } from "./redux/reducers/appsettings"
 import { update as UpdateSetting } from "./redux/reducers/appsettings"
 import { update as UpdateLocal } from "./redux/reducers/localstorage"
@@ -17,7 +17,7 @@ const DYN_ENCRYPT = "DYN_ENCRYPT"
 
 function checkEncryptResult(result: string | object){
   if (result === DYN_ENCRYPT){
-    appWindow.emit("alert", {
+    WebviewWindow.getCurrent().emit("alert", {
       icon: "disable",
       title: "提示",
       message: "这是一个加密的皮肤材质，无法拷贝或保存。",
@@ -144,7 +144,7 @@ export function useLuaCall<T>(
     // }
     invoke<T>("lua_call", { api, param: JSON.stringify({...defaultParams, ...param}) }).then(
       (response: T)=> callback(response, param),
-      error=> appWindow.emit("lua_call_error", error)
+      error=> WebviewWindow.getCurrent().emit("lua_call_error", error)
     )
   }, deps)
 }
@@ -183,7 +183,7 @@ export function useLuaCallLax(api: rLuaAPI, fn, defaultParams = {}, deps: React.
 export function useCopySuccess(type?: "image" | "path" | "code") {
   let message = (type === "image" ? "图片" : type === "path" ? "路径" : type === "code" ? "源代码" : "") 
     + "已拷贝至剪切板"
-  return ()=> appWindow.emit("toast", { message, icon: "endorsed", intent: "success"})
+  return ()=> WebviewWindow.getCurrent().emit("toast", { message, icon: "endorsed", intent: "success"})
 }
 
 export function useGenericHandleImageCopy() {
@@ -277,7 +277,7 @@ export function useBatchDownloadDialog(type: "xml" | "build" | "fev_ref", data?:
 export function useSaveSuccess(type?: "image") {
   let message = (type === "image" ? "图片" : "") 
     + "保存成功"
-  return (savepath: string)=> appWindow.emit("toast", { message, icon: "saved", intent: "success", savepath})
+  return (savepath: string)=> WebviewWindow.getCurrent().emit("toast", { message, icon: "saved", intent: "success", savepath})
 }
 
 export function useGenericSaveFileCb(filters) {
@@ -304,7 +304,7 @@ export function useSaveFileCall(defaultParams: LuaCallParams, filters, defaultPa
         if (checkEncryptResult(result)) return
       }
       catch(error) {
-        appWindow.emit("lua_call_error", error)
+        WebviewWindow.getCurrent().emit("lua_call_error", error)
       }
     }
     await dialog(param)

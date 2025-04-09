@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from '../../redux/store'
-import { invoke } from '@tauri-apps/api'
-import { appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useAppSetting } from '../../hooks'
 import { setState } from '../../redux/reducers/appstates'
 import { listen } from '@tauri-apps/api/event'
 import { inv } from '../../pages/HomePage/clips'
+const appWindow = getCurrentWebviewWindow()
 
 export type FmodEventInfo = {
   id: string,

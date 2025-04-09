@@ -4,11 +4,12 @@ import style from './index.module.css'
 import { MenuItem, Menu, Alert } from '@blueprintjs/core'
 import { useDragData } from '../../hooks'
 import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import ApiArgInput from '../ApiArgInput'
 import AnimProjectInitFromParam from '../AnimProjectInitFromParam'
 import { ContextMenu2, ContextMenu2Popover, Popover2 } from '@blueprintjs/popover2'
 import { showContextMenu, hideContextMenu } from '@blueprintjs/popover2'
+const appWindow = getCurrentWebviewWindow()
 
 export default function ApiList() {
   const {animstate, 

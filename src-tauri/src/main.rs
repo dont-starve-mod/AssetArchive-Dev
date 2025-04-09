@@ -17,7 +17,8 @@ use simplelog::*;
 #[allow(unused_imports)]
 use log::{info, error, warn};
 
-use tauri::Manager;
+use tauri::{Manager, Emitter};
+use tauri::path::PathResolver;
 
 #[macro_use]
 extern crate json;
@@ -32,7 +33,6 @@ mod audio;
 mod unzip;
 mod args;
 mod meilisearch;
-mod select;
 mod es;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use fmod::FmodChild;
@@ -41,26 +41,12 @@ use meilisearch::MeilisearchChild;
 use fmod::fmod_handler::*;
 use meilisearch::meilisearch_handler::*;
 #[cfg(target_os="windows")]
-use select::select_handler::*;
-#[cfg(target_os="windows")]
 #[allow(unused_imports)]
 use es::es_handler::*;
 
 use include_lua::ContextExt;
 
 const TEXT_GUARD: &str = "🦀️";
-
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-fn _menu() -> Menu {
-    // 这里 `"quit".to_string()` 定义菜单项 ID，第二个参数是菜单项标签。
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-    let close = CustomMenuItem::new("close".to_string(), "Close");
-    let submenu = Submenu::new("File", Menu::new().add_item(quit).add_item(close));
-    Menu::new()
-    .add_native_item(MenuItem::Copy)
-    .add_item(CustomMenuItem::new("hide", "Hide"))
-    .add_submenu(submenu)
-}
 
 struct LuaEnv {
     lua: Mutex<Lua>,
@@ -130,7 +116,7 @@ fn init_logger(app: &mut tauri::App) -> Result<(), String> {
         TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
     ];
     // log file
-    let log_dir = app.path_resolver().app_data_dir().unwrap().join("log");
+    let log_dir = app.path().app_data_dir().unwrap().join("log");
     if create_dir_all(log_dir.clone()).is_ok() {
         loggers.push(WriteLogger::new(LevelFilter::Info, Config::default(), 
             std::fs::File::create(log_dir.join("log.txt")).unwrap()));
@@ -147,28 +133,33 @@ fn main() {
         .manage(FeCommuni::default())
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(move|app| {
             init_results.insert("logger", init_logger(app));
             init_results.insert("lua", init_lua(app).map_err(|v| v.to_string()));
             init_results.insert("fmod", init_fmod(app));
             init_results.insert("meilisearch", init_meilisearch(app));
-            #[cfg(target_os="windows")]
-            {
-                init_results.insert("select", init_windows_select(app));
-                // init_results.insert("es", init_es(app));
-            }
+            let handle = app.handle().clone();
             for (name, result) in init_results.iter() {
                 match result {
                     Ok(_) => info!("Setup() -> {} initialized", name),
                     Err(e) => {
                         error!("Setup() -> {} error:\n{}", name, e);
-                        use tauri::api::dialog::*;
-                        MessageDialogBuilder::new(
-                            "Error",
-                            &format!("In setup {}\n{}", name, e))
+                        use tauri_plugin_dialog::*;
+                        handle.dialog()
+                            .message(format!("Error in {}:\n{}", name, e))
+                            .title("Error")
                             .buttons(MessageDialogButtons::Ok)
                             .kind(MessageDialogKind::Error)
                             .show(|_|std::process::exit(1));
+                        // MessageDialogBuilder::new(
+                        //     "Error",
+                        //     &format!("In setup {}\n{}", name, e))
+                        //     .buttons(MessageDialogButtons::Ok)
+                        //     .kind(MessageDialogKind::Error)
+                        //     .show(|_|std::process::exit(1));
                     },
                 }
             }
@@ -226,15 +217,10 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
     }
 }
 
-#[cfg(unix)]
 #[tauri::command]
-fn select_file_in_folder(path: String) -> bool {
-    use std::process;
-    process::Command::new("/usr/bin/open")
-        .arg("-R")
-        .arg(path)
-        .status()
-        .is_ok()
+fn select_file_in_folder(handler: tauri::AppHandle, path: String) -> bool {
+    use tauri_plugin_opener::OpenerExt;
+    handler.opener().reveal_item_in_dir(path).is_ok()
 }
 
 #[tauri::command]
@@ -244,12 +230,6 @@ fn get_is_debug() -> bool {
 
 fn get_is_release() -> bool {
     cfg!(feature = "release")
-}
-
-#[cfg(target_os="windows")]
-#[tauri::command]
-fn select_file_in_folder(path: String) -> bool {
-    windows_select_file_in_folder(path)
 }
 
 #[tauri::command]
@@ -320,7 +300,7 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<
         lua_ctx.scope(|scope| -> LuaResult<LuaBytes>{
             // register ipc util functions
             globals.set("IpcEmitEvent", scope.create_function(|_,(event, payload): (String, String)|{
-                app.emit_all(&event, payload).unwrap();
+                app.emit(&event, payload).unwrap();
                 Ok(())
             })?)?;
             globals.set("IpcSetState", scope.create_function(|_,(key, value): (String, String)|{
@@ -378,22 +358,19 @@ fn lua_interrupt(state: tauri::State<'_, LuaEnv>) {
 }
 
 fn init_lua(app: &mut tauri::App) -> LuaResult<()> {
-    let resolver = app.path_resolver();
-    let state = app.state::<LuaEnv>();
-    init_lua_impl(resolver, state)
+    init_lua_impl(app.handle().clone(), app.state::<LuaEnv>())
 }
 
 #[tauri::command]
-fn lua_reload<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: tauri::State<'_, LuaEnv>) -> Result<(), String> {
-    let resolver = app.path_resolver();
+fn lua_reload(handle: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> Result<(), String> {
     state.reload();
-    init_lua_impl(resolver, state)
+    init_lua_impl(handle, state)
         .map_err(|e|e.to_string())
 }
 
-fn init_lua_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>) -> LuaResult<()> {
-    let app_dir = |path: Option<PathBuf>, create: bool|{
-        if let Some(path) = path {
+fn init_lua_impl(handle: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> LuaResult<()> {
+    let app_dir = |path: Result<PathBuf, tauri::Error>, create: bool|{
+        if let Ok(path) = path {
             #[allow(clippy::collapsible_if)]
             if !path.is_dir() && create {
                 if std::fs::create_dir_all(path.clone()).is_err() {
@@ -412,15 +389,15 @@ fn init_lua_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
         let globals = lua_ctx.globals();
 
         info!("\t[LUA] register app paths");
- 
+        let resolver = handle.path();
         globals.set("APP_CACHE_DIR", app_dir(resolver.app_cache_dir(), true))?;
         globals.set("APP_CONFIG_DIR", app_dir(resolver.app_config_dir(), true))?;
         globals.set("APP_LOG_DIR", app_dir(resolver.app_log_dir(), true))?;
         globals.set("APP_DATA_DIR", app_dir(resolver.app_data_dir(), true))?;
         globals.set("APP_BIN_DIR", app_dir(resolver.app_data_dir().map(|p|p.join("bin")), true))?;
         
-        globals.set("HOME_DIR", app_dir(tauri::api::path::home_dir(), false))?;
-        globals.set("DOWNLOAD_DIR", app_dir(tauri::api::path::download_dir(), false))?;
+        globals.set("HOME_DIR", app_dir(resolver.home_dir(), false))?;
+        globals.set("DOWNLOAD_DIR", app_dir(resolver.download_dir(), false))?;
 
         if cfg!(windows) {
             globals.set("PLATFORM", "WINDOWS")?;
@@ -553,8 +530,8 @@ fn init_lua_impl(resolver: tauri::PathResolver, state: tauri::State<'_, LuaEnv>)
 
 fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
     let state = app.state::<FmodHandler>();
-    let app_data_dir = app.path_resolver().app_data_dir()
-        .ok_or("Failed to get app_data_dir".to_string())?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|_|"Failed to get app_data_dir".to_string())?;
     let bin_dir = app_data_dir.join("bin").join("fmod");
     create_dir_all(bin_dir.clone())
         .map_err(|e|format!("Failed to create bin dir: {} {}", bin_dir.display(), e))?;
@@ -575,9 +552,9 @@ fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
     }
 
     // add tracker
-    let handle = app.handle();
+    let handle = app.handle().clone();
     audio::start_tracking(move |v| {
-        handle.emit_all("fmod_audio_device", v).ok();
+        handle.emit("fmod_audio_device", v).ok();
         info!("[Audio] Default output device changed to: {}", v)
     });
 
@@ -586,8 +563,8 @@ fn init_fmod(app: &mut tauri::App) -> Result<(), String> {
 
 fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
     let state = app.state::<Meilisearch>();
-    let app_data_dir = app.path_resolver().app_data_dir()
-        .ok_or("Failed to get app_data_dir".to_string())?;
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|_|format!("Failed to get app_data_dir"))?;
     let bin_dir = app_data_dir.join("bin").join("meilisearch");
     create_dir_all(bin_dir.clone())
         .map_err(|e|format!("Failed to create bin dir: {} {}", bin_dir.display(), e))?;
@@ -597,6 +574,7 @@ fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
             #[allow(unused_must_use)]
             {
                 state.meilisearch.lock().unwrap().insert(child);
+                // TODO: block until meilisearch is ready
             }
         },
         Err(e)=> {

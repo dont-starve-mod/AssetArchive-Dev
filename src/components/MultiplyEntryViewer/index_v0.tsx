@@ -12,15 +12,16 @@ import Background from '../Background'
 import { Tooltip2 } from '@blueprintjs/popover2'
 import { search } from '../../global_meilisearch'
 import { AnimState } from '../AnimCore_Canvas/animstate'
-import { invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
 import PageTurner from '../PageTurner'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import smallhash from '../../smallhash'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import AnimQuickLook from '../AnimQuickLook'
 import PopoverMenu from '../PopoverMenu'
 import { useQuickLookExport } from '../AnimQuickLook/util'
 import { byte2facing } from '../../facing'
+const appWindow = getCurrentWebviewWindow()
 
 type MultiplyEntryViewerProps = {
   entryList: ()=> Entry[],

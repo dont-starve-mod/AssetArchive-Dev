@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import style from './index.module.css'
 import { useCopySuccess } from '../../hooks'
-import { writeText } from '@tauri-apps/api/clipboard'
+import { writeText } from '../../clipboard'
 
 type PopoverMenuProps = {
   menu: Array<({

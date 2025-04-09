@@ -1,13 +1,14 @@
 import { Dialog, DialogBody, H5, ProgressBar } from '@blueprintjs/core'
 import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
 import { openInstaller } from '../../pages/FFmpegInstaller'
 import aris_working from './aris-working.gif'
 import aris_failed from './aris-failed.png'
 // import aris_finish from './aris-finish.gif'
 import aris_finish_new from './aris-finish-new.gif'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+const appWindow = getCurrentWebviewWindow()
 
 type RenderEvent = {
   state: "start",

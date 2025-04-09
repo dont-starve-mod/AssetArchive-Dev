@@ -4,7 +4,7 @@ import "./preset"
 import { AnimState, Api } from "../AnimCore_Canvas/animstate"
 import { useSelector } from "../../redux/store"
 import { useCallback, useMemo } from "react"
-import { save } from "@tauri-apps/api/dialog"
+import { save } from "@tauri-apps/plugin-dialog"
 import { useLuaCall } from "../../hooks"
 
 const GLOBAL_PRESETS = {

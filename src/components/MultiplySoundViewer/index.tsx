@@ -8,9 +8,10 @@ import { useLocalStorage, usePagingHandler } from '../../hooks'
 import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../format'
 import { ParamSlider, PlayIcon } from '../../pages/AssetPage'
 import PopoverMenu from '../PopoverMenu'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { killPreviewSfx } from '../Preview'
 import PageTurner from '../PageTurner'
+const appWindow = getCurrentWebviewWindow()
 
 type MultiplySoundViewerProps = {
   soundList: ()=> FmodEvent[],

@@ -7,11 +7,10 @@ import { AnimState } from '../../components/AnimCore_Canvas/animstate'
 import type { Api } from '../../components/AnimCore_Canvas/animstate'
 import { useAnimStateHook } from '../../components/AnimCore_Canvas/animhook'
 import AssetManager from '../../components/AssetManager'
-import { appWindow } from '@tauri-apps/api/window'
 import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import { Menu, MenuItem } from '@blueprintjs/core'
-import { invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
 import AppToaster from '../../components/AppToaster'
 import AppRendererInit from '../../components/AppRendererInit'
 import RenderProgress from '../../components/RenderProgress'
@@ -66,7 +65,7 @@ export default function AnimRendererPage() {
   }, [id])
 
   useEffect(()=> {
-    const unlisten = appWindow.listen<any>("forceupdate", ({payload})=> {
+    const unlisten = window.listen<any>("forceupdate", ({payload})=> {
       console.log("ForceUpdate event from:", payload)
       animstateHooks.forceUpdate()
     })

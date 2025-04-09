@@ -4,10 +4,10 @@ import { Button, Menu, MenuItem, Tag } from '@blueprintjs/core'
 import { FmodEventInfo } from '../AppFmodHandler'
 import TinySlider from '../TinySlider'
 import { Popover2 } from '@blueprintjs/popover2'
-import { invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
 import { useSelector } from '../../redux/store'
 import { useCopySuccess, useLocalStorage } from '../../hooks'
-import { writeText } from '@tauri-apps/api/clipboard'
+import { writeText } from '../../clipboard'
 
 export default function SfxPlayer(props: FmodEventInfo & {sfxId?: string}) {
   const {path, param_list} = props

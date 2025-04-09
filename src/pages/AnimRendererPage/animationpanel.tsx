@@ -5,7 +5,6 @@ import animstateContext from './globalanimstate'
 import { byte2facing } from '../../facing'
 import { Button, ButtonGroup, H6, Radio, RadioGroup } from '@blueprintjs/core'
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2'
-import { appWindow } from '@tauri-apps/api/window'
 import { useMouseDrag, useMouseScroll, useSharedLocalStorage } from '../../hooks'
 import AnimPlayerWidget from '../../components/AnimPlayerWidget'
 import { getImgIndex } from '../../components/AnimCore_Canvas/animcore'
@@ -136,18 +135,18 @@ export default function AnimationPanel(props: {left: number}) {
   
   const onMove = useCallback((x: number, y: number)=> {
     render.offset(x, y)
-    appWindow.emit("forceupdate")
+    window.emit("forceupdate")
   }, [render])
   const [onMouseDown] = useMouseDrag(onMove)
 
   const onSrollChange = useCallback((y: number)=> {
     render.scroll(y)
-    appWindow.emit("forceupdate")
+    window.emit("forceupdate")
   }, [render])
   
   useEffect(()=> {
     render.axis = axis
-    appWindow.emit("forceupdate")
+    window.emit("forceupdate")
   }, [axis, render])
 
   const [onScroll, onMouseEnter, onMouseLeave] = useMouseScroll(onSrollChange)

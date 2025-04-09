@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom"
 import { useRef, useContext, useEffect } from "react"
 import cacheContext from "./cacheContext"
 import { pageCacheNameSpace, capacityChoice } from "./cacheCapacity"
-import { appWindow } from "@tauri-apps/api/window"
 
 export interface KeepAlivePageProps {
   cacheNamespace: pageCacheNameSpace,
@@ -31,7 +30,7 @@ export default function KeepAlivePage(props: KeepAlivePageProps): React.JSX.Elem
         articleRef.scrollTop = state.scrollTop | 0
       }
       addRecord({namespace: cacheNamespace, cacheId})
-      appWindow.emit("restore_cache", {cacheId})
+      window.emit("restore_cache", {cacheId})
     }
     else {
       // console.log("mount-page", cacheId)
@@ -44,7 +43,7 @@ export default function KeepAlivePage(props: KeepAlivePageProps): React.JSX.Elem
       if (state && state.scrollTop !== scrollTop) {
         cache({cacheId, scrollTop})
       }
-      appWindow.emit("unmount_cache", {cacheId, scrollTop})
+      window.emit("unmount_cache", {cacheId, scrollTop})
     }
   }, [mount, cache, props, cacheStates, cacheId, addRecord, cacheNamespace])
 

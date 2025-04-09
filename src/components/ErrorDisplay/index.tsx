@@ -1,4 +1,4 @@
-import { writeText } from '@tauri-apps/api/clipboard'
+import { writeText } from '../../clipboard'
 import { FallbackProps } from 'react-error-boundary'
 
 export default function ErrorDisplay(props: FallbackProps) {

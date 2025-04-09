@@ -1,7 +1,8 @@
-import { appWindow } from "@tauri-apps/api/window"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import MeiliSearch, { DocumentOptions, Hit, SearchParams, SearchResponse } from "meilisearch"
 import { SYNONYMS_MAP } from "./meilisearch_synonyms"
 import { LRUCache } from "lru-cache"
+const appWindow = getCurrentWebviewWindow()
 
 export type Result = Hit<any>
 export const maxTotalHits = 5000

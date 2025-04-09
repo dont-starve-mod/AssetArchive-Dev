@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api'
-import { writeText } from '@tauri-apps/api/clipboard'
-import { appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { listen as globalListen } from '@tauri-apps/api/event'
 import { Alert, AlertProps, H3, useHotkeys } from '@blueprintjs/core'
 import GameRootSetter from '../GameRootSetter'
@@ -16,11 +15,7 @@ import RenderProgress from '../RenderProgress'
 import { initStaticPageData } from '../../pages/AssetPage/static'
 import { setState } from '../../redux/reducers/appstates'
 
-// shutdown app if main window is closed. (so that all sub windows will be closed, too)
-globalListen("tauri://destroyed", (e)=> {
-  if (e.windowLabel === "main")
-    invoke("shutdown", {reason: "MainWindowDestroyed"})
-})
+const appWindow = getCurrentWebviewWindow()
 
 function generateDocument(data: {[K: string]: ArchiveItem[]}) {
   const result = []

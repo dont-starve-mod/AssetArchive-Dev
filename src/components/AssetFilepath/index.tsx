@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useMemo } from 'react'
-import { writeText } from '@tauri-apps/api/clipboard'
+import { writeText } from '../../clipboard'
 import { Button, Dialog, DialogBody, Menu, MenuItem } from '@blueprintjs/core'
 import { Popover2 } from '@blueprintjs/popover2'
 import { useCopySuccess, useLuaCall } from '../../hooks'

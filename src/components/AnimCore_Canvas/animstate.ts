@@ -1,8 +1,9 @@
-import { appWindow } from "@tauri-apps/api/window"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { byte2facing, facing2byte } from "../../facing"
 import smallhash from "../../smallhash"
 import { FrameList, AnimationData, BuildData, Rect } from "./animcore"
 import { v4 as uuidv4 } from "uuid"
+const appWindow = getCurrentWebviewWindow()
 
 // TODO: 需要写一个指令覆盖/依赖关系的缓存表
 type hash = string | number

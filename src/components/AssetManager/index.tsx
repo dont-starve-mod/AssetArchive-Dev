@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimState } from '../AnimCore_Canvas/animstate'
-import { invoke } from '@tauri-apps/api'
+import { invoke } from '@tauri-apps/api/core'
 import { AnimationData, BuildData, Element, FrameList } from '../AnimCore_Canvas/animcore'
 import { predict } from '../../asyncsearcher'
 import { PredictableData } from '../../renderer_predict'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import smallhash from '../../smallhash'
-import { message } from '@tauri-apps/api/dialog'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
+const appWindow = getCurrentWebviewWindow()
 
 type AssetData<T> = {
   state: "loading",
