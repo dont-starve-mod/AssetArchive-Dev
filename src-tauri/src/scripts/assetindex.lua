@@ -2,6 +2,7 @@
 
 local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
+local LoadAnimZip = Indexer.LoadAnimZip
 
 local AssetIndex = Class(function(self, root)
 	self.root = root
@@ -46,36 +47,39 @@ function AssetIndex:DoIndex(ignore_cache)
 			self:AddAnim(filename, cacheinfo.anim)
 			self:AddBuild(filename, cacheinfo.build)
 		else
-			local zip = ZipLoader(CreateReader(v), ZipLoader.NAME_FILTER.INDEX)
-			local anim_raw = zip:Get("anim.bin")
-			local build_raw = zip:Get("build.bin")
-			local info = {
-				mtime = mtime,
-				anim = {},
-				build = {},
-			}
-			if anim_raw ~= nil then
-				local al = AnimLoader(CreateBytesReader(anim_raw))
-				if not al.error then
-					for _, anim in ipairs(al.animlist) do
-						table.insert(info.anim, {
-							name = anim.name,
-							bankhash = anim.bankhash,
-							facing = anim.facing,
-						})
-					end
-				end
-			end
-			if build_raw ~= nil then
-				local bl = BuildLoader(CreateBytesReader(build_raw), true)
-				if not bl.error then
-					table.insert(info.build, {
-						name = bl.buildname,
-						numatlases = bl.numatlases,
-						swap_icon_0 = bl.swap_icon_0,
-					})
-				end
-			end
+			local info = {}
+			local data = LoadAnimZip(v)
+			info.mtime = mtime
+			info.anim = data.anim or {}
+			info.build = data.build or {}
+
+			-- local zip = ZipLoader(CreateReader(v), ZipLoader.NAME_FILTER.INDEX)
+			-- local anim_raw = zip:Get("anim.bin")
+
+			-- if anim_raw ~= nil then
+			-- 	local al = AnimLoader(CreateBytesReader(anim_raw))
+			-- 	if not al.error then
+			-- 		for _, anim in ipairs(al.animlist) do
+			-- 			table.insert(info.anim, {
+			-- 				name = anim.name,
+			-- 				bankhash = anim.bankhash,
+			-- 				facing = anim.facing,
+			-- 			})
+			-- 		end
+			-- 	end
+			-- end
+			-- local build_raw = zip:Get("build.bin")
+
+			-- if build_raw ~= nil then
+			-- 	local bl = BuildLoader(CreateBytesReader(build_raw), true)
+			-- 	if not bl.error then
+			-- 		table.insert(info.build, {
+			-- 			name = bl.buildname,
+			-- 			numatlases = bl.numatlases,
+			-- 			swap_icon_0 = bl.swap_icon_0,
+			-- 		})
+			-- 	end
+			-- end
 
 			self.indexcache:Set(filename, info)
 			self:AddAnim(filename, info.anim)
@@ -133,9 +137,7 @@ function AssetIndex:DoIndex(ignore_cache)
 		self:Ipc_GetPredictableData()))
 
 	local t = now() - t
-	if t > 200 then
-		print(("USE TIME: %d ms"):format(t))
-	end
+	print(("Index ready: %d ms"):format(t))
 end
 
 function AssetIndex:AddBuild(name, info)

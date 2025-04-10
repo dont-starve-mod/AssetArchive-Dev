@@ -18,7 +18,6 @@ use simplelog::*;
 use log::{info, error, warn};
 
 use tauri::{Manager, Emitter};
-use tauri::path::PathResolver;
 
 #[macro_use]
 extern crate json;
@@ -34,6 +33,7 @@ mod unzip;
 mod args;
 mod meilisearch;
 mod es;
+mod fastindex;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use fmod::FmodChild;
 use meilisearch::MeilisearchChild;
@@ -187,7 +187,24 @@ fn main() {
             shutdown,
             get_is_debug,
         ])
-        // .menu(menu())
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                if window.label() == "main" {
+                    info!("Close main window");
+                    std::process::exit(0);
+                    // #[cfg(target_os = "macos")]
+                    // {
+                    //     tauri::AppHandle::hide(window.app_handle()).unwrap();
+                    //     api.prevent_close();
+                    // }
+                    // #[cfg(not(target_os = "macos"))]
+                    // {
+                    //     window.destroy().unwrap();
+                    // }
+                }
+            },
+            _ => {}
+        })
         .run(tauri::generate_context!())
         .expect("Failed to launch app");
 }
@@ -228,8 +245,8 @@ fn get_is_debug() -> bool {
     cfg!(debug_assertions)
 }
 
-fn get_is_release() -> bool {
-    cfg!(feature = "release")
+fn get_is_publish_build() -> bool {
+    cfg!(feature = "publish")
 }
 
 #[tauri::command]
@@ -429,6 +446,7 @@ fn init_lua_impl(handle: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> L
         args::lua_args::init(lua_ctx).unwrap_or_else(init_error("lua_args"));
         ffmpeg::lua_ffmpeg::init(lua_ctx).unwrap_or_else(init_error("ffmpeg"));
         fmod::lua_fmod::init(lua_ctx).unwrap_or_else(init_error("fmod"));
+        fastindex::lua_fastindex::init(lua_ctx).unwrap_or_else(init_error("fastindex"));
 
         info!("\t[LUA] remove default loaders");
 
@@ -436,7 +454,6 @@ fn init_lua_impl(handle: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> L
         globals.set("dofile", Nil)?;
         globals.set("load", Nil)?;
         globals.set("loadfile", Nil)?;
-        // let old_loadstring = globals.get::<_, Function>("loadstring")?;
         globals.set("loadstring", lua_ctx.create_function(|lua, (s, chunkname): (LuaString, Option<String>)|{
             if s.as_bytes().is_empty() {
                 Err(LuaError::RuntimeError("loadstring: try to load an empty string".to_string()))
@@ -460,7 +477,7 @@ fn init_lua_impl(handle: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> L
         let workdir = state.get_debug_script_root(std::env::current_dir().unwrap_or_default());
         info!("\t[LUA] current workdir: {:?}", &workdir);
         globals.set("APP_WORK_DIR", LuaPath::new(workdir.clone()))?;
-        let script_root = if !get_is_release() && workdir.join("Cargo.toml").exists() {
+        let script_root = if !get_is_publish_build() && workdir.join("Cargo.toml").exists() {
             info!("[DEBUG] Enable dynamic script loading");
             workdir.join("src").join("scripts")
         }
@@ -470,7 +487,6 @@ fn init_lua_impl(handle: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> L
         // package.path
         let package = globals.get::<_, Table>("package")?;
         let ori_path = package.get::<_, LuaString>("path")?;
-        info!("ori_path = {:?}", ori_path.as_bytes());
         let script_root_str = script_root.as_os_str().to_string_lossy();
         if script_root_str.len() > 0 {
             info!("[DEBUG] SCRIPT_ROOT = {}", script_root_str);
@@ -574,7 +590,6 @@ fn init_meilisearch(app: &mut tauri::App) -> Result<(), String> {
             #[allow(unused_must_use)]
             {
                 state.meilisearch.lock().unwrap().insert(child);
-                // TODO: block until meilisearch is ready
             }
         },
         Err(e)=> {
