@@ -82,37 +82,15 @@ export default function HomePage() {
   return (
     <KeepAlivePage.NoDev cacheNamespace="assetPage">
       <div className={'bp4-running-text ' + style["home"]}>
-        <H3 style={{marginTop: 15}}>游戏资源</H3>
+        <H3 className="!mt-[10px]">游戏资源</H3>
         <svg height="0" style={{position: "absolute"}}>
           <filter id={"grey"}>
             <feColorMatrix values={colorMatrix}/>
           </filter>
         </svg>
         <H5>搜索</H5>
-        {/* <Card interactive style={{display: "inline-flex"}}> */}
-          <p>点击右上角的搜索框，查找你感兴趣的游戏资源。 <Icon icon="arrow-top-right"/> </p>
-        {/* </Card> */}
-        {/* <H5>生物</H5>
-        <div className={style["card-box"]}>
-          <SubCard title="中立生物" imgSrc={clips.neutral}/>
-          <SubCard title="敌对生物" imgSrc={clips.hostile}/>
-          <SubCard title="友好生物" imgSrc={clips.passive}/>
-          <SubCard title="Boss" imgSrc={clips.epic}/>
-          <SubCard title="地面生物" imgSrc={clips.surface}/>
-          <SubCard title="洞穴生物" imgSrc={clips.cave} style={{overflow: "hidden"}}/>
-          <SubCard title="海洋生物" imgSrc={clips.ocean}/>
-          <SubCard title="全部" imgSrc={clips.all}/>
-        </div>
-        <H5>物品</H5>
-        <div className={style["card-box"]}>
-          <SubCard title="战斗物品" imgSrc={clips.combat}/>
-          <SubCard title="生存道具" imgSrc={clips.suvive}/>
-          <SubCard title="光源" imgSrc={clips.light}/>
-          <SubCard title="制造" imgSrc={clips.crafting}/>
-          <SubCard title="食物" imgSrc={clips.food}/>
-          <SubCard title="料理" imgSrc={clips.preparedfood}/>
-          <SubCard title="全部" imgSrc={clips.all}/>
-        </div> */}
+        <p>点击右上角的搜索框，查找你感兴趣的游戏资源。 <Icon icon="arrow-top-right"/> </p>
+
         <H5>图片</H5>
         <div className={style["card-box"]}>
           <SubCard title="人物立绘" imgSrc={clips.bigportrait} onClick={()=> toMultiXml("CharacterPortraits")}/>

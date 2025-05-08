@@ -236,7 +236,7 @@ export default function AppInit() {
         }),
         await globalListen<string>("docs", ({payload})=> {
           /* eslint-disable no-lone-blocks */
-          const TEXT_GUARD = "🦀️"
+          const TEXT_GUARD = window.text_guard
           const kv = payload.split(TEXT_GUARD)
           const docs = {} as any
           for (let i = 0; i < kv.length; i += 2){
@@ -358,6 +358,8 @@ export function ErrorHandler(){
   const [initError, setInitError] = useState<string>()
   const [luaError, setLuaError] = useState<string>()
   const [alert, setAlertData] = useState<AlertPayload>()
+
+  console.log(luaError, typeof luaError)
 
   useEffect(()=> {
     async function init() {

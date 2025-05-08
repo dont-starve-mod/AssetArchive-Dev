@@ -61,7 +61,7 @@ export default function SearchResultPage() {
       },
       e=> {
         console.error(e)
-        window.emit("runtime_error", e)
+        window.emit("runtime_error", e.name)
       }
     )
   }, [query, flag])
@@ -145,7 +145,7 @@ function SearchResultDisplay({result}: {result: Response}) {
   }, [tab, setTabScroll])
 
   useEffect(()=> {
-    let unlisten = appWindow.listen<any>("restore_cache", ({payload: {cacheId}})=> {
+    let unlisten = window.listen<any>("restore_cache", ({payload: {cacheId}})=> {
       if (cacheId.startsWith("searchPage") && cacheId.endsWith(query)){
         setTabScroll(tab)
       }
@@ -154,7 +154,7 @@ function SearchResultDisplay({result}: {result: Response}) {
   }, [tab, query, setTabScroll])
 
   useEffect(()=> {
-    let unlisten = appWindow.listen<any>("unmount_cache", ({payload: {cacheId}})=> {
+    let unlisten = window.listen<any>("unmount_cache", ({payload: {cacheId}})=> {
       if (cacheId.startsWith("searchPage")){
         killPreviewSfx()
       }
@@ -163,7 +163,7 @@ function SearchResultDisplay({result}: {result: Response}) {
   }, [])
 
   useEffect(()=> {
-    let unlisten = appWindow.listen<any>("reset_search_page_number", ()=> {
+    let unlisten = window.listen<any>("reset_search_page_number", ()=> {
       setTabCurrentPages(v=> Object.fromEntries(Object.keys(v).map(k=> [k, 0])))
     })
     return ()=> { unlisten.then(f=> f()) }

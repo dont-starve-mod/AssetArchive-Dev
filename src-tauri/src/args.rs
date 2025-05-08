@@ -42,7 +42,7 @@ pub mod lua_args {
             let cmd = clap::Command::new("Asset Archive CLI")
                 .author("老王天天写bug")
                 .about("饥荒资源档案 - 命令行工具 (Asset Archive CLI)");
-            #[cfg(not(feature = "release"))]
+            #[cfg(not(feature = "publish"))]
             let cmd = cmd.subcommand(clap::Command::new("dummy")
                     .about("快速测试路径参数")
                     .visible_aliases(["d"])

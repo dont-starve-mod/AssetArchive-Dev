@@ -1,8 +1,9 @@
 local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
 local Deflate = Algorithm.Deflate
-local DXT5_Decompress = Algorithm.DXT5_Decompress
-local DXT1_Decompress = Algorithm.DXT1_Decompress
+-- local DXT5_Decompress = Algorithm.DXT5_Decompress
+-- local DXT1_Decompress = Algorithm.DXT1_Decompress
+local Bc_Decompress = Algorithm.Bc_Decompress
 local FlipBytes = Algorithm.FlipBytes
 local DivAlpha = Algorithm.DivAlpha
 local CropBytes = Algorithm.CropBytes
@@ -64,6 +65,7 @@ BuildLoader = Class(function(self, f, lazy)
     self.buildname = name
     self.numatlases = numatlases
     self.atlas = {}
+    self.atlas_utf8 = {} -- json save
     self.lazy = lazy
 
     for i = 1, numatlases do
@@ -73,6 +75,7 @@ BuildLoader = Class(function(self, f, lazy)
                 self.invalid_utf8 = true
             end
             table.insert(self.atlas, name)
+            table.insert(self.atlas_utf8, string.to_utf8_lossy(name))
         else
             return error(ERROR.UNEXPECTED_EOF)
         end
@@ -199,6 +202,8 @@ BuildLoader = Class(function(self, f, lazy)
     end
 
     self.builddata = {name = name, atlas = self.atlas, symbol = symbol}
+    self.builddata.name_utf8 = string.to_utf8_lossy(name)
+    self.builddata.atlas_utf8 = self.atlas_utf8
     self.symbol_map = {}
     self.symbol_collection = symbol_collection
     for _,v in ipairs(symbol)do
@@ -272,7 +277,7 @@ AnimLoader = Class(function(self, f)
         end
 
         local anim = {
-            name = name,
+            name = string.to_utf8_lossy(name),
             facing = string.byte(facing, 1),
             bankhash = bankhash,
             framerate = framerate,
@@ -585,12 +590,10 @@ function TexLoader:GetImageBytes(i)
             m.data = nil
             return m.pixels, m.width, m.height
         elseif self.pixelformat == 2 then
-            m.pixels = DXT5_Decompress(m.data, m.width, m.height)
-            m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
+            m.pixels = Bc_Decompress(m.data, {format = "DXT5", width = m.width, height = m.height})
             return m.pixels, m.width, m.height
         elseif self.pixelformat == 0 then
-            m.pixels = DXT1_Decompress(m.data, m.width, m.height)
-            m.pixels = DivAlpha(FlipBytes(m.pixels, m.width*4))
+            m.pixels = Bc_Decompress(m.data, {format = "DXT1", width = m.width, height = m.height})
             return m.pixels, m.width, m.height
         else
             error("Unsupported pixelformat: "..self.pixelformat)
@@ -599,12 +602,12 @@ function TexLoader:GetImageBytes(i)
 end
 
 TexLoader.PIXEL_FORMAT = {
-    DXT1 = 0,
-    DXT3 = 1,
-    DXT5 = 2,
-    ARGB = 4,
-    RGB = 5,
-    UNKNOWN = 7,
+    [0] = "DXT1",
+    [1] = "DXT3",
+    [2] = "DXT5",
+    [4] = "ARGB",
+    [5] = "RGB",
+    [7] = "UNKNOWN",
 }
 
 function TexLoader:GetPixelFormatString()
@@ -803,7 +806,7 @@ function ZipLoader:Get(name)
     local data = self.contents[name]
     if data ~= nil then
         if data.lazy then
-            -- delay delfate
+            -- delay deflate
             data.raw_data = Deflate(data.compressed_data)
             data.lazy = nil
             data.compressed_data = nil
@@ -844,44 +847,86 @@ ZipLoader.NAME_FILTER = {
     INDEX = function(name) return name == "anim.bin" or name == "build.bin" end,
 }
 
--- -- load anim.bin in zipfile, make sure that path is a file
--- function ZipLoader.LoadAnim(path, ...)
---     local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.ANIM)
---     local anim_raw = zip and zip:Get("anim.bin")
---     local anim = anim_raw and AnimLoader(CreateBytesReader(anim_raw), ...)
---     if anim and not anim.error then
---         return anim
---     end
--- end
-
--- -- load build.bin in zipfile, make sure that path is a file
--- function ZipLoader.LoadBuild(path, ...)
---     local zip = ZipLoader(CreateReader(path), ZipLoader.NAME_FILTER.BUILD)
---     local build_raw = zip and zip:Get("build.bin")
---     local build = build_raw and BuildLoader(CreateBytesReader(build_raw), ...)
---     if build and not build.error then
---         return build
---     end
--- end
-
 DynLoader = Class(ZipLoader, FileSystem.DynLoader_Ctor)
 
-local function FmodBytesToGUID(bytes)
-    assert(type(bytes) == "string")
-    assert(#bytes == 16)
-    local buffer = {}
-    for i = 1, 16 do
-        table.insert(buffer, string.format("%02x", string.byte(bytes, i)))
+-- fast zip loader
+ZipLoader2 = Class()
+
+function ZipLoader2.Open(path)
+    local zip = ZipLoader2()
+    local success, result = pcall(OpenZipFile, path)
+    if success then
+        zip.inner = result
+        zip.name_list = result:name_list()
+        zip.name_set = {}
+        table.foreach(zip.name_list, function(_,v) zip.name_set[v] = true end)
+    else
+        zip.error = result
+        zip.name_list = {}
+        zip.name_set = {}
     end
-    local p1 = table.concat(buffer, "", 1, 4)
-    local p2 = table.concat(buffer, "", 5, 6)
-    local p3 = table.concat(buffer, "", 7, 8)
-    local p4 = table.concat(buffer, "", 9, 10)
-    local p5 = table.concat(buffer, "", 11, 16)
-    return table.concat({p1, p2, p3, p4, p5}, "-")
+    return zip
 end
 
+function ZipLoader2.WrapBytes(content)
+    local zip = ZipLoader2()
+    local success, result = pcall(OpenZipFileInMemory, content)
+    if success then
+        zip.inner = result
+        zip.name_list = result:name_list()
+    else
+        zip.error = result
+        zip.name_list = {}
+    end
+    return zip
+end
+
+function ZipLoader2:Exists(name)
+    return self.name_set[name] == true
+end
+
+function ZipLoader2:List()
+    -- return a copy
+    local result = {}
+    for _,v in ipairs(self.name_list)do
+        table.insert(result, v)
+    end
+    return result
+end
+
+function ZipLoader2:Get(name)
+    local success, result = pcall(function() return self.inner:get(name) end)
+    if success then
+        return result, self:GetMTime(name)
+    end
+end
+
+function ZipLoader2:GetMTime(name)
+    local success, result = pcall(function() return self.inner:get_mtime(name) end)
+    if success then
+        return result
+    end
+end
+
+ZipLoader2.GetModified = ZipLoader2.GetMTime
+
+-- local function FmodBytesToGUID(bytes)
+--     assert(type(bytes) == "string")
+--     assert(#bytes == 16)
+--     local buffer = {}
+--     for i = 1, 16 do
+--         table.insert(buffer, string.format("%02x", string.byte(bytes, i)))
+--     end
+--     local p1 = table.concat(buffer, "", 1, 4)
+--     local p2 = table.concat(buffer, "", 5, 6)
+--     local p3 = table.concat(buffer, "", 7, 8)
+--     local p4 = table.concat(buffer, "", 9, 10)
+--     local p5 = table.concat(buffer, "", 11, 16)
+--     return table.concat({p1, p2, p3, p4, p5}, "-")
+-- end
+
 -- loader for *.fev file, only parse sound reference, other data are loaded by libfmodex
+--[[
 FevLoader = Class(function(self, f)
     local function error(e)
         self.error = e
@@ -1169,6 +1214,67 @@ function FevLoader:GetStringByIndex(index, strict)
     end
     return value
 end
+]]
+
+Fev = Class(function(self)
+    self.inner = nil
+    self.error = nil 
+end)
+
+-- we open a fev file by path (no need for in memory file)
+function Fev.Open(path)
+    local success, result = pcall(Fmod.OpenFev, path)
+    local fev = Fev()
+    if success then
+        fev.inner = result
+        fev.proj_name = result:proj_name()
+        fev.bank_list = result:bank_list()
+    else
+        fev.error = result
+    end
+    return fev
+end
+
+function Fev:GetEventByPath(path)
+    if self.inner == nil then return end
+    local data = self.inner:get_event(path)
+    if data == nil then return end
+    
+    data.path = path
+    if data.has_sounddef and self.fsb_map ~= nil then
+        for _,v in ipairs(data.file_list)do
+            local bank_name = v.bank_name
+            local file_index = v.file_index
+            local fsb = self.fsb_map[bank_name]
+            local info = fsb and fsb:GetSampleInfoByIndex(file_index)
+            if info then
+                v.file_info = info
+                v.file_info.fsb_name = bank_name
+                v.file_info.bank_name = bank_name
+                v.bank_name = bank_name
+                v.fsb_name = bank_name
+                -- TODO: remove fsb_name in JS side
+            elseif fsb == nil then
+                v.file_info = { error = "FsbNotFound" }
+            else
+                v.file_info = { error = "SampleNotFound" }
+            end
+        end
+    end
+    return data
+end
+
+function Fev:LinkToFsb(fsb_map)
+    self.fsb_map = fsb_map
+end
+
+function Fev:__tostring()
+    if self.error then
+        return string.format("Fev<error=%s>", self.error)
+    else
+        return string.format("Fev<name=%s>", self.proj_name)
+    end
+end
 
 -- [removed] klei dontstarve sound banks have CONFLICT guid, don't use this
 -- function FevLoader:GetEventByGUID(guid)
@@ -1278,7 +1384,7 @@ FsbLoader = Class(function(self, f)
         sample_list[i].name = v
     end
 
-    assert(f:tell() == header_size + sample_headers_size + string_table_size)
+    -- assert(f:tell() == header_size + sample_headers_size + string_table_size)
     for i, v in ipairs(sample_list) do
         if i < #sample_list then
             v.data_size = sample_list[i+1].data_offset - v.data_offset
@@ -1290,7 +1396,6 @@ FsbLoader = Class(function(self, f)
     self.sample_list = sample_list
 
     f:close()
-    -- print(json.encode(sample_list[#sample_list]))
 end)
 
 function FsbLoader:GetFileExtension(format)
@@ -1363,6 +1468,7 @@ FsbLoader.META_CHUNK_TYPE = {
     [11]= "VORBISDATA",
 }
 
+--[[
 function FevLoader:LinkToFsb(map)
     -- {[name: string]: fsb}
     for _,event in ipairs(self.event_list)do
@@ -1383,3 +1489,4 @@ function FevLoader:LinkToFsb(map)
         end
     end
 end
+]]

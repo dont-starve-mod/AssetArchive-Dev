@@ -19,6 +19,10 @@ fn main() {
 
         let mut cc_config = cc::Build::new();
         cc_config.warnings(false);
+        #[cfg(target_os = "macos")]{
+            cc_config.flag("-Wno-deprecated-declarations");
+            cc_config.flag("-Wno-empty-body");
+        }
 
         if target_os == Ok("linux".to_string()) {
             cc_config.define("LUA_USE_LINUX", None);

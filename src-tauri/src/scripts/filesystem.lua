@@ -105,23 +105,6 @@ function ReadStream.read_variable_length_string(fs)
     end
 end
 
--- seek to next ascii string
--- for temp use now ...
--- function ReadStream.seek_to_next_string(fs, min_size)
---     local buffer = {}
---     while true do
---         local byte = assert(fs:read_u8(), "reach EOF")
---         if byte >= 32 and byte < 125 then
---             table.insert(buffer, byte)
---         else
---             if byte == 0 and #buffer >= min_size then
---                 return string.char(unpack(buffer))
---             end
---             buffer = {}
---         end
---     end
--- end
-
 -- close a file, this method is alias of `drop`
 function ReadStream.close(fs)
     fs:drop()

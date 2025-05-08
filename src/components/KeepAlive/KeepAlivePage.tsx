@@ -59,7 +59,7 @@ export default function KeepAlivePage(props: KeepAlivePageProps): React.JSX.Elem
 
 // no keepalive behavior in debug mode
 function KeepAlivePage_NoDev(props: KeepAlivePageProps) {
-  return window.meta.debug ?
+  return window.show_debug_tools ?
     props.children :
     <KeepAlivePage {...props}>{props.children}</KeepAlivePage>
 }

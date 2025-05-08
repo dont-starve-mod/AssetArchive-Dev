@@ -145,7 +145,8 @@ pub mod lua_filesystem {
             if len < 0 {
                 return Err(io::Error::new(io::ErrorKind::Unsupported, "Cannot seek backward"));
             }
-            self.index += len as usize;
+            // self.index += len as usize;
+            self.seek_to(self.index as u64 + len as u64);
             Ok(self.index as u64)
         }
 
@@ -239,12 +240,12 @@ pub mod lua_filesystem {
         }
 
         fn read_u32(&mut self) -> Option<u32> {
-            match self.read_exact(4) {
-                Ok(bytes)=> {
-                    let bytes: [u8; 4] = bytes.try_into().unwrap();
+            let mut buf = [0; 4];
+            match self.inner.read_exact(&mut buf) {
+                Ok(_)=> {
                     match self.data_mode {
-                        DataMode::BigEndian => Some(u32::from_be_bytes(bytes)),
-                        DataMode::LittleEndian => Some(u32::from_le_bytes(bytes)),
+                        DataMode::BigEndian => Some(u32::from_be_bytes(buf)),
+                        DataMode::LittleEndian => Some(u32::from_le_bytes(buf)),
                     }
                 },
                 Err(_)=> None
@@ -252,12 +253,12 @@ pub mod lua_filesystem {
         }
 
         fn read_f32(&mut self) -> Option<f32> {
-            match self.read_exact(4) {
-                Ok(bytes)=> {
-                    let bytes: [u8; 4] = bytes.try_into().unwrap();
+            let mut buf = [0; 4];
+            match self.inner.read_exact(&mut buf) {
+                Ok(_)=> {
                     match self.data_mode {
-                        DataMode::BigEndian => Some(f32::from_be_bytes(bytes)),
-                        DataMode::LittleEndian => Some(f32::from_le_bytes(bytes)),
+                        DataMode::BigEndian => Some(f32::from_be_bytes(buf)),
+                        DataMode::LittleEndian => Some(f32::from_le_bytes(buf)),
                     }
                 },
                 Err(_)=> None
@@ -276,12 +277,12 @@ pub mod lua_filesystem {
         }
 
         fn read_u16(&mut self)-> Option<u16> {
-            match self.read_exact(2) {
-                Ok(bytes)=> {
-                    let bytes: [u8; 2] = bytes.try_into().unwrap();
+            let mut buf = [0; 2];
+            match self.inner.read_exact(&mut buf) {
+                Ok(_)=> {
                     match self.data_mode {
-                        DataMode::BigEndian => Some(u16::from_be_bytes(bytes)),
-                        DataMode::LittleEndian => Some(u16::from_le_bytes(bytes)),
+                        DataMode::BigEndian => Some(u16::from_be_bytes(buf)),
+                        DataMode::LittleEndian => Some(u16::from_le_bytes(buf)),
                     }
                 },
                 Err(_)=> None
@@ -289,12 +290,12 @@ pub mod lua_filesystem {
         }
 
         fn read_u64(&mut self)-> Option<u64> {
-            match self.read_exact(8) {
-                Ok(bytes)=> {
-                    let bytes: [u8; 8] = bytes.try_into().unwrap();
+            let mut buf = [0; 8];
+            match self.inner.read_exact(&mut buf) {
+                Ok(_)=> {
                     match self.data_mode {
-                        DataMode::BigEndian => Some(u64::from_be_bytes(bytes)),
-                        DataMode::LittleEndian => Some(u64::from_le_bytes(bytes)),
+                        DataMode::BigEndian => Some(u64::from_be_bytes(buf)),
+                        DataMode::LittleEndian => Some(u64::from_le_bytes(buf)),
                     }
                 },
                 Err(_)=> None
@@ -302,10 +303,9 @@ pub mod lua_filesystem {
         }
 
         fn read_u8(&mut self)-> Option<u8> {
-            match self.read_exact(1) {
-                Ok(bytes)=> {
-                    Some(bytes[0])
-                },
+            let mut buf = [0; 1];
+            match self.inner.read_exact(&mut buf) {
+                Ok(_)=> Some(buf[0]),
                 Err(_)=> None
             }
         }
@@ -796,6 +796,23 @@ pub mod lua_filesystem {
             info.set("exists", path.exists())?;
             Ok(info)
         })?)?;
+        table.set("GetMTime", lua_ctx.create_function(|lua, path: String|{
+            match fs::metadata(&path) {
+                Ok(meta)=> match meta.modified() {
+                    Ok(mtime)=> Ok(Some(mtime.duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs())),
+                    Err(_)=> Ok(None),
+                },
+                Err(_)=> Ok(None),
+            }
+        })?)?;
+        table.set("GetFileSize", lua_ctx.create_function(|lua, path: String|{
+            match fs::metadata(&path) {
+                Ok(meta)=> Ok(Some(meta.len())),
+                Err(_)=> Ok(None),
+            }
+        })?)?;
         table.set("DynLoader_Ctor", lua_ctx.create_function(|lua: Context, (loader, fs): (Table, AnyUserData)|{
             fs.borrow_mut::<ReadStream>().and_then(|mut fs|{
                 let mut buf = Vec::with_capacity(10000);
@@ -817,6 +834,21 @@ pub mod lua_filesystem {
                 }
                 Ok(Nil)
             })
+        })?)?;
+        table.set("WithFileName", lua_ctx.create_function(|lua, (path, name): (String, String)|{
+            let mut path = PathBuf::from(path);
+            path.set_file_name(name);
+            lua.create_string(&path.to_string_lossy().to_string())
+        })?)?;
+        table.set("SigOf", lua_ctx.create_function(|lua, (path, len): (String, u32)|{
+            match std::fs::OpenOptions::new().read(true).open(path) {
+                Ok(mut f)=> {
+                    let mut buf = vec![0; len as usize];
+                    f.read_exact(&mut buf).ok();
+                    lua.create_string(&buf)
+                },
+                _=> lua.create_string("")
+            }
         })?)?;
 
         table.set("ReadStream__index", lua_ctx.create_table()?)?;

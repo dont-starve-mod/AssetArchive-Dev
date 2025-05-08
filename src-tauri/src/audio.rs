@@ -21,9 +21,9 @@ fn get_default_output_device() ->String {
 
 #[cfg(windows)]
 fn get_default_output_device() ->String {
-    match cpal::default_host() {
-      Ok(host)=> host.default_output_device().unwrap_or_else(|_|"Unknown device".to_string()),
-      Err(_)=> "Unknown device".to_string(),
+    match cpal::default_host().default_output_device() {
+      Some(device)=> device.name().unwrap_or_else(|_| "Unknown device [-1]".to_string()),
+      None => format!("Unknown device [-1]")
     }
 }
 

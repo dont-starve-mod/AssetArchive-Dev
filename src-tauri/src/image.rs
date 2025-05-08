@@ -4,6 +4,7 @@ use rlua::{Value, FromLua, Context};
 use rlua::prelude::{LuaResult, LuaError, LuaString};
 use std::hash::Hash;
 use std::ops::Index;
+use log::info;
 // #[cfg(unix)]
 // use std::os::fd::{RawFd, AsRawFd, OwnedFd, FromRawFd};
 // #[cfg(windows)]
@@ -157,7 +158,6 @@ pub mod lua_image {
     use std::sync::mpsc::sync_channel;
     use std::sync::{Arc, Condvar, Mutex};
     use std::thread::spawn;
-
     use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgb, Rgba};
     use image::ColorType;
     use rlua::{AnyUserData, Context};
@@ -950,6 +950,7 @@ pub mod lua_image {
             let cond = Arc::new(Condvar::new());
             let mut threads = Vec::with_capacity(num_threads);
             let (main_tx, main_rx) = sync_channel::<CompositeTaskData>(1);
+            info!("spawn {} threads", num_threads);
             #[allow(unused_variables)]
             for i in 0..num_threads {
                 let main_tx = main_tx.clone();
@@ -983,6 +984,7 @@ pub mod lua_image {
                 }), tx, true)) // thread, sender, is_available
             }
 
+            info!("start rendering");
             loop {
                 for (i, (_, tx, is_available)) in threads.iter_mut().enumerate() {
                     if *is_available && !keys.is_empty() {
@@ -1054,6 +1056,32 @@ pub mod lua_image {
                 width, 
                 height,
                 BASE64_STANDARD.encode(bytes.as_bytes())))
+        })?)?;
+        table.set("ToRGBA", lua_ctx.create_function(|lua, 
+            (bytes, width, height): (LuaString, u32, u32)|{
+            let num_pixels = (width * height) as usize;
+            let bytes_len = bytes.as_bytes().len();
+            if bytes_len == num_pixels * 4 {
+                Ok(bytes)
+            }
+            else if bytes_len == num_pixels * 3 {
+                // convert rgb to rgba
+                let rgba = bytes.as_bytes()
+                    .chunks_exact(3)
+                    .map(|chunk|{
+                        let r = chunk[0];
+                        let g = chunk[1];
+                        let b = chunk[2];
+                        [r, g, b, 255]
+                    })
+                    .flatten()
+                    .collect::<Vec<u8>>();
+                lua.create_string(rgba.as_slice())
+            }
+            else {
+                Err(LuaError::RuntimeError(format!("Invalid image bytes length: {}, expected {}(rgb) or {}(rgba)", 
+                    bytes_len, num_pixels * 3, num_pixels * 4)))
+            }
         })?)?;
         table.set("Wait", lua_ctx.create_function(|_, _: ()|{
             ASYNC_SAVER.lock().unwrap().wait();

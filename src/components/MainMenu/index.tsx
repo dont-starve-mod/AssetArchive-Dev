@@ -30,12 +30,8 @@ function MenuNavLink(props:
 }
 
 export default function MainMenu() {
-  const [isDebug, setIsDebug] = useState(false)
+  const isDebug = window.show_debug_tools
   const [hideDebug, setHideDebug] = useState(false)
-
-  useEffect(()=> {
-    invoke<boolean>("get_is_debug").then(setIsDebug)
-  }, [])
 
   const location = window.location
 
@@ -43,6 +39,7 @@ export default function MainMenu() {
     <Menu style={{minWidth: "100%", backgroundColor: "transparent"}}>
       <MenuNavLink icon="git-repo" to="/asset-group" text="游戏资源" redirectNoRoot/>
       <MenuNavLink icon="walk" to="/anim-list" text="动画渲染器" redirectNoRoot/>
+      <MenuNavLink icon="document-open" to="quick-look" text="快速预览"/>
       {/* <div onClick={()=> alert("这个功能还没做完 _(:з」∠)_")}><MenuNavLink icon="color-fill" to="/filter" text="滤镜渲染器" /></div> */}
       {/* <MenuNavLink icon="build" to="/mod-tools" text="模组工具箱" /> */}
       {/* <MenuNavLink icon="bug" to="/about#bug" text="反馈bug" /> */}

@@ -37,6 +37,8 @@ function AssetIndex:DoIndex(ignore_cache)
 		end
 	end
 
+	local hash_table = {}
+
 	-- animzip: *.zip -> anim.bin + build.bin
 	for i, v in ipairs(animzip) do
 		local mtime = v:mtime()
@@ -52,6 +54,7 @@ function AssetIndex:DoIndex(ignore_cache)
 			info.mtime = mtime
 			info.anim = data.anim or {}
 			info.build = data.build or {}
+			table.update(hash_table, data.hash_table)
 
 			-- local zip = ZipLoader(CreateReader(v), ZipLoader.NAME_FILTER.INDEX)
 			-- local anim_raw = zip:Get("anim.bin")
@@ -91,10 +94,12 @@ function AssetIndex:DoIndex(ignore_cache)
 		end
 	end
 
+	print("indexing animdyn...")
+
 	-- animdyn: anim_dynamic.zip -> *.zip -> build.bin
 	if animdyn ~= nil then
 		local i = animzip_total
-		for k in pairs(animdyn.contents)do
+		for _,k in ipairs(animdyn:List())do
 			if k:endswith(".zip") then
 				local filename = k
 				local cacheinfo = self.indexcache:Get(filename)
@@ -103,21 +108,31 @@ function AssetIndex:DoIndex(ignore_cache)
 					-- use cache
 					self:AddBuild(filename, cacheinfo.build)
 				else
-					local zip = ZipLoader(CreateBytesReader(animdyn:Get(k)), ZipLoader.NAME_FILTER.BUILD)
-					local build_raw, build_mtime = zip:Get("build.bin")
-					local info = {mtime = mtime, build = {}}
-					if build_raw ~= nil then
-						local bl = BuildLoader(CreateBytesReader(build_raw), true)
-						if not bl.error then
-							table.insert(info.build, {
-								name = bl.buildname,
-								numatlases = bl.numatlases,
-								swap_icon_0 = bl.swap_icon_0,
-							})
-							self.indexcache:Set(filename, info)
-							self:AddBuild(filename, info.build)
-						end
-					end
+					local info = {}
+					local data = LoadAnimZip(animdyn:Get(k))
+					info.mtime = mtime
+					info.build = data.build or {}
+
+					table.update(hash_table, data.hash_table)
+
+					self.indexcache:Set(filename, info)
+					self:AddBuild(filename, info.build)
+
+					-- local zip = ZipLoader(CreateBytesReader(animdyn:Get(k)), ZipLoader.NAME_FILTER.BUILD)
+					-- local build_raw, build_mtime = zip:Get("build.bin")
+					-- local info = {mtime = mtime, build = {}}
+					-- if build_raw ~= nil then
+					-- 	local bl = BuildLoader(CreateBytesReader(build_raw), true)
+					-- 	if not bl.error then
+					-- 		table.insert(info.build, {
+					-- 			name = bl.buildname,
+					-- 			numatlases = bl.numatlases,
+					-- 			swap_icon_0 = bl.swap_icon_0,
+					-- 		})
+					-- 		self.indexcache:Set(filename, info)
+					-- 		self:AddBuild(filename, info.build)
+					-- 	end
+					-- end
 				end
 			end
 
@@ -128,12 +143,14 @@ function AssetIndex:DoIndex(ignore_cache)
 		end
 	end
 
+	HashLib:UpdateFromTable(hash_table)
+
 	OnProgress(total)
 
 	self.indexcache:Save()
 	Persistant.Hash:Update(HashLib.map_string):Save()
 
-	IpcEmitEvent("anim_predictable_data", json.encode(
+	IpcEmitEvent("anim_predictable_data", json.encode_compliant(
 		self:Ipc_GetPredictableData()))
 
 	local t = now() - t

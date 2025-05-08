@@ -8,6 +8,7 @@ import PostProcessProjectList from "./pages/PostProcessProjectList"
 import ModToolsPage from "./pages/ModToolsPage"
 import AppFirstLaunch from "./components/AppFirstLaunch"
 import EntrySearcher from "./components/EntrySearcher"
+import QuickLookPage from "./pages/QuickLookPage"
 import { Routes, Route } from "react-router-dom"
 
 export default function MainRoutes() {
@@ -21,6 +22,7 @@ export default function MainRoutes() {
       {/* // TODO: add group data */}
       <Route path="/anim-list" element={<AnimListPage/>} />
       <Route path="/search" element={<SearchResultPage/>} />
+      <Route path="/quick-look" element={<QuickLookPage/>} />
       <Route path="/mod-tools" element={<ModToolsPage/>} />
       <Route path="/entry-searcher" element={<EntrySearcher/>} />
       <Route path="/filter" element={<PostProcessProjectList/>} />

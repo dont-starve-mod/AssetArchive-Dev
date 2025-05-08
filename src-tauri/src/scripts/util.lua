@@ -72,6 +72,12 @@ function table.getkeys(t)
 	return result
 end
 
+function table.update(self, t)
+	for k,v in pairs(t)do
+		self[k] = v
+	end
+end
+
 function string.startswith(str, neddle)
     return str:sub(1, #neddle) == neddle
 end
@@ -148,7 +154,7 @@ function BitAnd(a, b)
 end
 
 function NameOf(path)
-	local name = select(3, path:find("([^/.]+)%.?[^/.]*$"))
+	local name = select(3, path:find("([^/\\.]+)%.?[^/.]*$"))
 	if name ~= nil then
 		return name
 	else
@@ -157,7 +163,7 @@ function NameOf(path)
 end
 
 function ExtOf(path)
-	local ext = select(3, path:find("([^/.]+)$"))
+	local ext = select(3, path:find("([^/\\.]+)$"))
 	return ext
 end
 

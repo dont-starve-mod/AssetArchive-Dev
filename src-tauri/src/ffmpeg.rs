@@ -90,7 +90,7 @@ pub mod lua_ffmpeg {
         
         std::thread::spawn(move || {
           stderr.lines().for_each(|line|
-          println!("[FFMPEG.STDERR] {}", line.unwrap()));
+          log::info!("[FFMPEG.STDERR] {}", line.unwrap()));
         });
     
         FfmpegEncoder { inner: child, size: None }
@@ -280,7 +280,7 @@ pub mod lua_ffmpeg {
         let mut state = DOWNLOAD_STATE.lock().unwrap();
         if let Some(state) = state.get(&id) {
             if state.status == "WORKING" {
-                println!("Downloader session already exists: {}", &id);
+                log::info!("Downloader session already exists: {}", &id);
                 return Ok(false);
             }
         };

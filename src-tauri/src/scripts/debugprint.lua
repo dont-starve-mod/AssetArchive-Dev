@@ -1,7 +1,7 @@
 PRINT_SOURCE = true
 PRINT_TIME = Args ~= nil
 
-local print_loggers = {print}
+local print_loggers = {print_info}
 
 local start = now()
 

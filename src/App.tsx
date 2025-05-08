@@ -27,7 +27,6 @@ declare global {
 		appWindow: WebviewWindow,
 		emit: <T>(event: string, payload?: T)=> Promise<void>,
 		listen: <T>(event: string, callback: (event: {payload: T})=> void)=> Promise<() => void>,
-		meta: {debug: boolean},
 		app_init?: boolean,
 		keystate: {[key: string]: boolean},
 		assets: {
@@ -58,7 +57,12 @@ declare global {
 		hash: Map<number, string>,
 		max_view_data: {
 			[uid: string]: {type: string, items: any[]},
-		}
+		},
+
+		text_guard: string,
+		show_debug_tools: boolean,
+		filepath?: string, // only in quicklook
+		filename?: string, // only in quicklook
 	}
 }
 
@@ -68,22 +72,12 @@ window.entry = []
 window.entry_map = {}
 window.max_view_data = {}
 window.appWindow = getCurrentWebviewWindow()
-window.emit = window.appWindow.emit
-window.listen = window.appWindow.listen
+window.emit = window.appWindow.emit.bind(window.appWindow)
+window.listen = window.appWindow.listen.bind(window.appWindow)
 
 export default function App() {
-	const [metaLoaded, setMetaLoaded] = useState(false)
-	useEffect(()=> {
-		async function load() {
-			// @ts-ignore
-			window.meta = {}
-			window.meta.debug = await invoke("get_is_debug")
-		}
-		load().then(()=> setMetaLoaded(true))
-	}, [])
-
 	const isSubwindow = WebviewWindow.getCurrent().label !== "main"
-	return metaLoaded && (!isSubwindow ? <AppMain/> : <AppSub/>)
+	return !isSubwindow ? <AppMain/> : <AppSub/>
 }
 
 function AppMain() {
@@ -97,7 +91,6 @@ function AppMain() {
 	const [theme] = useAppSetting("theme")
 	const [systemTheme] = useAppSetting("systemTheme")
 	const isDarkMode = (theme === "auto" ? systemTheme : theme) === "dark"
-
   return (
 		<div className={isDarkMode ? "bp4-dark": undefined}>
 			<header>

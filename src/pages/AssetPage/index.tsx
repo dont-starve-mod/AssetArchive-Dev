@@ -37,6 +37,7 @@ import { CategoryPrefix, formatSoundCategory, formatSoundLength } from '../../fo
 import MultiplySoundViewer from '../../components/MultiplySoundViewer'
 import Background, { useBackgroundStyle } from '../../components/Background'
 import InputGroup from '../../components/InputGroup'
+import { writeText } from '../../clipboard'
 
 function KeepAlive(props: Omit<KeepAlivePageProps, "cacheNamespace">) {
   return <KeepAlivePage {...props} cacheNamespace="assetPage"/>

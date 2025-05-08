@@ -1,7 +1,13 @@
 use std::path::{PathBuf, Path};
 use std::process::{Child, Command, Stdio};
-// use md5::compute;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::sync_channel;
+use std::io::BufReader;
+use std::io::BufRead;
 use crate::CommandExt;
+#[allow(unused_imports)]
+use log::{info, error, warn};
+
 
 #[allow(unreachable_code)]
 fn get_bin_name() -> &'static str {
@@ -86,19 +92,6 @@ fn get_addr() -> String {
     .to_string()
 }
 
-/// generate a random db path
-// fn get_db_path() -> String {
-//   use rand::distributions::Alphanumeric;
-//   use rand::{thread_rng, Rng};
-//   let rand_string: String = thread_rng()
-//     .sample_iter(&Alphanumeric)
-//     .take(16)
-//     .map(char::from)
-//     .collect();
-
-//   format!("./db_{}.ms", rand_string)
-// }
-
 pub struct MeilisearchChild {
   inner: Child,
   addr: String,
@@ -110,16 +103,34 @@ impl MeilisearchChild {
     std::env::set_current_dir(&bin_dir)
       .map_err(|e|e.to_string())?;
     let addr = get_addr();
-    let child = Command::new(bin_dir.join(get_bin_name()))
+    let mut child = Command::new(bin_dir.join(get_bin_name()))
       .set_no_console()
       .args(["--env", "development"])
       .args(["--log-level", "WARN"])
       .args(["--http-addr", addr.as_str()])
-      // .args(["--db-path", get_db_path().as_str(), "--auto-remove-db"])
       .stdin(Stdio::piped())
+      .stderr(Stdio::piped())
       .spawn()
       .map_err(|e|format!("Failed to spawn meilisearch process: {}", e))?;
     
+    let (tx, rx) = sync_channel::<String>(32);
+    let (tx_out, tx_err) = (tx.clone(), tx.clone());
+
+    let stderr = child.stderr.take().unwrap();
+    std::thread::spawn(move|| {
+      BufReader::new(stderr).lines().for_each(|line|{
+          let s = line.unwrap();
+          info!("[MS.ERR] {}", &s); // just print it
+          if s.starts_with("Server listening on:") {
+            tx_err.send(s).ok();
+          }
+      });
+    });
+
+    // wait for the server to be ready
+    rx.recv().ok();
+    info!("Meilisearch is now ready");
+
     Ok(MeilisearchChild { inner: child, addr })
   }
 

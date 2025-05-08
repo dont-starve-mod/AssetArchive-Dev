@@ -124,9 +124,11 @@ type rLuaAPI =
   "ffmpeg_custom_install" |
   "ffmpeg_getstate" |
   "render_animation_sync" | 
-  "render_animation_async"
+  "render_animation_async" |
+  "quicklook_load" |
+  "get_hash"
   
-type LuaCallParams = {[K: string]: string | number | boolean}
+type LuaCallParams = {[K: string]: string | number | boolean | number[]}
 type LuaCallCb<T> = (response: T, param?: any)=> void
 
 /** a strict lua ipc hook

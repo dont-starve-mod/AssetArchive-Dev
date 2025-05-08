@@ -26,7 +26,6 @@ local Provider =  require "assetprovider".Provider
 local AnimProjectManager = require "animproject".AnimProjectManager
 require "cli"
 
-
 GLOBAL = {
 	root = nil,
 	prov = nil,
@@ -86,15 +85,16 @@ IpcHandlers.Register("setroot", function(param)
 	if GLOBAL.root:SetRoot(param.path) then
 		IpcEmitEvent("update_setting", json.encode_compliant({
 			key = "last_dst_root",
-			value = param.path,
+			value = GLOBAL.root.root:as_string(),
 		}))
+		print("Game root is now: " .. GLOBAL.root.root:as_string())
 		GLOBAL.prov = Provider(GLOBAL.root)
 		GLOBAL.prov:DoIndex(true)
 		GLOBAL.prov:ListAsset()
 		SendData()
-		return true
+		return GLOBAL.prov.root:as_string()
 	else
-		return false
+		return ""
 	end
 end)
 
@@ -143,6 +143,20 @@ IpcHandlers.Register("render_animation_sync", function(param)
 	r:SetRenderParam(param.render_param)
 	r:SetRoot(GLOBAL.root)
 	r:Run()
+end)
+
+IpcHandlers.Register("get_hash", function(param)
+	if param.hash_list then
+		local result = {}
+		for _,h in ipairs(param.hash_list)do
+			local s = HashLib:Hash2String(h)
+			if s == nil then
+				s = "HASH-"..h
+			end
+			table.insert(result, {h, s})
+		end
+		return json.encode_compliant(result)
+	end
 end)
 
 IpcHandlers.Register("debug_analyze", function()

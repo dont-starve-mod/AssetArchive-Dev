@@ -24,11 +24,14 @@ type IndexState = {
 }
 
 export function getGameTypeByRoot(path: string): "ds" | "dst" | "unknown" {
+  path = path.replace(/\\/g, "/")
   // strip last /Contents/data or /data
   if (path.endsWith("/Contents/data"))
     path = path.slice(0, path.length - 14)
   else if (path.endsWith("/data"))
     path = path.slice(0, path.length - 5)
+  else if (path.endsWith("/Contents"))
+    path = path.slice(0, path.length - 9)
 
   const stem = path.match(/[^/]+$/)?.[0]
   if (!stem) return "unknown"
@@ -57,8 +60,8 @@ export default function AppFirstLaunch() {
   const [indexState, setIndexState] = useState<IndexState>({type: "off"})
   const [dsWarning, setDSWarning] = useState(false)
 
-  const call = useLuaCall<"true"|"false">("setroot", result=> {
-    if (result === "true") {
+  const call = useLuaCall<string>("setroot", result=> {
+    if (result) {
       setIndexState({type: "finish"})
     }
     else {
@@ -94,9 +97,9 @@ export default function AppFirstLaunch() {
   })
 
   useEffect(()=> {
-    const unlisten = appWindow.onFileDropEvent(event=> {
+    const unlisten = appWindow.onDragDropEvent(event=> {
       const type = event.payload.type
-      if (type === "hover") {
+      if (type === "over") {
         // setHover(true)
       }
       else if (type === "drop") {

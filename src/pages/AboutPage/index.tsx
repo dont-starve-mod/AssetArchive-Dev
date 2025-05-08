@@ -16,7 +16,7 @@ export default function About() {
 
   return (
     <div className="bp4-running-text">
-      <H3 style={{marginTop: 15}}>
+      <H3 className='!mt-[10px]'>
         饥荒资源档案
         <Tag minimal style={{marginBottom: 2, marginLeft: 4, verticalAlign: "middle"}}>
           <span>v-{version}</span>
@@ -35,13 +35,6 @@ export default function About() {
       <p>饥荒游戏素材的版权与最终解释权归 <a href="#" onClick={()=> openURL("https://klei.com")}>Klei Entertainment（科雷娱乐）</a>所有，
       您应仅将本软件导出的游戏素材用于非商业性目的，如饥荒模组制作、二创视频创作、Wiki编写和学习交流等。 </p>
       <p>本软件永久免费，如果您通过任何付费渠道下载，请联系退款。</p>
-      <H5 id="bug">
-        bug反馈
-      </H5>
-      {/* <p>该版本为测试版本，处于活跃更新状态，如遇bug可在<a onClick={()=> openURL("https://support.qq.com/product/632056/")}>讨论区</a>反馈 (๑•̀ㅂ•́)و✧</p> */}
-      <p>该版本为测试版本，处于活跃更新状态，如遇bug可在
-        <SimpleLink url="https://support.qq.com/product/632056/">讨论区</SimpleLink>
-        &nbsp;反馈。 (๑•̀ㅂ•́)و✧</p>
       <H5>
         友情链接
       </H5>
@@ -66,6 +59,9 @@ export default function About() {
       <p>
         <SimpleLink url="https://steamcommunity.com/sharedfiles/filedetails/?id=2910584141">dsanimtool</SimpleLink>
         （Spine到饥荒动画转换器）
+      </p>
+      <p>
+        <SimpleLink url="https://dst-modding-toolbox-web-52a862.gitlab.io">在线饥荒模组工具箱</SimpleLink>
       </p>
       {/* <p>B站关注<a onClick={()=> open("https://space.bilibili.com/209631439")}>@老王天天写bug</a>，获取最新更新动态。</p> */}
     </div>

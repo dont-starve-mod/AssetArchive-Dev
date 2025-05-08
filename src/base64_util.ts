@@ -1,4 +1,5 @@
-// https://developer.mozilla.org/zh-CN/docs/Glossary/Base64
+import { toByteArray } from "base64-js"
+export { toByteArray } from "base64-js"
 
 // Array of bytes to Base64 string decoding
 function b64ToUint6(nChr: number) {
@@ -15,7 +16,7 @@ function b64ToUint6(nChr: number) {
             : 0;
 }
 
-export function base64DecToArr(sBase64: string, nBlocksSize?: number) {
+export function _base64DecToArr(sBase64: string, nBlocksSize?: number) {
   const sB64Enc = sBase64.replace(/[^A-Za-z0-9+/]/g, ""); // Remove any non-base64 characters, such as trailing "=", whitespace, and more.
   const nInLen = sB64Enc.length;
   const nOutLen = nBlocksSize
@@ -42,4 +43,8 @@ export function base64DecToArr(sBase64: string, nBlocksSize?: number) {
   }
 
   return taBytes;
+}
+
+export function base64DecToArr(s: string) {
+  return new Uint8ClampedArray(toByteArray(s))
 }

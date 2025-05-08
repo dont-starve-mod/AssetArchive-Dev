@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useReducer, useState } from 'react'
 import { Callout, Dialog, DialogBody, DialogFooter, H4, Icon, Tag } from '@blueprintjs/core'
 import { RadioGroup, Radio, Button, Slider } from '@blueprintjs/core'
 import { useAppSetting, useLocalStorage, useLuaCall, useLuaCallOnce } from '../../hooks'
@@ -51,6 +51,10 @@ export default function SettingsPage() {
     })
   }, {}, [flag])
 
+  const revealLogFile = useCallback(async()=> {
+    await invoke("reveal_log_file")
+  }, [])
+
   const guessedGameType = root && getGameTypeByRoot(root)
 
   const navigate = useNavigate()
@@ -65,8 +69,8 @@ export default function SettingsPage() {
       </Callout>
     }
     <div 
-      className='bp4-monospace-text'
-      style={{userSelect: "auto", WebkitUserSelect: "auto", margin: "10px 0", cursor: "text"}}>
+      className='bp4-monospace-text select-auto cursor-text'
+      style={{margin: "10px 0"}}>
       {root}
     </div>
     {
@@ -130,13 +134,12 @@ export default function SettingsPage() {
     </RadioGroup>
     <hr/>
     <H4>音量</H4>
-    <div style={{width: 200}}>
-
-    <Slider min={0} max={100} labelStepSize={20} value={volume*1.0}
-      intent="primary"
-      onChange={setVolume}
-      onRelease={value=> setVolume(value)}/>
-      </div>
+    <div className='w-[200px]'>
+      <Slider min={0} max={100} labelStepSize={20} value={volume*1.0}
+        intent="primary"
+        onChange={setVolume}
+        onRelease={value=> setVolume(value)}/>
+    </div>
     {/* 索引文件管理 */}
     <hr/>
     <H4>快捷消息</H4>
@@ -185,6 +188,12 @@ export default function SettingsPage() {
         (ffmpegState.checking || installed) ? "配置" : "安装"
       }
     </Button>
+    <hr/>
+    <H4>日志</H4>
+    <p>查看程序运行日志，该文件有助于开发者修复软件bug。</p>
+    <Button icon="document-open" onClick={revealLogFile}>
+      查看
+    </Button>
     <div style={{height: 100}}></div>
 
     <Dialog title="设置游戏目录" isOpen={isEditingRoot} onClose={()=> setEditingRoot(false)}>
@@ -192,7 +201,7 @@ export default function SettingsPage() {
         <DragFolderPanel/>
       </DialogBody>
       <DialogFooter actions={
-        <Button intent="primary" onClick={()=> {appWindow.emit("submit_root"); setEditingRoot(false)}}>确认</Button>
+        <Button intent="primary" onClick={()=> {window.emit("submit_root"); setEditingRoot(false)}}>确认</Button>
       }/>
     </Dialog>
   </div>

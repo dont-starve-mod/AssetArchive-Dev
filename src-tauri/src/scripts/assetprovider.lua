@@ -100,14 +100,15 @@ function DST_DataRoot:SetRoot(path, explicit)
 	if databundles:is_dir() then
 		for _, k in ipairs{"images", "bigportraits", "anim_dynamic", "scripts", "shaders"}do
 			local zippath = databundles/(k..".zip")
-			local fs = zippath:is_file() and FileSystem.CreateReader(zippath)
-			if fs then
-				local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL_LAZY)
+			-- local fs = zippath:is_file() and FileSystem.CreateReader(zippath)
+			-- if fs then
+				-- local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL_LAZY)
+				local zip = ZipLoader2.Open(zippath:as_string())
 				if not zip.error then
 					zip.filepath = zippath
 					self.databundles[k:gsub("_", "/").."/"] = zip
 				end
-			end
+			-- end
 		end
 	end
 
@@ -193,6 +194,29 @@ function DST_DataRoot:Open(path, bundled)
 		end
 		local fullpath = self.root/path
 		return CreateReader(fullpath)
+	end
+end
+
+function DST_DataRoot:ResolveAssetPath(path, bundled)
+	if self.root then
+		if bundled ~= false then
+			for k,v in pairs(self.databundles)do
+				if path:startswith(k) then
+					local bytes = v:Get(path)
+					if bytes ~= nil then
+						return {
+							type = "databundle",
+							content = bytes,
+						}
+					end
+				end
+			end
+		end
+		local fullpath = self.root/path
+		return {
+			type = "file",
+			path = fullpath:as_string()
+		}
 	end
 end
 
@@ -285,6 +309,8 @@ local Provider = Class(function(self, root, static)
 	}
 
 	self.static = static
+
+	self.extra_animation_assets = {} -- array[filepath, anim_list, build]
 end)
 
 function Provider:DoIndex(ignore_cache)
@@ -406,7 +432,7 @@ function Provider:ListAsset()
 		if v:endswith(".ksh") then
 			local ksh = KshLoader(self.root:Open(v, true))
 			if ksh.error then
-				print("Error loading ksh:")
+				print("Error loading ksh:", v)
 				print(ksh.error)
 			else
 				table.insert(self.allkshfile, Asset("shader", {
@@ -421,7 +447,8 @@ function Provider:ListAsset()
 
 	for _, v in ipairs(self.root:Iter("sound/"))do
 		if v:endswith(".fev") then
-			local fev = FevLoader(self.root:Open(v, false))
+			-- local fev = FevLoader(self.root:Open(v, false))
+			local fev = Fev.Open(self.root:as_string().."/"..v)
 			if not fev.error then
 				table.insert(self.allfevfile, fev)
 			end
@@ -596,9 +623,19 @@ function Provider:LoadBuild(path, lazy)
 		return self.loaders.build[path]
 	end
 
-	local fs = self.root:Open(path)
-	if fs ~= nil then
-		local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.BUILD)
+	-- local fs = self.root:Open(path)
+	-- if fs ~= nil then
+	-- 	local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.BUILD)
+		local p = self.root:ResolveAssetPath(path)
+		if p == nil then
+			return
+		end
+		local zip = nil
+		if p.path then
+			zip = ZipLoader2.Open(p.path)
+		else
+			zip = ZipLoader2.WrapBytes(p.content)
+		end
 		if not zip.error then
 			local build_raw = zip:Get("build.bin")
 			if build_raw == nil then
@@ -613,7 +650,7 @@ function Provider:LoadBuild(path, lazy)
 				return build
 			end
 		end
-	end
+	-- end
 end
 
 function Provider:GetBank(args)
@@ -711,9 +748,14 @@ function Provider:LoadAnim(path)
 	if self.loaders.animbin[path] ~= nil then
 		return self.loaders.animbin[path]
 	end
-	local fs = self.root:Open(path)
-	if fs ~= nil then
-		local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ANIM)
+	-- local fs = self.root:Open(path)
+	-- if fs ~= nil then
+	-- 	local zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ANIM)
+		local p = self.root:ResolveAssetPath(path, false)
+		if p == nil then
+			return
+		end
+		local zip = ZipLoader2.Open(p.path)
 		if not zip.error then
 			local anim_raw = zip:Get("anim.bin")
 			if anim_raw == nil then
@@ -726,7 +768,7 @@ function Provider:LoadAnim(path)
 				return anim
 			end
 		end
-	end
+	-- end
 end
 
 function Provider:GetAtlasPreview(args)
@@ -841,7 +883,8 @@ function Provider:LoadAtlas(name) --> atlaslist
 		local zip = nil
 		fs:rewind()
 		if sig:startswith(ZIP_SIG) then
-			zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL)
+			-- zip = ZipLoader(fs, ZipLoader.NAME_FILTER.ALL)
+			zip = ZipLoader2.WrapBytes(fs:read_to_end())
 		elseif sig == DYN_SIG then
 			zip = DynLoader(fs)
 			zip.is_dyn = true
@@ -1482,6 +1525,14 @@ function Provider:ShowAssetInFolder(args)
 	end
 
 	error("Failed to select asset file:\n"..json.encode_compliant(args))
+end
+
+function Provider:RegisterExtraAnimationAsset(filepath)
+	--
+end
+
+function Provider:UnregisterExtraAnimationAsset(filepath)
+	--
 end
 
 return {

@@ -16,7 +16,8 @@ export default function ChangeLog() {
       <UL>
         <li>修复切换音频输出后，声音播放错误的问题。</li>
         <li>修复部分贴图（如尾巴）的渲染错误。</li>
-        <li>新增模组工具。</li>
+        <li>新增快速预览工具。</li>
+        <li>加载性能优化。</li>
       </UL>
       <H5>beta - 0.1.3</H5>
       <UL>
@@ -33,10 +34,10 @@ export default function ChangeLog() {
       <UL>
         <li>修复加载音效引起的报错。</li>
       </UL>
-      <H5>beta - 0.1.0</H5>
+      {/* <H5>beta - 0.1.0</H5>
       <UL>
         <li>添加反馈链接。</li>
-      </UL>
+      </UL> */}
       {/* <H5>alpha - 0.0.7</H5>
       <UL>
         <li>动画渲染器的配置项目和导出参数可保存。</li>

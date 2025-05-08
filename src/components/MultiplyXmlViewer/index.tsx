@@ -221,7 +221,7 @@ export default function MultiplyXmlViewer(props: MultiplyXmlViewerProps) {
           </Checkbox>
         }
         {
-          window.meta.debug &&
+          window.show_debug_tools &&
           <Checkbox
             checked={filterDesc}
             onChange={e=> setFilterDesc(e.currentTarget.checked)}

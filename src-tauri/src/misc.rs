@@ -107,7 +107,18 @@ pub mod lua_misc {
             Ok(webbrowser::open(url.as_str()).is_ok())
         })?)?;
 
+        globals.set("PPrintAsHex", lua_ctx.create_function(|_, content: LuaString|{
+            use hex_pp::pretty_hex_write;
+            let mut s = String::new();
+            pretty_hex_write(&mut s, &content.as_bytes()).map_err(
+                |e| LuaError::RuntimeError(format!("Failed to pretty print hex: {:?}", e))
+            )?;
+            Ok(s)
+        })?)?;
+
         // select file
+        #[cfg(r#false)]
+        {
         #[cfg(unix)]
         globals.set("SelectFileInFolder", lua_ctx.create_function(|_, path: Value|{
             use std::process;
@@ -140,6 +151,7 @@ pub mod lua_misc {
             use crate::es::es_handler::search;
             Ok(search(path.as_str()))
         })?)?;
+        }
 
         // validate utf-8 and ascii
         let string_lib = globals.get::<_, Table>("string")?;
@@ -154,7 +166,17 @@ pub mod lua_misc {
         string_lib.set("is_utf8", lua_ctx.create_function(|_, s: LuaString|{
             Ok(s.to_str().is_ok())
         })?)?;
-
+        string_lib.set("get_utf8_last_valid_index", lua_ctx.create_function(|_, s: LuaString|{
+            let s = s.as_bytes();
+            match std::str::from_utf8(s) {
+                Ok(_)=> Ok(s.len()),
+                Err(e)=> Ok(e.valid_up_to())
+            }
+        })?)?;
+        string_lib.set("to_utf8_lossy", lua_ctx.create_function(|lua, s: LuaString|{
+            let s = String::from_utf8_lossy(s.as_bytes()).to_string();
+            lua.create_string(&s)
+        })?)?;
         // process
         globals.set("exit", lua_ctx.create_function(|_, code: Value| -> Result<(), LuaError>{
             let code = match code {

@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Dialog, Icon, InputGroup } from '@blueprintjs/core'
 import { MultistepDialog, DialogStep, RadioGroup, Radio, H4 } from '@blueprintjs/core'
 import { Tooltip2 } from '@blueprintjs/popover2'
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import style from './index.module.css'
 import { useLuaCall } from '../../hooks'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -10,7 +9,6 @@ import { open } from '@tauri-apps/plugin-dialog'
 import steam_dst from '../../media/steam-dst.mp4'
 // @ts-ignore
 import wg_dst from '../../media/wg-dst.mp4'
-const appWindow = getCurrentWebviewWindow()
 
 const NEXT_TEXT = "下一步"
 const PREV_TEXT = "上一步"
@@ -93,7 +91,7 @@ function OpenFolderPanel(props: { gametype: string }){
   const [guideOpen, setGuideOpen] = useState("")
   return <div className="bp4-dialog-body" style={{minHeight: 160}}>
     {
-      gametype == "dst-client-installed" ? <div className='bp4-running-text'>
+      gametype === "dst-client-installed" ? <div className='bp4-running-text'>
         <p>打开游戏的安装位置。</p>
         <ul>
           <li>Steam平台：在游戏库中选择“饥荒联机版”，右键 -&gt; 管理 -&gt; 浏览本地文件。
@@ -104,10 +102,10 @@ function OpenFolderPanel(props: { gametype: string }){
           </li>
         </ul>
       </div> :
-      gametype == "dst-client-uninstalled" ? <p>
+      gametype === "dst-client-uninstalled" ? <p>
         请先安装游戏，查理会耐心等你回来..
       </p> :
-      gametype == "dst-dedicated-server" ? <div className='bp4-running-text'>
+      gametype === "dst-dedicated-server" ? <div className='bp4-running-text'>
         <p>你可以：</p>
         <ul>
           <li>购买并安装<strong>饥荒联机版</strong>，买不了吃亏，买不了上当。</li>
@@ -128,7 +126,7 @@ function OpenFolderPanel(props: { gametype: string }){
       </div> : 
       <></>
     }
-    <Dialog isOpen={guideOpen != ""} onClose={()=> setGuideOpen("")} 
+    <Dialog isOpen={guideOpen !== ""} onClose={()=> setGuideOpen("")} 
       style={{width: 600, borderColor: "transparent", backgroundColor: "transparent"}}>
       <Video type={guideOpen as any}/>
     </Dialog>
@@ -139,19 +137,20 @@ export function DragFolderPanel(){
   const [hover, setHover] = useState(false)
   const [path, setPath] = useState("")
 
-  const call = useLuaCall("setroot", result=> {
-    if (result === "false"){
-      appWindow.emit("alert", {title: "设置失败", message: "不是一个有效的游戏资源目录"})
+  const call = useLuaCall<string>("setroot", result=> {
+    if (result === ""){
+      window.emit("alert", {title: "设置失败", message: "不是一个有效的游戏资源目录"})
     }
-    else if (result === "true"){
-      appWindow.emit("alert", {intent: "primary", title: "设置成功", message: "资源目录已链接至: " + path})
+    else {
+      setPath(result)
+      window.emit("alert", {intent: "primary", title: "设置成功", message: "资源目录已链接至: " + result})
     }
   }, {path}, [path])
 
   useEffect(()=> {
-    const unlisten = appWindow.onFileDropEvent(event=> {
+    const unlisten = window.appWindow.onDragDropEvent(event=> {
       const type = event.payload.type
-      if (type === "hover") {
+      if (type === "over") {
         setHover(true)
       }
       else if (type === "drop") {
@@ -166,7 +165,7 @@ export function DragFolderPanel(){
   }, [])
 
   useEffect(()=> {
-    const unlisten = appWindow.listen("submit_root", ()=> {
+    const unlisten = window.listen("submit_root", ()=> {
       console.log(path)
       call()
     })
@@ -180,7 +179,7 @@ export function DragFolderPanel(){
   }, [])
 
   return (
-    <div className='bp4-dialog-body' style={{minHeight: 160}}>
+    <div className='bp4-dialog-body min-h-[160px]'>
       {
         !hover ?
           <p style={{cursor: "pointer"}} onClick={openDialog}>

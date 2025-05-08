@@ -1,1 +1,1 @@
-npm run tauri build --release -- --target universal-apple-darwin --features release 
+npm run tauri build --release -- --target universal-apple-darwin --features publish 

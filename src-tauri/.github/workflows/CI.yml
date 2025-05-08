@@ -20,9 +20,9 @@ jobs:
           # - platform: 'ubuntu-22.04'
           #   args: ''
           - platform: 'macos-latest' # for Intel based macs.
-            args: '--target universal-apple-darwin --features release'
+            args: '--target universal-apple-darwin --features publish'
           - platform: 'windows-latest'
-            args: '--target x86_64-pc-windows-msvc --features release'
+            args: '--target x86_64-pc-windows-msvc --features publish'
 
     runs-on: ${{ matrix.platform }}
     steps:

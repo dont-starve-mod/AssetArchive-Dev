@@ -1,7 +1,7 @@
 pub mod lua_algorithm {
     use std::io::Cursor;
     use std::sync::Mutex;
-    use rlua::{Context, Value};
+    use rlua::{Context, Value, Table};
     use rlua::Result as LuaResult;
     use rlua::String as LuaString;
     use rlua::Error as LuaError;
@@ -69,6 +69,16 @@ pub mod lua_algorithm {
     }
 
     #[inline]
+    fn dxt3_decompress(compressed_data: &[u8], width: usize, height: usize) -> Vec<u8> {
+        match bcndecode::decode(compressed_data, width, height,
+            bcndecode::BcnEncoding::Bc2, // DXT3
+            bcndecode::BcnDecoderFormat::RGBA) {
+            Ok(buf)=> buf,
+            Err(_)=> vec![]
+        }
+    }
+
+    #[inline]
     fn dxt1_decompress(compressed_data: &[u8], width: usize, height: usize) -> Vec<u8> {
         match bcndecode::decode(compressed_data, width, height,
             bcndecode::BcnEncoding::Bc1, // DXT1
@@ -78,11 +88,24 @@ pub mod lua_algorithm {
         }
     }
 
+
     #[inline]
     fn flip_bytes(bytes: &[u8], linewidth: usize) -> Vec<u8> {
         bytes.rchunks_exact(linewidth)
             .collect::<Vec<&[u8]>>()
             .concat()
+    }
+
+    #[inline]
+    fn flip_bytes_mut(bytes: &mut [u8], linewidth: usize) {
+        let mut i = 0;
+        let mut j = bytes.len() - linewidth;
+        while i < j {
+            let (s1, s2) = bytes.split_at_mut(j);
+            s1[i..i + linewidth].swap_with_slice(&mut s2[..linewidth]);
+            i += linewidth;
+            j -= linewidth;
+        }
     }
     
     #[inline]
@@ -166,6 +189,16 @@ pub mod lua_algorithm {
             .join(&[][..])
     }
 
+    #[inline]
+    fn div_alpha_mut(bytes: &mut [u8]) {
+        bytes.chunks_exact_mut(4)
+            .for_each(|color|{
+                color[0] = div_alpha_and_clamp(color[0], color[3]);
+                color[1] = div_alpha_and_clamp(color[1], color[3]);
+                color[2] = div_alpha_and_clamp(color[2], color[3]);
+            });
+    }
+
     #[test]
     fn check_hash() {
         let smallhash = |s: &str| kleihash(s.as_bytes());
@@ -197,9 +230,35 @@ pub mod lua_algorithm {
             (compressed_data, width, height): (LuaString, usize, usize)|{
             lua_ctx.create_string(&dxt5_decompress(compressed_data.as_bytes(), width, height))
         })?)?;
+        table.set("DXT3_Decompress", lua_ctx.create_function(|lua_ctx: Context, 
+            (compressed_data, width, height): (LuaString, usize, usize)|{
+            lua_ctx.create_string(&dxt3_decompress(compressed_data.as_bytes(), width, height))
+        })?)?;
         table.set("DXT1_Decompress", lua_ctx.create_function(|lua_ctx: Context,
             (compressed_data, width, height): (LuaString, usize, usize)|{
             lua_ctx.create_string(&dxt1_decompress(compressed_data.as_bytes(), width, height))
+        })?)?;
+        table.set("Bc_Decompress", lua_ctx.create_function(|lua,
+            (data, options): (LuaString, Table)|{
+            let data = data.as_bytes();
+            let format = options.get::<_, String>("format")?;
+            let width = options.get::<_, usize>("width")?;
+            let height = options.get::<_, usize>("height")?;
+            let flip = options.get::<_, Option<bool>>("flip_y")?.unwrap_or(true);
+            let div = options.get::<_, Option<bool>>("div_alpha")?.unwrap_or(true);
+            let mut bytes = match format.as_str() {
+                "DXT1" => dxt1_decompress(data, width, height),
+                "DXT3" => dxt3_decompress(data, width, height),
+                "DXT5" => dxt5_decompress(data, width, height),
+                s=> return Err(LuaError::RuntimeError(format!("Unknown format: {}", s)))
+            };
+            if flip {
+                flip_bytes_mut(&mut bytes, width*4);
+            }
+            if div {
+                div_alpha_mut(&mut bytes);
+            }
+            lua.create_string(&bytes)
         })?)?;
         table.set("SmallHash_Impl", lua_ctx.create_function(|_, s: LuaString|{
             Ok(kleihash(s.as_bytes()))
@@ -261,6 +320,61 @@ pub mod lua_algorithm {
                 let stop = start + len;
                 Ok((value & ((1 << stop) - 1)) >> start)
             }
+        })?)?;
+        table.set("EncodeString", lua_ctx.create_function(|lua, s: LuaString|{
+            // insight from json v0.12.4
+            // https://docs.rs/json/latest/src/json/codegen.rs.html
+            const QU: u8 = b'"';
+            const BS: u8 = b'\\';
+            const BB: u8 = b'b';
+            const TT: u8 = b't';
+            const NN: u8 = b'n';
+            const FF: u8 = b'f';
+            const RR: u8 = b'r';
+            const UU: u8 = b'u';
+            const __: u8 = 0;
+
+            // Look up table for characters that need escaping in a product string
+            static ESCAPED: [u8; 256] = [
+            // 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+              UU, UU, UU, UU, UU, UU, UU, UU, BB, TT, NN, UU, FF, RR, UU, UU, // 0
+              UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, // 1
+              __, __, QU, __, __, __, __, __, __, __, __, __, __, __, __, __, // 2
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // 3
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // 4
+              __, __, __, __, __, __, __, __, __, __, __, __, BS, __, __, __, // 5
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // 6
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // 7
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // 8
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // 9
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // A
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // B
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // C
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // D
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // E
+              __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // F
+            ];
+            let bytes = s.as_bytes();
+            let mut buf = vec![];
+            let mut start = 0;
+            for (index, ch) in bytes.iter().enumerate() {
+                let escape = ESCAPED[*ch as usize];
+                if escape > 0 {
+                    buf.extend_from_slice(&bytes[start .. index]);
+                    buf.push(b'\\');
+                    buf.push(escape);
+                    start = index + 1;
+                }
+                if escape == b'u' {
+                    buf.extend_from_slice(format!("{:04x}", ch).as_bytes());
+                }
+            }
+            buf.extend_from_slice(&bytes[start ..]);
+            lua.create_string(&buf)
+        })?)?;
+        table.set("B64Encode", lua_ctx.create_function(|lua, s: LuaString|{
+            use base64::prelude::*;
+            Ok(BASE64_STANDARD.encode(s.as_bytes()))
         })?)?;
 
         lua_ctx.globals().set("Algorithm", table)?;

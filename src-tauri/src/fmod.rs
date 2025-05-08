@@ -49,7 +49,7 @@ impl FmodChild {
             BufReader::new(stdout).lines().for_each(|line|{
                 let s = line.unwrap();
                 if s.starts_with("[FMOD]") {
-                    println!("{}", &s); // just print it
+                    log::info!("{}", &s);
                 }
                 else {
                     tx_out.send(s).ok();
@@ -61,7 +61,7 @@ impl FmodChild {
             BufReader::new(stderr).lines().for_each(|line|{
                 let s = line.unwrap();
                 if s.starts_with("[DEBUG]") {
-                    eprintln!("{}", &s); // just print it
+                    log::info!("{}", &s);
                 }
                 else {
                     tx_err.send(format!("[FMOD.stderr] {}", s)).ok();
@@ -114,27 +114,27 @@ impl FmodChild {
                 },
                 Err(TryRecvError::Empty)=> break,
                 Err(TryRecvError::Disconnected)=> {
-                    eprintln!("Error in recv child message: TryRecvError::Disconnected");
+                    log::error!("Error in recv child message: TryRecvError::Disconnected");
                     return Err(TryRecvError::Disconnected.to_string());
                 },
             }
         }
         lines.iter().for_each(|s|{
-            // eprintln!("> {}", &s[..usize::min(s.len() - 1, 200)]);
+            // log::error!("> {}", &s[..usize::min(s.len() - 1, 200)]);
             if let Some(s) = s.strip_prefix("[RESULT]") {
                 match json::parse(s) {
                     Ok(data)=> {
                         if let Err(e) = self.update_data(data) {
-                            eprintln!("Failed to parse result object from child process: {}", e)
+                            log::error!("Failed to parse result object from child process: {}", e)
                         }
                     },
                     Err(e)=> {
-                        eprintln!("Failed to parse message from child process: {}\n{}", e, s);
+                        log::error!("Failed to parse message from child process: {}\n{}", e, s);
                     }
                 }
             }
             else {
-                println!("unparsed fmod message: {}", s);
+                log::error!("unparsed fmod message: {}", s);
             }
         });
         Ok(())
@@ -198,7 +198,7 @@ fn unpack_fmod_binary(bin_dir: &Path) -> Result<(), String> {
                     p.set_mode(0o777);
                     std::fs::set_permissions(exec_path, p).ok();
                 },
-                Err(e)=> println!("Failed to set mode: {}", e),
+                Err(e)=> log::error!("Failed to set mode: {}", e),
             }
         }
     }
@@ -225,7 +225,7 @@ pub mod fmod_handler {
         };
         if let Some(ref mut fmod) = state.fmod.lock().unwrap().as_mut() {
             if !fmod.is_valid()? {
-                eprintln!("fmodcore subprocess terminated");
+                log::error!("fmodcore subprocess terminated");
                 return Err("fmodcore subprocess terminated".into());
             }
             else {

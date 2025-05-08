@@ -1,38 +1,75 @@
 // provide a multi-threaded indexer for anim assets
 use zip::ZipArchive;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::error::Error;
+use log::{error, warn, info};
 
 type AnimIndex = Vec<(String, u32, u8)>;
 type BuildIndex = (String, u32, (f32, f32, f32, f32));
+type HashTable = HashMap<u32, Vec<u8>>;
 
 const SWAP_ICON: u32 = 4138393349;
 
-fn load_anim_zip(path: PathBuf) -> Result<(Option<AnimIndex>, Option<BuildIndex>), String> {
-    let f = File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+fn load_anim_zip<R>(f: R) -> Result<(Option<AnimIndex>, Option<BuildIndex>, HashTable), String> 
+where R: Read + Seek {
     let mut archive = ZipArchive::new(f).map_err(|e| format!("Failed to read zip file: {}", e))?;
     let mut anim_index = None;
     let mut build_index = None;
+    let mut hash_table = HashTable::new();
     if let Ok(anim_bin) = archive.by_name("anim.bin") {
         match index_anim_bin(anim_bin) {
-            Ok(index)=> anim_index = Some(index),
+            Ok(data)=> {
+                anim_index = Some(data.0);
+                hash_table.extend(data.1);
+            },
             Err(e) => return Err(format!("Failed to index anim.bin: {}", e))
         }
     }
     if let Ok(build_bin) = archive.by_name("build.bin") {
         match index_build_bin(build_bin) {
-            Ok(index) => build_index = Some(index),
+            Ok(data) => {
+                build_index = Some(data.0);
+                hash_table.extend(data.1);
+            },
             Err(e) => return Err(format!("Failed to index build.bin: {}", e))
         }
     }
-    Ok((anim_index, build_index))
+    Ok((anim_index, build_index, hash_table))
 }
 
-/// load anim.bin file and generate index
+fn parse_hash_table_impl(mut f: impl Read, hash_table: &mut HashTable) -> Result<(), Box<dyn Error>> {
+    let mut buf = [0; 4];
+    f.read_exact(&mut buf)?;
+    let num_hashes = u32::from_le_bytes(buf);
+    for _ in 0..num_hashes {
+        f.read_exact(&mut buf)?;
+        let hash = u32::from_le_bytes(buf);
+        f.read_exact(&mut buf)?;
+        let len = u32::from_le_bytes(buf);
+        let mut name_buf = vec![0; len as usize];
+        f.read_exact(&mut name_buf)?;
+        hash_table.insert(hash, name_buf);
+    }
+    Ok(())
+}
+
+/// collect hash table at the tail of file.
+/// this function skip parsing error
+fn parse_hash_table(mut f: impl Read) -> HashTable {
+    let mut hash_table = HashTable::new();
+    let failed = parse_hash_table_impl(f, &mut hash_table).is_err();
+    if failed {
+        warn!("Failed to parse hash table");
+    }
+    hash_table
+}
+
+/// load anim.bin file and generate index.
 /// return vec[name, bankhash, facing]
-fn index_anim_bin(mut f: impl Read) -> Result<AnimIndex, Box<dyn Error>> {
+fn index_anim_bin(mut f: impl Read) -> Result<(AnimIndex, HashTable), Box<dyn Error>> {
     let mut index = vec![];
     let mut buf = vec![0; 4];
     f.read_exact(&mut buf)?;
@@ -71,196 +108,13 @@ fn index_anim_bin(mut f: impl Read) -> Result<AnimIndex, Box<dyn Error>> {
         }
         index.push((anim_name, bankhash, facing));
     }
-    Ok(index)
+    let hash = parse_hash_table(f);
+    Ok((index, hash))
 }
 
 /// load build.bin file and generate index
 /// return [name, numatlases, swap_icon_0]
-
-/*
-
-
--- loader for <build.bin>
-BuildLoader = Class(function(self, f, lazy)
-    local function error(e)
-        self.error = e
-        funcprint("Error in BuildLoader._ctor(): "..e)
-        f:close()
-    end
-
-    if f:read_string(4) ~= "BILD" then
-        return error("BILD file sig not satisfied")
-    end
-
-    f:seek_forward(4)
-    local numsymbols = f:read_u32()
-    f:seek_forward(4)
-    local name = f:read_variable_length_string()
-    local numatlases = f:read_u32()
-    if numatlases == nil then
-        return error(ERROR.UNEXPECTED_EOF)
-    end
-
-    if not name:is_utf8() then
-        self.invalid_utf8 = true
-    end
-
-    self.buildname = name
-    self.numatlases = numatlases
-    self.atlas = {}
-    self.lazy = lazy
-
-    for i = 1, numatlases do
-        local name = f:read_variable_length_string()
-        if name ~= nil then
-            if not name:is_utf8() then
-                self.invalid_utf8 = true
-            end
-            table.insert(self.atlas, name)
-        else
-            return error(ERROR.UNEXPECTED_EOF)
-        end
-    end
-
-    local allimgs = {}
-    local symbol = {}
-    local symbol_collection = {}
-    for i = 1, numsymbols do
-        local imghash = f:read_u32()
-        local numimgs = f:read_u32()
-        if numimgs == nil then
-            return error(ERROR.UNEXPECTED_EOF)
-        end
-        table.insert(symbol_collection, imghash)
-        if lazy and imghash ~= self.SWAP_ICON then
-            f:seek_forward(numimgs * 32)
-        else
-            local imgs = { imghash = imghash, imglist = {} }
-            for j = 1, numimgs do
-                local img = {
-                    index = f:read_u32(),
-                    duration = f:read_u32(),
-                    x = f:read_f32(),
-                    y = f:read_f32(),
-                    w = f:read_f32(),
-                    h = f:read_f32(),
-                    vertexindex = f:read_u32(),
-                    numvertexs = f:read_u32(),
-                }
-                if img.numvertexs == nil then
-                    return error(ERROR.UNEXPECTED_EOF)
-                end
-                table.insert(imgs.imglist, img)
-                table.insert(allimgs, img)
-            end
-            
-            if imghash == SWAP_ICON then
-                if #imgs.imglist >= 1 and imgs.imglist[1].index == 0 then
-                    self.swap_icon_0 = imgs.imglist[1]
-                else
-                    print("Warning: failed to get first image from symbol `SWAP_ICON`")
-                end
-            end
-
-            table.insert(symbol, imgs)
-        end
-    end
-
-    local totalnumvertexs = f:read_u32()
-    if totalnumvertexs == nil then
-        return error(ERROR.UNEXPECTED_EOF)
-    end
-
-    -- only parse swap_icon_0 in lazy mode
-    if lazy then
-        allimgs = { self.swap_icon_0 }
-        if self.swap_icon_0 ~= nil then
-            f:seek_forward(self.swap_icon_0.vertexindex* 24)
-        end
-    end
-
-    for i, img in ipairs(allimgs) do
-        if img.numvertexs == 0 then
-            img.blank = true
-        else
-            local x, y, w, h = img.x, img.y, img.w, img.h
-            local x_offset, y_offset = x - w/2, y - h/2
-
-            local temp = {
-                sampler = {},       -- index of texture (atlas-0.tex -> 0)
-                bbx = {}, bby = {}, -- bbox left-top coord
-                cw =  {}, ch =  {}, -- normalized canvas size
-            }
-
-            for j = 1, img.numvertexs / 6 do
-                -- sampler = data[5]  # 0,5 
-                -- left    = data[0]  # 0,0 
-                -- right   = data[6]  # 1,0 
-                -- top     = data[1]  # 0,1 
-                -- bottom  = data[13] # 2,1
-                -- umin    = data[3]  # 0,3 
-                -- umax    = data[9]  # 1,3 
-                -- vmin    = data[4]  # 0,4 
-                -- vmax    = data[16] # 2,4
-                local left = f:read_f32()   -- 0
-                local top = f:read_f32()    -- 1
-                f:seek_forward(4)
-                local umin = f:read_f32()   -- 3
-                local vmin = f:read_f32()   -- 4
-                local sampler = f:read_f32()-- 5
-                local right = f:read_f32()  -- 6
-                f:seek_forward(8)
-                local umax = f:read_f32()   -- 9
-                f:seek_forward(12)
-                local bottom = f:read_f32() -- 13
-                f:seek_forward(8)
-                local vmax = f:read_f32()   -- 16
-                f:seek_forward(19*4)
-
-                local cw = (right - left) / max(umax - umin, .00001)
-                local ch = (top - bottom) / min(vmax - vmin, -.00001)
-                local bbx = umin * cw - (left - x_offset)
-                local bby = (1-vmin) * ch - (top - y_offset)
-
-                table.insert(temp.sampler, sampler)
-                table.insert(temp.bbx, bbx)
-                table.insert(temp.bby, bby)
-                table.insert(temp.cw, cw)
-                table.insert(temp.ch, ch)
-            end
-
-            img.sampler = math.floor(median(temp.sampler) + 0.5)
-            img.bbx = round2(median(temp.bbx))
-            img.bby = round2(median(temp.bby))
-            img.cw = round2(median(temp.cw))
-            img.ch = round2(median(temp.ch))
-
-            if not lazy then
-                img.vertexindex = nil
-                img.numvertexs = nil
-            end
-        end
-    end
-
-    self.builddata = {name = name, atlas = self.atlas, symbol = symbol}
-    self.symbol_map = {}
-    self.symbol_collection = symbol_collection
-    for _,v in ipairs(symbol)do
-        self.symbol_map[v.imghash] = v
-    end
-
-    if lazy then
-        if self.swap_icon_0 then
-            f:seek_forward((totalnumvertexs - self.swap_icon_0.vertexindex - self.swap_icon_0.numvertexs)* 24)
-            HashLib:ParseFile(f)
-        end
-    else
-        HashLib:ParseFile(f)
-    end
-
-    f:close()
-end)*/
-fn index_build_bin(mut f: impl Read) -> Result<BuildIndex, Box<dyn Error>> {
+fn index_build_bin(mut f: impl Read) -> Result<(BuildIndex, HashTable), Box<dyn Error>> {
     let mut buf = [0; 4];
     f.read_exact(&mut buf)?;
     if &buf != b"BILD" {
@@ -285,6 +139,8 @@ fn index_build_bin(mut f: impl Read) -> Result<BuildIndex, Box<dyn Error>> {
         // atlas name is not used
     }
     let mut swap_icon_0_data = (-1.0, -1.0, -1.0, -1.0);
+    let mut swap_icon_0_index = 0;
+    let mut swap_icon_0_num_vertx = 0;
     for i in 0..num_symbols {
         f.read_exact(&mut buf)?;
         let img_hash = u32::from_le_bytes(buf);
@@ -301,28 +157,65 @@ fn index_build_bin(mut f: impl Read) -> Result<BuildIndex, Box<dyn Error>> {
                 f32::from_le_bytes(buf[16..20].try_into().unwrap()),
                 f32::from_le_bytes(buf[20..24].try_into().unwrap()));
             let vertex_index = u32::from_le_bytes(buf[24..28].try_into().unwrap());
-            let num_vertexs = u32::from_le_bytes(buf[28..32].try_into().unwrap());
+            let num_verts = u32::from_le_bytes(buf[28..32].try_into().unwrap());
             if i == 0 && index == 0 {
                 // first img of symbol `SWAP_ICON`
                 swap_icon_0_data = data;
+                swap_icon_0_index = index;
+                swap_icon_0_num_vertx = num_verts;
             } 
         }
     }
-    Ok((name, num_atlases, swap_icon_0_data))
+    // TODO: parse vert for swap_icon_0
+    let mut buf = [0; 4];
+    f.read_exact(&mut buf)?;
+    let num_total_verts = u32::from_le_bytes(buf);
+    let mut buf = vec![0; num_total_verts as usize * 24];
+    f.read_exact(&mut buf)?;
+    let hash = parse_hash_table(f);
+    Ok(((name, num_atlases, swap_icon_0_data), hash))
 }
 
 pub mod lua_fastindex {
     use super::*;
-    use rlua::prelude::{LuaResult, LuaContext, LuaError};
+    use std::io::Cursor;
+    use rlua::{prelude::{LuaContext, LuaError, LuaResult}, AnyUserData, Value};
     use crate::filesystem::lua_filesystem::Path;
 
     pub fn init(lua: LuaContext) -> LuaResult<()> {
         let globals = lua.globals();
-        let indexer = lua.create_table()?;    
-        indexer.set("LoadAnimZip", lua.create_function(|lua, path: Path| {
-            match load_anim_zip(path.get_inner()) {
+        let indexer = lua.create_table()?;
+
+        /// load anim zip file and generate index
+        /// this function skip parsing error
+        indexer.set("LoadAnimZip", lua.create_function(|lua, path_or_file: Value| {
+            let data = lua.create_table()?;
+            let mut result;
+            match path_or_file {
+                Value::String(s)=> {
+                    result = load_anim_zip(Cursor::new(s.as_bytes()));
+                },
+                Value::UserData(path)=> {
+                    match path.borrow::<Path>() {
+                        Ok(path) => {
+                            let path = path.get_inner();
+                            match File::open(&path) {
+                                Ok(f) => {
+                                    result = load_anim_zip(f);
+                                }
+                                Err(e) => {
+                                    error!("Failed to open file: {}: {}", path.display(), e);
+                                    return Ok(data);
+                                }
+                            };
+                        },
+                        Err(e) => return Err(LuaError::RuntimeError(format!("Failed to get path: {}", e))),
+                    };
+                },
+                _=> return Err(LuaError::RuntimeError("Invalid argument type".to_string())),
+            };
+            match result {
                 Ok(result) => {
-                    let data = lua.create_table()?;
                     if let Some(index) = result.0 {
                         let anim = lua.create_table()?;
                         let mut i = 0;
@@ -350,10 +243,17 @@ pub mod lua_fastindex {
                         }
                         data.set("build", vec![build])?; // create an array for Lua iterator
                     }
-                    Ok(data)
+                    let hash_table = lua.create_table()?;
+                    for (hash, name) in result.2 {
+                        hash_table.set(hash, lua.create_string(name.as_slice())?)?;
+                    }
+                    data.set("hash_table", hash_table)?;
                 },
-                Err(e) => Err(LuaError::RuntimeError(e)),
-            }
+                Err(e) => {
+                    error!("Failed to index anim zip: {}", e);
+                },
+            };
+            Ok(data)
         })?)?;
 
         globals.set("Indexer", indexer)?;

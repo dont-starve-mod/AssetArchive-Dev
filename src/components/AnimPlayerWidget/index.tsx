@@ -11,7 +11,7 @@ interface IProps {
 }
 
 function forceUpdate() {
-  window.appWindow.emit("forceupdate", "AnimPlayerWidget")
+  window.emit("forceupdate", "AnimPlayerWidget")
 }
 
 export default function AnimPlayerWidget(props: IProps) {

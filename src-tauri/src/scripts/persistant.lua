@@ -21,6 +21,8 @@ local LocalStorage = Class(function(self, _type, filepath)
 	local _, data = pcall(json.decode, GetString(self.filepath))
 	if type(data) == "table" then
 		self.data = data
+	else
+		print("Warning: failed to parse json content: "..data)
 	end
 end)
 

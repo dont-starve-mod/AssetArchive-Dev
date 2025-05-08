@@ -90,4 +90,12 @@ function HashLib:ParseFile(f)
     end
 end
 
+function HashLib:UpdateFromTable(t)
+    for h, s in pairs(t)do
+        -- if type(s) == "string" and type(h) == "number" then
+            self:AddHash(s, h)
+        -- end
+    end
+end
+
 HashLib = HashLib()

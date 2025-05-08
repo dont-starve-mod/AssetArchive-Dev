@@ -3,6 +3,7 @@ import { FallbackProps } from 'react-error-boundary'
 
 export default function ErrorDisplay(props: FallbackProps) {
   const {error} = props
+  console.log(error)
   const copy = ()=> {
     writeText(`${error.message}\n${window.location.href}`).then(()=> 
       window.alert("已将错误信息拷贝到剪贴板")

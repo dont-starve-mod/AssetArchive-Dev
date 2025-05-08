@@ -63,6 +63,8 @@ local table = require("table")
 _G.tracked_assert = _G.assert
 
 local base = _G
+-- faster encoder defined in core
+local EncodeString2 = _G.Algorithm.EncodeString
 -----------------------------------------------------------------------------
 -- Module declaration
 -----------------------------------------------------------------------------
@@ -211,6 +213,9 @@ function encodeString_compliant(s)
   return s
 end
 
+-- use faster encoder from core
+encodeString_compliant = EncodeString2
+
 -- Use this function only if you are sending data out to a web service or some other external system. The game will not be able to decode this data.
 -- The supplied encodeString/decodeString function does not produce valid json files. This is okay for the save/load system but not when sending data out to the internet.
 -- NOTE: Never add decode support from encode_compliant's returned string. This output may change without warning if new bugs in the original code are found.
@@ -264,8 +269,6 @@ function encode_compliant(v)
     base.tracked_assert(false,'encode_compliant attempt to encode unsupported type ' .. vtype .. ':' .. base.tostring(v))
   end
 end
-
-
 
 --- Decodes a JSON string and returns the decoded value as a Lua data structure / value.
 -- @param s The string to scan.

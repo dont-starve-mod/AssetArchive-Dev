@@ -100,7 +100,7 @@ export default function AnimListPage() {
     const data = JSON.parse(result)
     const {project} = data as {project: AnimProject[]}
     setRecent(project)
-    appWindow.emit("toast", { message: "修改已保存", icon: "endorsed", intent: "success"})
+    window.emit("toast", { message: "修改已保存", icon: "endorsed", intent: "success"})
   }, {type: "change"}, [])
   const duplicate = useLuaCall("animproject", (result: string)=> {
     const data = JSON.parse(result)

@@ -92,3 +92,7 @@ IpcInterrupted = function()
 	-- check if core has a interrupt flag
 	-- useful for aborting an expensive job in middle
 end
+
+SelectFileInFolder = function(path)
+	-- open a file browser in the folder
+end
