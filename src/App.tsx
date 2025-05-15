@@ -19,6 +19,7 @@ import type { ArchiveItem, Bank, Entry, Shader, StaticArchiveItem } from './sear
 import type { Xml, Tex, AnimDyn, AnimZip, TexNoRef, FmodEvent, FmodProject } from './searchengine'
 import type { DefinedPresetGroup } from './components/AnimQuickLook/preset'
 import "./App.css"
+import AppModAnimAsset from './components/AppModAnimAsset'
 
 FocusStyleManager.onlyShowFocusOnTabs()
 
@@ -26,6 +27,8 @@ declare global {
 	interface Window {
 		appWindow: WebviewWindow,
 		emit: <T>(event: string, payload?: T)=> Promise<void>,
+		emitTo: <T>(windowLabel: string, event: string, payload?: T)=> Promise<void>,
+		emitToThis: <T>(event: string, payload?: T)=> Promise<void>,
 		listen: <T>(event: string, callback: (event: {payload: T})=> void)=> Promise<() => void>,
 		app_init?: boolean,
 		keystate: {[key: string]: boolean},
@@ -61,6 +64,7 @@ declare global {
 
 		text_guard: string,
 		show_debug_tools: boolean,
+		home_dir: string,
 		filepath?: string, // only in quicklook
 		filename?: string, // only in quicklook
 	}
@@ -74,6 +78,10 @@ window.max_view_data = {}
 window.appWindow = getCurrentWebviewWindow()
 window.emit = window.appWindow.emit.bind(window.appWindow)
 window.listen = window.appWindow.listen.bind(window.appWindow)
+window.emitTo = window.appWindow.emitTo.bind(window.appWindow)
+window.emitToThis = function<T>(event: string, payload?: T) {
+	return window.appWindow.emitTo(window.appWindow.label, event, payload)
+}
 
 export default function App() {
 	const isSubwindow = WebviewWindow.getCurrent().label !== "main"
@@ -118,6 +126,7 @@ function AppMain() {
 			<AppToaster top={40}/>
 			<AppQuickSettings/>
 			<AppFmodHandler/>
+			<AppModAnimAsset type="main"/>
 		</div>
 	)
 }

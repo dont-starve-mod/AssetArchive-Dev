@@ -12,6 +12,7 @@ export interface AppSettings {
   quick_search_desc: "on" | "off",
   num_search_results: number,
   systemTheme: Theme, // frontend-only value
+  // quicklook_auto_refresh: boolean,
 }
 
 type Key = keyof AppSettings
@@ -27,6 +28,7 @@ const appsettings = createSlice<AppSettings, SliceCaseReducers<AppSettings>>({
     quick_search_desc: "off",
     num_search_results: 1000,
     systemTheme: "light",
+    // quicklook_auto_refresh: false,
   },
   reducers: {
     init: (state, action: PayloadAction<AppSettings>)=> {

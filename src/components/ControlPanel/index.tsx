@@ -11,6 +11,7 @@ import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { useLuaCall, useSharedLocalStorage } from '../../hooks'
 import NumericInputGroup from '../NumericInputGroup'
 import { v4 } from 'uuid'
+import { invoke } from '@tauri-apps/api/core'
 const appWindow = getCurrentWebviewWindow()
 
 interface ActionProps {
@@ -127,14 +128,16 @@ function Export() {
   const [rate, setRate] = useSharedLocalStorage("anim_export_framerate")
 
   const call = useLuaCall("render_animation_sync", ()=> {}, {}, [])
-  const requestExportTo = useCallback((path: string)=> {
+  const requestExportTo = useCallback(async (path: string)=> {
     animstate.pause()
     if (!animstate.hasFrameList) return
+    let mod_asset_path_list = await invoke("remove_mod_anim_files", {path_list: []})
     const session_id = v4()
-    appWindow.emit("set_session_id", session_id)
+    window.emitToThis("set_session_id", session_id)
     call({
       session_id,
       path,
+      mod_asset_path_list,
       api_list: animstate.getValidApiList(),
       render_param: {
         ...render.serialize(),

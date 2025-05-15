@@ -315,6 +315,7 @@ function EntryManager:AddTagFromScrapbook()
 		planardamage = true,
 		finiteuses = true,
 		sanityaura = true,
+		snowmandecor = true,
 		burnable = true,
 		fishable = true,
 		perishable = true,

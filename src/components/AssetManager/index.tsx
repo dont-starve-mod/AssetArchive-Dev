@@ -7,7 +7,6 @@ import { PredictableData } from '../../renderer_predict'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import smallhash from '../../smallhash'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
-const appWindow = getCurrentWebviewWindow()
 
 type AssetData<T> = {
   state: "loading",
@@ -48,7 +47,7 @@ async function get<T>(param: {[K:string]: string | number | boolean}): Promise<T
   }
 }
 
-interface ImageData {
+type ImageData = {
   index: number,
   bbx: number,
   bby: number,
@@ -61,12 +60,6 @@ interface ImageData {
   x: number,
   y: number,
 }
-
-interface SymbolData {
-  imghash: number,
-  imglist: ImageData[],
-}
-
 
 const int = (i: number)=> Math.round(i)
 
@@ -190,14 +183,27 @@ export default function AssetManager(props: {animstate: AnimState, stateRef?: (s
   }, [stateRef])
 
   const globalForceUpdate = useCallback(()=> {
-    appWindow.emit("forceupdate", "AssetManager")
+    window.emit("forceupdate", "AssetManager")
   }, [])
+
+  useEffect(()=> {
+    const unlisten = window.listen("update_mod_anim_asset", ()=> {
+      state.atlasData = {}
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [state])
 
   const onBuildLoaded = useCallback(()=> {
     animstate.rebuildSymbolSource()
   }, [animstate])
 
   const loadBuild = useCallback(({build}: {build: string})=> {
+    // mod asset
+    let modData = window.mod_anim_asset_data.buildIndex.get(build)
+    if (modData && modData.length > 0) {
+      return modData[0] // TODO: priority impl
+    }
+    // game asset
     if (!ready) return
     if (!state.buildNames.has(build)) return
     const data = state.buildData[build]
@@ -235,10 +241,15 @@ export default function AssetManager(props: {animstate: AnimState, stateRef?: (s
   }, [animstate])
 
   const loadAnimation = useCallback(({bank, animation}: {bank: string | number, animation: string})=> {
-    if (!ready) return
     const debugName = `[${bank}]${animation}`
     if (typeof bank === "string")
       bank = smallhash(bank)
+    // mod asset
+    let modData = window.mod_anim_asset_data.animIndex.get(`[${bank}]-${animation}`)
+    if (modData && modData.length > 0) {
+      return modData
+    }
+    if (!ready) return
     const animNames = state.banks.get(bank)
     if (!animNames) return
     if (!animNames.has(animation)) return
@@ -272,8 +283,15 @@ export default function AssetManager(props: {animstate: AnimState, stateRef?: (s
   }, [ready, onAnimationLoaded])
 
   const loadAtlas = useCallback(({build, sampler}: {build: string, sampler: number})=> {
+    // mod asset
+    let modData = window.mod_anim_asset_data.buildIndex.get(build)
+    let redirectPath = null
+    if (modData && modData.length > 0) {
+      redirectPath = modData[0].path // TODO: priority impl
+    }
+    // game asset
     if (!ready) return
-    if (!state.buildNames.has(build)) return
+    if (!state.buildNames.has(build) && !redirectPath) return
     const debugName = `${build}-${sampler}`
     const id = debugName
     const data = state.atlasData[id]
@@ -283,7 +301,7 @@ export default function AssetManager(props: {animstate: AnimState, stateRef?: (s
     async function load(){
       state.atlasData[id] = { state: "loading" }
       try {
-        const response = await get<number[]>({type: "atlas", build, sampler, format: "png"})
+        const response = await get<number[]>({type: "atlas", build, sampler, format: "png", redirect_asset_path: redirectPath})
         if (response.length > 0){
           const array = Uint8Array.from(response)
           const blob = new Blob([array])

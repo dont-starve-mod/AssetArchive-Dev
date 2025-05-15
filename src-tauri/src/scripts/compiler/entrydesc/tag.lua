@@ -137,6 +137,7 @@ local name_map = {
 	sewable = "STRINGS.SCRAPBOOK.DATA_SEWABLE",
 	waterproofer = "STRINGS.SCRAPBOOK.DATA_WETNESS",
 	lightbattery = "STRINGS.SCRAPBOOK.DATA_LIGHTBATTERY",
+	snowmandecor = "STRINGS.SCRAPBOOK.DATA_SNOWMANDECO",
 
 	["type.food"] = "STRINGS.SCRAPBOOK.CATS.FOOD",
 	["type.poi"] = "STRINGS.SCRAPBOOK.CATS.POI",

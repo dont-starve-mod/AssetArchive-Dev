@@ -66,6 +66,14 @@ local AnalyzerMethods = {
 		PLATFORM = "OSX_STEAM"
 		POT_GENERATION = false
 		ENCODE_SAVES = true
+		stringidsorter = function(a, b)
+			if type(a) == "string" and type(b) == "string" then
+				return a < b and true or false
+			else
+				return false
+			end
+		end
+		hash = function(a) return a end
 
 		-- main.lua
 		function IsConsole() return false end

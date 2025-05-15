@@ -80,10 +80,6 @@
   width: 50px; /* static width for preview icon */
 }
 
-.mtime {
-  color: #666;
-}
-
 .project-list-table,
 .project-list-table tbody,
 .project-list-table thead {

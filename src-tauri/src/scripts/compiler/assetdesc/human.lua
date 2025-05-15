@@ -260,6 +260,8 @@ function HumanAnnotator:ColourCube(list)
 
 		{"lavaarena2_cc", "熔岩竞技场滤镜", "在特殊活动“熔炉”中使用的滤镜"},
 		{"quagmire_cc",   "泥潭滤镜", "在特殊活动“暴食”中使用的滤镜"},
+
+		{"blackout_cc", "纯黑滤镜"},
 	}
 
 	for i = #list, 1, -1 do
@@ -321,6 +323,7 @@ function HumanAnnotator:Music(data)
 		["dontstarve/music/music_dusk_stinger"] = "黄昏已至。\n从白天切换到黄昏时播放的提示音乐——夜幕即将降临，做好准备。",
 		["dontstarve/music/music_dawn_stinger"] = "黎明。\n从夜晚切换到白天时播放的提示音乐——你又幸存了一天。",
 		["dontstarve/sanity/gonecrazy_stinger"] = "陷入疯狂。\n理智值过低时播放的提示音乐。",
+		["dontstarve/sanity/lunacy_stinger"] = "陷入疯狂。\n启蒙值过高时播放的提示音乐。",
 
 
 		["moonstorm/characters/wagstaff/music_wagstaff_experiment"] = "瓦格斯塔夫的实验",
@@ -398,6 +401,8 @@ function HumanAnnotator:Music(data)
 		["dontstarve/music/lava_arena/FE2"] = fe_name_of "熔炉",
 		["dontstarve/quagmire/music/FE"] = fe_name_of "暴食",
 
+		["dontstarve/music/music_balatro"] = "小丑牌",
+
 
 	}
 	for _,v in ipairs({"wanda", "webber", "wolfgang", "maxwell", "wickerbottom",
@@ -441,6 +446,8 @@ function HumanAnnotator:Music(data)
 		sharkboy = assert(po:GetName("sharkboi")),
 		moonbase = assert(po:GetName("moonbase")),
 		moonbase_b = assert(po:GetName("moonbase")),
+		worm = assert(po:GetName("worm_boss")),
+		junkyardhog = assert(po:GetName("daywalker2")),
 
 		ruins = "远古遗迹",
 		cave = "洞穴",
@@ -481,7 +488,7 @@ function HumanAnnotator:Music(data)
 		if path:upper():find("AMB") then
 			self:AddDesc(Asset("fmodevent", {path = path}), "#ambient_sound", {check_exists = false, append = true})
 		else
-		print("SOUND", path)
+			print("SOUND", path)
 		end
 	end
 end

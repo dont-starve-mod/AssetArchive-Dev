@@ -13,7 +13,7 @@ type HashTable = HashMap<u32, Vec<u8>>;
 
 const SWAP_ICON: u32 = 4138393349;
 
-fn load_anim_zip<R>(f: R) -> Result<(Option<AnimIndex>, Option<BuildIndex>, HashTable), String> 
+pub fn load_anim_zip<R>(f: R) -> Result<(Option<AnimIndex>, Option<BuildIndex>, HashTable), String> 
 where R: Read + Seek {
     let mut archive = ZipArchive::new(f).map_err(|e| format!("Failed to read zip file: {}", e))?;
     let mut anim_index = None;
@@ -69,7 +69,7 @@ fn parse_hash_table(mut f: impl Read) -> HashTable {
 
 /// load anim.bin file and generate index.
 /// return vec[name, bankhash, facing]
-fn index_anim_bin(mut f: impl Read) -> Result<(AnimIndex, HashTable), Box<dyn Error>> {
+pub fn index_anim_bin(mut f: impl Read) -> Result<(AnimIndex, HashTable), Box<dyn Error>> {
     let mut index = vec![];
     let mut buf = vec![0; 4];
     f.read_exact(&mut buf)?;
@@ -114,7 +114,7 @@ fn index_anim_bin(mut f: impl Read) -> Result<(AnimIndex, HashTable), Box<dyn Er
 
 /// load build.bin file and generate index
 /// return [name, numatlases, swap_icon_0]
-fn index_build_bin(mut f: impl Read) -> Result<(BuildIndex, HashTable), Box<dyn Error>> {
+pub fn index_build_bin(mut f: impl Read) -> Result<(BuildIndex, HashTable), Box<dyn Error>> {
     let mut buf = [0; 4];
     f.read_exact(&mut buf)?;
     if &buf != b"BILD" {

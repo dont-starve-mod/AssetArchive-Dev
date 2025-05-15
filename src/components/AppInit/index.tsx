@@ -359,8 +359,6 @@ export function ErrorHandler(){
   const [luaError, setLuaError] = useState<string>()
   const [alert, setAlertData] = useState<AlertPayload>()
 
-  console.log(luaError, typeof luaError)
-
   useEffect(()=> {
     async function init() {
       const handlers = [

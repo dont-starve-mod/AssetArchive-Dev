@@ -69,7 +69,7 @@ function DST_DataRoot:ResolvePath(path)
             end
         else
         	local parent = path:parent()
-        	local parent_name = parent:name()
+        	local parent_name = parent:name() or ""
         	if parent_name == "Don't Starve Together" or parent_name == "Don't Starve Together Dedicated Server"
         		or parent_name:find("(2000004)") then
         		return self:ResolvePath(parent/"data")
@@ -306,6 +306,8 @@ local Provider = Class(function(self, root, static)
 		build = {},
 		animbin = {},
 		-- animation = {},
+
+		mod_atlas = {},
 	}
 
 	self.static = static
@@ -811,47 +813,53 @@ function Provider:GetAtlasPreview(args)
 	end
 end
 
+function Provider:ClearModCache()
+	self.loaders.mod_atlas = {}
+end
+
 function Provider:GetAtlas(args)	
 	if args.sampler == nil then
 		args.sampler = 0 -- note: atlas sampler index starts at 0
 	end
-	if type(args.build) == "string" then
-		local atlaslist = self:LoadAtlas(args.build)
-		if atlaslist then
-			local atlas = atlaslist[args.sampler]
-			if atlas ~= nil then
-				local w, h = atlas:GetSize()
-				local index = CalcIndex(w, h, args)
-				if args.format == "rgba" then
-					return { width = w, height = h, bytes = atlas:GetImageBytes(index) }
-				elseif args.format == "img" then
-					return atlas:GetImage(index)
-				elseif args.format == "png_base64" then
-					return atlas:GetImage(index):save_png_base64()					
-				elseif args.format == "png" then
-					return atlas:GetImage(index):save_png_bytes()
-				elseif args.format == "copy" then
-					if atlas.is_dyn then
-						return DYN_ENCRYPT
-					else
-						return Clipboard.WriteImage_Bytes(atlas:GetImageBytes(0), w, h)
-					end
-				elseif args.format == "save" then
-					if atlas.is_dyn then
-						return DYN_ENCRYPT
-					else
-						local img = atlas:GetImage(0)
-						if img ~= nil then
-							return img:save(args.path) and args.path
-						end
-					end
-				elseif args.format == "permission" then
-					if atlas.is_dyn then
-						return DYN_ENCRYPT
-					else
-						return true
-					end
+	local atlas = nil
+	if type(args.redirect_asset_path) == "string" then -- find mod asset
+		local atlaslist = self:LoadModAtlas(args.redirect_asset_path) or {}
+		atlas = atlaslist[args.sampler]
+	elseif type(args.build) == "string" then
+		local atlaslist = self:LoadAtlas(args.build) or {}
+		atlas = atlaslist[args.sampler]
+	end
+	if atlas ~= nil then
+		local w, h = atlas:GetSize()
+		local index = CalcIndex(w, h, args)
+		if args.format == "rgba" then
+			return { width = w, height = h, bytes = atlas:GetImageBytes(index) }
+		elseif args.format == "img" then
+			return atlas:GetImage(index)
+		elseif args.format == "png_base64" then
+			return atlas:GetImage(index):save_png_base64()					
+		elseif args.format == "png" then
+			return atlas:GetImage(index):save_png_bytes()
+		elseif args.format == "copy" then
+			if atlas.is_dyn then
+				return DYN_ENCRYPT
+			else
+				return Clipboard.WriteImage_Bytes(atlas:GetImageBytes(0), w, h)
+			end
+		elseif args.format == "save" then
+			if atlas.is_dyn then
+				return DYN_ENCRYPT
+			else
+				local img = atlas:GetImage(0)
+				if img ~= nil then
+					return img:save(args.path) and args.path
 				end
+			end
+		elseif args.format == "permission" then
+			if atlas.is_dyn then
+				return DYN_ENCRYPT
+			else
+				return true
 			end
 		end
 	end
@@ -914,6 +922,65 @@ function Provider:LoadAtlas(name) --> atlaslist
 	end
 end
 
+function Provider:LoadModAtlas(path, use_cache)
+	if self.loaders.mod_atlas[path] and use_cache then
+		return self.loaders.mod_atlas[path]
+	end
+	local ext = ExtOf(path)
+	if ext == "zip" then
+		local zip = ZipLoader2.Open(path)
+		if not zip.error then
+			local build_content = zip:Get("build.bin")
+			if build_content == nil then
+				return
+			end
+			local build = BuildLoader(CreateBytesReader(build_content))
+			if not build.error then
+				local atlaslist = {}
+				for i, name in ipairs(build.atlas)do
+					local raw = zip:Get(name)
+					if raw ~= nil then
+						local tex = TexLoader(CreateBytesReader(raw))
+						if not tex.error then
+							tex.n = i - 1
+							tex.is_dyn = false
+							tex.is_mod_asset = true
+							atlaslist[i - 1] = tex
+						end
+					end
+				end
+				self.loaders.mod_atlas[path] = atlaslist
+				return atlaslist
+			end
+		end
+	end
+	if ext == "bin" then
+		local f = CreateReader(path)
+		if f == nil then
+			return
+		end
+		local build = BuildLoader(f)
+		if not build.error then
+			local atlaslist = {}
+			for i, name in ipairs(build.atlas)do
+				local ref_path = PathWithName(path, name)
+				local f2 = CreateReader(ref_path)
+				if f2 ~= nil then
+					local tex = TexLoader(f2)
+					if not tex.error then
+						tex.n = i - 1
+						tex.is_dyn = false
+						tex.is_mod_asset = true
+						atlaslist[i - 1] = tex
+					end
+				end
+			end
+			self.loaders.mod_atlas[path] = atlaslist
+			return atlaslist
+		end
+	end
+end
+
 local function unsigned(v) 
 	return math.max(0, math.floor(v + 0.5)) 
 end
@@ -923,9 +990,19 @@ function Provider:GetSymbolElement(args)
 		if args.imghash == nil and args.imgname ~= nil then
 			args.imghash = smallhash(args.imgname)
 		end
-		args.build = self.index:GetBuildFile(args.build) -- TODO: 这里的逻辑太糟糕了，得优化
-		local build = self:LoadBuild(args.build)
-		local atlaslist = self:LoadAtlas(args.build)
+		local build = nil
+		if args.force_build_obj ~= nil then
+			build = args.force_build_obj
+		else
+			args.build = self.index:GetBuildFile(args.build) -- TODO: 这里的逻辑太糟糕了，得优化
+			build = self:LoadBuild(args.build)
+		end
+		local atlaslist = nil 
+		if args.redirect_asset_path ~= nil then
+			atlaslist = self:LoadModAtlas(args.redirect_asset_path, args.force_build_obj ~= nil)
+		else
+			atlaslist = self:LoadAtlas(args.build)
+		end
 		local allow_copy = args.imghash == SWAP_ICON and args.index == 0
 		if build and atlaslist then
 			local symbol = build.symbol_map[args.imghash]

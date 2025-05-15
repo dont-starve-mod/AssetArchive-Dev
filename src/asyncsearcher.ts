@@ -66,6 +66,8 @@ export default class Searcher {
     throw Error("Failed to get worker: unreachable")
   }
 
+
+
   get ready() {
     if (this.url === "renderer_fuse_worker")
       return true

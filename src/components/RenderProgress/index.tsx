@@ -80,7 +80,7 @@ export default function RenderProgress(props: {isMain?: boolean}) {
   }, [currentSessionId])
 
   useEffect(()=> {
-    let unlisten = appWindow.listen<string>("set_session_id", ({payload})=> {
+    let unlisten = window.listen<string>("set_session_id", ({payload})=> {
       console.log("Current session id is:", payload)
       setCurrentSessionId(payload)
     })
@@ -88,7 +88,7 @@ export default function RenderProgress(props: {isMain?: boolean}) {
   }, [setCurrentSessionId])
 
   useEffect(()=> {
-    let unlisten = appWindow.listen<never>("lua_call_error_emitted", ()=> {
+    let unlisten = window.listen<never>("lua_call_error_emitted", ()=> {
       // TODO: 注意，这个监听器默认导出过程是sync的
       // 如果后续使用多线程渲染，则需要格外注意
       setError("internal")
@@ -121,6 +121,9 @@ export default function RenderProgress(props: {isMain?: boolean}) {
                     <p>要导出gif/mp4/mov格式，必须先安装FFmpeg。
                       <b><a onClick={()=> openInstaller()}>去安装..</a></b>
                     </p>
+                  }
+                  {
+                    <p>{error}</p>
                   }
                 </div>
               </>

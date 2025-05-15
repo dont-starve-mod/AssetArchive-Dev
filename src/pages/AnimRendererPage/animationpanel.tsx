@@ -135,18 +135,18 @@ export default function AnimationPanel(props: {left: number}) {
   
   const onMove = useCallback((x: number, y: number)=> {
     render.offset(x, y)
-    window.emit("forceupdate")
+    window.emitToThis("forceupdate")
   }, [render])
   const [onMouseDown] = useMouseDrag(onMove)
 
   const onSrollChange = useCallback((y: number)=> {
     render.scroll(y)
-    window.emit("forceupdate")
+    window.emitToThis("forceupdate")
   }, [render])
   
   useEffect(()=> {
     render.axis = axis
-    window.emit("forceupdate")
+    window.emitToThis("forceupdate")
   }, [axis, render])
 
   const [onScroll, onMouseEnter, onMouseLeave] = useMouseScroll(onSrollChange)
@@ -219,7 +219,7 @@ function Tools(props: {colorSetterProps: any}) {
         </Tooltip2>
       </Popover2>
       <Tooltip2 content={"重置视图"}>
-        <Button icon="reset" onClick={()=> [render.reset(), appWindow.emit("forceupdate")]}/>
+        <Button icon="reset" onClick={()=> [render.reset(), window.emitToThis("forceupdate")]}/>
       </Tooltip2>
     </ButtonGroup>
   )
@@ -263,7 +263,7 @@ function AxisSetter() {
         const axis = e.currentTarget.value as typeof axis
         render.axis = axis
         setAxis(axis)
-        appWindow.emit("forceupdate")
+        window.emitToThis("forceupdate")
       }}>
         <Radio label="显示在前" value="front"/>
         <Radio label="显示在后" value="back"/>
@@ -280,7 +280,7 @@ function Facing() {
   const onChangeFacing = useCallback((value: string)=> {
     let facing = Number(value)
     animstate.facing = facing
-    appWindow.emit("forceupdate", "ChangeFacingTo<" + byte2facing(facing) + ">")
+    window.emit("forceupdate", "ChangeFacingTo<" + byte2facing(facing) + ">")
   }, [animstate])
   return (
     <ButtonGroup vertical minimal>

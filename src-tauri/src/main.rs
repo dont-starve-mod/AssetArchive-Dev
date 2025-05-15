@@ -38,12 +38,16 @@ mod meilisearch;
 mod es;
 mod fastindex;
 mod quicklook;
+mod modasset;
+mod filewatcher;
 use crate::filesystem::lua_filesystem::Path as LuaPath;
 use fmod::FmodChild;
 use meilisearch::MeilisearchChild;
 use quicklook::{open_quicklook_windows, add_quicklook_recent_files};
+use modasset::{add_mod_anim_files_checked, remove_mod_anim_files, init_mod_anim_files_data};
 use fmod::fmod_handler::*;
 use meilisearch::meilisearch_handler::*;
+use filewatcher::FileWatcher;
 #[cfg(target_os="windows")]
 #[allow(unused_imports)]
 use es::es_handler::*;
@@ -142,9 +146,11 @@ fn init_logger(app: &mut tauri::App) -> Result<(), String> {
 }
 
 
-fn main() {    
+fn main() {
+    let home_dir = dirs::home_dir().unwrap_or_default().to_string_lossy().to_string();
     tauri::Builder::default()
         .manage(LuaEnv::new())
+        .manage(FileWatcher::new())
         .manage(FeCommuni::default())
         .manage(FmodHandler::default())
         .manage(Meilisearch::default())
@@ -175,6 +181,8 @@ fn main() {
             if let Err(e) = init_meilisearch(app) {
                 on_error("meilisearch", e);
             }
+            let watcher = app.state::<FileWatcher>();
+            watcher.attach_app(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -192,8 +200,12 @@ fn main() {
             get_log_path,
             reveal_log_file,
             select_file_in_folder,
+            get_file_mtime,
             open_quicklook_windows,
             add_quicklook_recent_files,
+            add_mod_anim_files_checked,
+            remove_mod_anim_files,
+            init_mod_anim_files_data,
             set_drag_data,
             get_drag_data,
             clear_drag_data,
@@ -203,9 +215,11 @@ fn main() {
         .append_invoke_initialization_script(format!(r#"
             window.show_debug_tools = {};
             window.text_guard = "{}";
+            window.home_dir = {};
         "#,
             !get_is_publish_build(),
-            TEXT_GUARD
+            TEXT_GUARD,
+            serde_json::to_string(&home_dir).unwrap_or_default()
         ))
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -230,14 +244,13 @@ fn main() {
 }
 
 #[tauri::command(async)]
-fn app_init<R: tauri::Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>) -> Result<String, String> {
+fn app_init(app: tauri::AppHandle, state: tauri::State<'_, LuaEnv>) -> Result<String, String> {
     let init_error = String::from_str(&state.init_error.lock().unwrap()).unwrap();
     if !init_error.is_empty() {
         Err(init_error)
     }
     else {
-        lua_call(app, window, state, "appinit".into(), "".into())
-            .map(|_|"TODO:".to_string())
+        lua_call(app, "appinit".into(), "".into()).map(|_|"TODO:".to_string())
     }
 }
 
@@ -258,6 +271,19 @@ fn lua_console(state: tauri::State<'_, LuaEnv>, script: String) {
 fn select_file_in_folder(handler: tauri::AppHandle, path: String) -> bool {
     use tauri_plugin_opener::OpenerExt;
     handler.opener().reveal_item_in_dir(path).is_ok()
+}
+
+#[tauri::command]
+fn get_file_mtime(path: String) -> Option<u64> {
+    match std::fs::metadata(path) {
+        Ok(meta) => {
+            if let Ok(mtime) = meta.modified() {
+                return Some(mtime.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs());
+            }
+        },
+        _=> ()
+    };
+    None
 }
 
 fn get_is_publish_build() -> bool {
@@ -314,9 +340,10 @@ impl serde::Serialize for LuaBytes {
 }
 
 #[tauri::command(async)]
-fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<R>, state: tauri::State<'_, LuaEnv>,
-    api: String, param: String) -> Result<LuaBytes, String> {
-    state.lua.lock().unwrap().context(|lua_ctx| -> LuaResult<LuaBytes> {
+fn lua_call(handle: tauri::AppHandle, api: String, param: String) -> Result<LuaBytes, String> {
+    let state = handle.state::<LuaEnv>();
+    let lua = state.lua.lock().unwrap();
+    lua.context(|lua_ctx| -> LuaResult<LuaBytes> {
         let globals = lua_ctx.globals();
         let ipc = globals.get::<_, Table>("IpcHandlers")?;
         let api_func = match ipc.get::<_, Function>(&api[..]) {
@@ -327,7 +354,7 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<
         lua_ctx.scope(|scope| -> LuaResult<LuaBytes>{
             // register ipc util functions
             globals.set("IpcEmitEvent", scope.create_function(|_,(event, payload): (String, String)|{
-                app.emit(&event, payload).unwrap();
+                handle.emit(&event, payload).unwrap();
                 Ok(())
             })?)?;
             globals.set("IpcSetState", scope.create_function(|_,(key, value): (String, String)|{
@@ -342,11 +369,11 @@ fn lua_call<R: tauri::Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<
             // TODO: impl in CLI mode
             globals.set("SelectFileInFolder", scope.create_function(|_, path: String|{
                 use tauri_plugin_opener::OpenerExt;
-                Ok(app.opener().reveal_item_in_dir(path).is_ok())
+                Ok(handle.opener().reveal_item_in_dir(path).is_ok())
             })?)?;
             // allow tauri to read this file
             globals.set("Core_AllowFile", scope.create_function(|_, path: String|{
-                let tauri_scope = app.state::<tauri::scope::Scopes>();
+                let tauri_scope = handle.state::<tauri::scope::Scopes>();
                 tauri_scope.allow_file(&path);
                 Ok(true)
             })?)?;

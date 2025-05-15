@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useLuaCallOnce } from "../../hooks"
-import { Button, Checkbox, H3 } from "@blueprintjs/core"
+import { useAppSetting, useLocalStorage, useLuaCallOnce } from "../../hooks"
+import { Alert, Button, Checkbox, H3 } from "@blueprintjs/core"
 import { base64DecToArr, toByteArray } from "../../base64_util"
 import { byte2facing } from "../../facing"
 
@@ -13,10 +13,25 @@ const transparentStyle: React.CSSProperties = {
 export default function QuickLookView() {
   const filepath = window.filepath
   const [data, setData] = useState([])
+  const [showChangedAlert, setShowChangedAlert] = useState(false)
+  const [autoReload, setAutoReload] = useLocalStorage("quicklook_auto_refresh")
 
   useLuaCallOnce<string>("quicklook_load", data=> {
     setData(JSON.parse(data))
   }, { filepath }, [])
+
+  useEffect(()=> {
+    let unlisten = window.listen<string>("mod_file_changed", ({payload})=> {
+      if (autoReload){
+        window.location.reload()
+        return
+      }
+      if (payload === window.filepath) {
+        setShowChangedAlert(true)
+      }
+    })
+    return ()=> { unlisten.then(f=> f()) }
+  }, [autoReload])
 
   return (
     <div className="p-4 w-screen h-screen overflow-auto [&>div]:mb-4">
@@ -47,7 +62,20 @@ export default function QuickLookView() {
           return JSON.stringify(v)
         })
       }
-      
+      <Alert
+        isOpen={showChangedAlert}
+        onCancel={()=> setShowChangedAlert(false)}
+        intent="primary"
+        icon="refresh"
+        canEscapeKeyCancel={true}
+        canOutsideClickCancel={true}
+        onConfirm={()=> { window.location.reload() }}
+        confirmButtonText="是"
+        cancelButtonText="否"
+      >
+        <p>文件内容已更新，是否刷新视图？</p>
+        <Checkbox checked={autoReload} onChange={v=> setAutoReload(v.currentTarget.checked)}>不再询问</Checkbox>
+      </Alert>
     </div>
   )
 }

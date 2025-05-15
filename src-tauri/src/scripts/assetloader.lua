@@ -898,6 +898,8 @@ function ZipLoader2:Get(name)
     local success, result = pcall(function() return self.inner:get(name) end)
     if success then
         return result, self:GetMTime(name)
+    else
+        return nil, nil, result
     end
 end
 
@@ -1262,6 +1264,10 @@ function Fev:GetEventByPath(path)
         end
     end
     return data
+end
+
+function Fev:GetEventPathList()
+    return self.inner:event_path_list()
 end
 
 function Fev:LinkToFsb(fsb_map)

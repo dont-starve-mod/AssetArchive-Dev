@@ -162,6 +162,15 @@ function NameOf(path)
 	end
 end
 
+function PathWithName(path, name)
+	local last_slash = math.max(path:find("/[^/]*$") or 0, path:find("\\[^\\]*$") or 0)
+    if last_slash > 0 then
+        return path:sub(1, last_slash) .. name
+    else
+        return name
+    end
+end
+
 function ExtOf(path)
 	local ext = select(3, path:find("([^/\\.]+)$"))
 	return ext

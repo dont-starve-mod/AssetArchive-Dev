@@ -32,6 +32,7 @@ local function LoadAsTex(f, data)
 end
 
 local function LoadAsAnim(f, data)
+	print("LoadAsAnim")
 	local anim = AnimLoader(f)
 	if anim.error then
 		table.insert(data, { type = "anim", error = anim.error} )
@@ -41,6 +42,7 @@ local function LoadAsAnim(f, data)
 end
 
 local function LoadAsBuild(f, data)
+	print("LoadAsBuild")
 	local build = BuildLoader(f)
 	if build.error then
 		table.insert(data, { type = "build", error = build.error })
@@ -102,9 +104,15 @@ local function LoadAsZip(_, data, filepath)
 		table.insert(data, { type = "zip", error = zip.error })
 	else
 		local name_list = zip:List()
-		table.insert(data, { type = "zip", name_list = name_list })
-		local anim = zip:Get("anim.bin")
-		local build = zip:Get("build.bin")
+		local name_list_utf8 = {}
+		for i, name in ipairs(name_list) do
+			name_list_utf8[i] = string.to_utf8_lossy(name)
+		end
+		table.insert(data, { type = "zip", name_list = name_list_utf8 })
+		local anim,_,error = zip:Get("anim.bin")
+		-- print(error)
+		local build,_,error = zip:Get("build.bin")
+		-- print(error)
 		if anim then
 			LoadAsAnim(CreateBytesReader(anim), data)
 		end

@@ -97,7 +97,7 @@ export default function Nav() {
   const [closeButtonFocus, setCloseButtonFocus] = useState(false)
 
   useEffect(()=> {
-    const unlisten = appWindow.listen("start_search", ()=> {
+    const unlisten = window.listen("start_search", ()=> {
       // setFocus(true)
       inputRef.current?.focus()
     })
@@ -150,19 +150,19 @@ export default function Nav() {
             <Navbar.Divider />
             <Button minimal icon="minus" 
               onClick={(e: React.MouseEvent<HTMLElement>)=> {
-                appWindow.minimize()
+                window.appWindow.minimize()
                 e.preventDefault()
               }}/>
             <Button minimal icon="small-square" 
               onClick={(e: React.MouseEvent<HTMLElement>)=> {
-                appWindow.toggleMaximize()
+                window.appWindow.toggleMaximize()
                 e.preventDefault()
               }}/>
             <Button minimal icon="cross" intent={closeButtonFocus ? "danger" : "none"}
               onMouseOver={()=> setCloseButtonFocus(true)}
               onMouseLeave={()=> setCloseButtonFocus(false)}
               onClick={(e:React.MouseEvent<HTMLElement>)=> {
-                appWindow.close()
+                window.appWindow.close()
                 e.preventDefault()
               }}/>
           </>

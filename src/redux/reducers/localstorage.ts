@@ -44,6 +44,8 @@ export type LocalStorage = {
   anim_export_color_value: string,
   anim_export_resolution: number,
   anim_export_framerate: number,
+} & {
+  quicklook_auto_refresh: boolean,
 }
 
 type Key = keyof LocalStorage
@@ -108,6 +110,8 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     anim_export_color_value: "#cccccc",
     anim_export_framerate: 30,
     anim_export_resolution: 1,
+
+    quicklook_auto_refresh: false,
 
     ...loadPersistant()
   }),

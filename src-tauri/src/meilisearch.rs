@@ -102,6 +102,16 @@ impl MeilisearchChild {
     unpack_meilisearch_binary(bin_dir.as_path())?;
     std::env::set_current_dir(&bin_dir)
       .map_err(|e|e.to_string())?;
+    // remove old db file
+    #[cfg(windows)]{
+      let db_dir = bin_dir.join("data.ms");
+      let version_file = db_dir.join("VERSION");
+      if let Ok(version) = std::fs::read_to_string(version_file) {
+        if !version.starts_with("1.6") {
+          std::fs::remove_dir_all(db_dir).ok();
+        }
+      }
+    }
     let addr = get_addr();
     let mut child = Command::new(bin_dir.join(get_bin_name()))
       .set_no_console()

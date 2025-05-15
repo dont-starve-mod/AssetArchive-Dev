@@ -30,7 +30,7 @@ function pushError(error: any, msg: any){
   }
 }
 
-export interface Element {
+export type Element = {
   imghash: number,
   imgindex: number,
   layerhash: number,
@@ -50,7 +50,7 @@ export type Rect = {
   height?: number,
 }
 
-export interface AnimationData {
+export type AnimationData = {
   name: string,
   bankhash: number,
   facing: number
@@ -123,7 +123,7 @@ interface SymbolData {
   imglist: ImageData[],
 }
 
-export interface BuildData {
+export type BuildData = {
   name: string,
   atlas: string[],
   symbol: SymbolData[],

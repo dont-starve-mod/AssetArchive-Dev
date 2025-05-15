@@ -127,11 +127,24 @@ function Render:Refine()
 	end
 	print_info("[Render] refined, ignore #("..#ignore_list..")")
 
-	local builddata = build and self.provider:GetBuild({name = build})
+	local builddata = self:GetBuild(build)
 	if builddata == nil then
 		print_error("Warning: main build not exists: "..tostring(build))
 	end
-	local animlist = bank and animation and self.provider:GetAnimation({bank = bank, name = animation})
+	local animlist = nil 
+	if bank ~= nil and animation ~= nil then
+		-- search mod animation
+		if self.mod_animation ~= nil then
+			local bankhash = type(bank) == "string" and smallhash(bank) or bank
+			local key = bankhash.."-"..animation
+			if self.mod_animation[key] then
+				animlist = self.mod_animation[key]
+			end
+		end
+		if animlist == nil then
+			animlist = self.provider:GetAnimation({bank = bank, name = animation})
+		end
+	end
 	if animlist == nil then
 		print_error("Warning: animation not exists: ["..tostring(bank).."]"..tostring(animation))
 		error("runtime error: animation not exists")
@@ -196,6 +209,20 @@ function Render:Refine()
 	}
 end
 
+function Render:GetBuild(build)
+	if build ~= nil then
+		-- mod assets
+		if self.mod_build and self.mod_build[build] then
+			local build_list = self.mod_build[build]
+			if #build_list > 1 then
+				print("Warning: More than 1 build found for `"..build.."`")
+			end
+			return build_list[1], build_list[1].path
+		end
+		return self.provider:GetBuild({name = build})
+	end
+end
+
 function Render:BuildSymbolSource()
 	print_info("[Render] build symbol source")
 	local source_map = {}
@@ -204,7 +231,7 @@ function Render:BuildSymbolSource()
 		if name == "OverrideSymbol" or name == "OverrideSkinSymbol" then
 			local hash = tohash(args[1])
 			local buildname, symbol = args[2], args[3]
-			local build = self.provider:GetBuild({name = buildname})
+			local build = self:GetBuild(buildname)
 			local symboldata = nil
 			if build == nil then
 				print_error("Warning: build not exists: "..format(v))
@@ -222,7 +249,7 @@ function Render:BuildSymbolSource()
 			source_map[hash] = nil
 		elseif name == "AddOverrideBuild" or name == "ClearOverrideBuild" then
 			local buildname = args[1]
-			local build = self.provider:GetBuild({name = buildname})
+			local build = self:GetBuild(buildname)
 			if build == nil then
 				print_error("Warning: build not exists: "..format(v))
 			else
@@ -270,8 +297,11 @@ function Render:GetSymbolElement(build, symbol, index)
 		return self.symbol_element_cache[build][symbol][index]
 	end
 
+	local build_obj, redirect_asset_path = self:GetBuild(build)
 	local img = self.provider:GetSymbolElement({
 		build = build, 
+		force_build_obj = build_obj,
+		redirect_asset_path = redirect_asset_path,
 		imghash = symbol, 
 		index = index,
 		format = "img",
@@ -353,6 +383,10 @@ function Render:Run()
 		if not path:is_file() then
 			path:write("\0\0\0") -- test if target path is writable
 		end
+	end
+
+	if self.mod_asset_path_list ~= nil then
+		self:LoadAllModAssets(self.mod_asset_path_list)
 	end
 
 	local basic = self:Refine()
@@ -505,6 +539,15 @@ function Render:Run()
 				})
 			end
 		end
+	end
+	if next(element_tasks) == nil then
+		print("[Render] no element to render, finish")
+		IpcEmitEvent("render_event", json.encode_compliant{
+			session_id = self.session_id,
+			state = "error",
+			message = "No element to render"
+		})
+		return
 	end
 
 	-- loop 2.1: run the multithreaded renderer
@@ -700,6 +743,37 @@ function Render:GetFilter(data)
 		})
 		self.filter[key] = filter
 		return filter, key
+	end
+end
+
+function Render:LoadAllModAssets(path_list)
+	self.mod_animation = {}
+	self.mod_build = {}
+	self.provider:ClearModCache()
+
+	local load = require("modasset").LoadModAsset
+	for _, v in ipairs(path_list)do
+		print("Load mod asset from: "..v)
+		local data = load(v, "renderer")
+		if data.anim and not data.anim.error then
+			for _, anim in ipairs(data.anim.anim_list)do
+				local bankhash = anim.bankhash
+				local name = anim.name
+				local key = bankhash.."-"..name
+				if self.mod_animation[key] == nil then
+					self.mod_animation[key] = {}
+				end
+				table.insert(self.mod_animation[key], anim)
+			end
+		end
+		if data.build and not data.build.error then
+			local key = data.build.buildname
+			if self.mod_build[key] == nil then
+				self.mod_build[key] = {}
+			end
+			data.build.path = v
+			table.insert(self.mod_build[key], data.build)
+		end
 	end
 end
 

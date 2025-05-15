@@ -370,7 +370,7 @@ local AssetAnnotator = {
 	Music = function(self)
 		local nightmare = self.src_hash("components/nightmareclock", 0x7b24b46f)
 		local ambient   = self.src_hash("components/ambientsound", 0xa57a07a2)
-		local music     = self.src_hash("components/dynamicmusic", 0x314bb6cf)
+		local music     = self.src_hash("components/dynamicmusic", 0xc5189218)
 		local function CollectFmodPath(s)
 			-- NOTE: only match double quotation marks
 			--	    "path/to/sound" √
@@ -405,9 +405,10 @@ local AssetAnnotator = {
 	CharacterVoice = function(self)
 		local names = self.human:GetCharacterVoiceName()
 		for _,v in ipairs(self.assets.allfevfile)do
-			for k, event in pairs(v.event_map)do
+			for _,k in ipairs(v:GetEventPathList()) do
+				local event = v:GetEventByPath(v.proj_name.."/"..k)
 				if k:startswith("characters") and event.has_sounddef then
-					local asset = Asset("fmodevent", {path = v.project_name.."/"..k --[[ full path ]]})
+					local asset = Asset("fmodevent", {path = v.proj_name.."/"..k --[[ full path ]]})
 					self:AddDesc(asset, "#character_voice", {check_exists = false})
 					local desc = names.others(k)
 					if desc then

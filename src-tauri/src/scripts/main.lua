@@ -19,6 +19,7 @@ require "color"
 require "ffmpeg"
 require "encrypt"
 require "quicklook"
+require "modasset"
 local Renderer = require "renderer"
 local AssetIndex = require "assetindex"
 local DST_DataRoot =  require "assetprovider".DST_DataRoot
@@ -139,6 +140,7 @@ IpcHandlers.Register("render_animation_sync", function(param)
 	local r = Renderer(param.api_list)
 	r.path = assert(param.path, "path not provided")
 	r.session_id = assert(param.session_id, "session_id not provided")
+	r.mod_asset_path_list = param.mod_asset_path_list
 
 	r:SetRenderParam(param.render_param)
 	r:SetRoot(GLOBAL.root)

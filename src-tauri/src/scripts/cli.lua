@@ -272,7 +272,7 @@ local function compile()
 
 	-- override Image from @widgets/image.lua
 	Image = rImage
-	require("compiler.preview_gen").main(env)
+	-- require("compiler.preview_gen").main(env)
 end
 
 local function install_ffmpeg()

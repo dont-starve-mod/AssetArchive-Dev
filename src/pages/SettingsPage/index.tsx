@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [showDesc, setShowDesc] = useAppSetting("quick_search_desc")
   const [numToast, setNumToast] = useLocalStorage("toast_max_num")
   const [aliveTime, setAliveTime] = useLocalStorage("toast_alive_time")
+  const [qlAutoReload, setQuicklookAutoReload] = useLocalStorage("quicklook_auto_refresh")
   const [ffmpegState, setFState] = useState<FFmpeg>({
     checking: true,
     installed: false,
@@ -188,6 +189,17 @@ export default function SettingsPage() {
         (ffmpegState.checking || installed) ? "配置" : "安装"
       }
     </Button>
+    <hr/>
+    <H4>快速预览</H4>
+    <p>当文件改变时，刷新视图：</p>
+    <RadioGroup
+      label=""
+      inline
+      selectedValue={qlAutoReload ? "auto" : "ask"} 
+      onChange={e=> setQuicklookAutoReload(e.currentTarget.value === "auto")}>
+      <Radio label="每次询问" value="ask"/>
+      <Radio label="自动刷新" value="auto"/>
+    </RadioGroup>
     <hr/>
     <H4>日志</H4>
     <p>查看程序运行日志，该文件有助于开发者修复软件bug。</p>

@@ -10,6 +10,7 @@ import { AnimState } from '../../components/AnimCore_Canvas/animstate'
 import AnimProjectSetter, { AnimProjectSetterAction } from '../../components/AnimProjectSetter'
 import { openAnimSubwindow } from './util'
 import { RenderParams } from '../../components/AnimCore_Canvas/renderparams'
+import ModAnimAssetList from '../../components/ModAnimAssetList'
 
 // TODO: 在执行后端操作（删除/创建/复制）时，按钮应显示为loading
 // 完成操作后，再移除model
@@ -168,8 +169,8 @@ export default function AnimListPage() {
   }, [])
 
   return (<div>
-    <H3>动画渲染器</H3>
-    <p>将饥荒动画转换为视频和图片格式。</p>
+    <H3 className='!mt-[10px]'>动画渲染器</H3>
+    <p>将饥荒动画转换为视频、动图和图片序列。</p>
     <div style={{height: 30}}></div>
     <H5>近期的项目</H5>
     <table className={style["project-list-table"]}>
@@ -207,7 +208,7 @@ export default function AnimListPage() {
               <td>
                 {item.title || "未命名项目"}
               </td>
-              <td className={style["mtime"]}>
+              <td className="text-gray-500">
                 <Mtime mtime={item.mtime}/>
               </td>
               <td>
@@ -250,6 +251,10 @@ export default function AnimListPage() {
         })
       }
     </div>
+    <hr/>
+    <H5>外部动画资源</H5>
+    <ModAnimAssetList/>
+    <div className='h-32'></div>
     <AnimProjectSetter 
       action={actionName} 
       project={actionProject as AnimProject}
@@ -431,9 +436,8 @@ function Empty(props: {onClick: Function}){
   return <div className={[style["template-card"], style["template-card-empty"]].join(" ")}
     onClick={()=> props.onClick()}>
     <div style={{width: 100, height: 100}}>
-      <Icon icon="add" style={{
-        color: "#ccc", 
-        position: "absolute",
+      <Icon icon="add" className="absolute text-gray-300" 
+        style={{
         transform: "translate(-50%, -50%)", 
         left: "50%", top: "50%"}} size={50}/>
     </div>

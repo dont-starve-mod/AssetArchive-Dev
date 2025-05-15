@@ -62,7 +62,7 @@ export default function AnimRendererPage() {
     }
     const timer = setInterval(save, 10*1000)
     return ()=> clearInterval(timer)
-  }, [id])
+  }, [animstate, render, id])
 
   useEffect(()=> {
     const unlisten = window.listen<any>("forceupdate", ({payload})=> {
@@ -70,7 +70,7 @@ export default function AnimRendererPage() {
       animstateHooks.forceUpdate()
     })
     return ()=> { unlisten.then(f=> f()) }
-  }, [])
+  }, [animstateHooks])
 
   // @ts-ignore
   window.anim = animstate 

@@ -57,3 +57,14 @@ export const byte2facing = (byte: number): string => {
   _cache[byte] = "f-"+byte
   return _cache[byte]
 }
+
+export const containsFacingString = (name: string)=> {
+  // idle_loop_side -> side
+  if (name.includes("_")) {
+    const facing = name.split("_").slice(-1)[0]
+    return typeof FACING_ALIAS_MAP[facing] === "number"
+  }
+  else {
+    return false
+  }
+}

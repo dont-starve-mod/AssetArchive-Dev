@@ -13,7 +13,7 @@ export type AnimationInfo = {
   facings: number[],
 }
 
-export interface PredictableData {
+export type PredictableData = {
   build: string[],
   animation: AnimationBank[],
   hashmap: [string, number][],

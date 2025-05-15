@@ -17,6 +17,8 @@ type FileDescriptor = RawFd;
 #[cfg(windows)]
 type FileDescriptor = usize;
 
+use tauri::Listener;
+
 fn path_to_label(path: &str) -> String {
     let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, path.as_bytes())
         .as_braced()
@@ -55,7 +57,7 @@ pub async fn open_quicklook_windows(handle: tauri::AppHandle, path_list: Vec<Str
         }
         else {
             let file_name = syspath.file_name().unwrap_or_default().to_string_lossy();
-            WebviewWindowBuilder::new(&handle, label, WebviewUrl::App("/quick-look".into()))
+            let window = WebviewWindowBuilder::new(&handle, label, WebviewUrl::App("/quick-look".into()))
                 .title(file_name.to_string())
                 .inner_size(800.0, 600.0)
                 .min_inner_size(400.0, 300.0)
@@ -69,6 +71,12 @@ pub async fn open_quicklook_windows(handle: tauri::AppHandle, path_list: Vec<Str
                 .build()
                 .map_err(|e| format!("Failed to build webview: {}", e))?;
             success_path_list.push(path.clone());
+            // register file watcher
+            let handle2 = handle.clone();
+            crate::filewatcher::watch(&handle2, &syspath);
+            window.once("tauri://close-request", move|_| {
+                crate::filewatcher::unwatch(&handle2, &syspath);
+            });
         }
     }
     add_quicklook_recent_files(handle, success_path_list).await
@@ -93,7 +101,7 @@ pub async fn add_quicklook_recent_files(handle: tauri::AppHandle, path_list: Vec
         Ok(content) => to_string_list(&content),
         Err(_) => vec![],
     };
-    println!("old_path_list: {:?}", old_path_list);
+    // println!("old_path_list: {:?}", old_path_list);
     if path_list.is_empty() {
         return Ok(old_path_list);
     }
@@ -106,7 +114,7 @@ pub async fn add_quicklook_recent_files(handle: tauri::AppHandle, path_list: Vec
         }
     });
     new_path_list.truncate(MAX_RECENT_FILES);
-    println!("new_path_list: {:?}", new_path_list);
+    // println!("new_path_list: {:?}", new_path_list);
     let s = json::stringify(new_path_list.clone());
     std::fs::write(&store_path, s).map_err(|e| format!("Failed to write recent files: {}", e))?;
     Ok(new_path_list)

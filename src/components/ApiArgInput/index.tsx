@@ -7,6 +7,7 @@ import animstateContext from '../../pages/AnimRendererPage/globalanimstate'
 import { useBasicPredicter, useGlobalAnimState, useHashPredicter, usePredicterFormatter, useValidFlags } from "./predicthooks"
 import { useLuaCall, useLuaCallOnce } from '../../hooks'
 import { useSelector } from '../../redux/store'
+import smallhash from '../../smallhash'
 
 type Color = [number, number, number, number]
 
@@ -211,6 +212,7 @@ function ColorSetter(props: ColorSetterProps) {
 function BankSetter(props: StringInputProps) {
   const predict = useBasicPredicter("bank", props.value, (match, query)=> {
     return typeof match === "string" && (match.toLowerCase() === query.toLowerCase())
+      || window.mod_anim_asset_data.hashCollection.has(smallhash(props.value)) // mod assets may strip hash table
   })
   return <StringInput {...props} label="库名" predict={predict}/>
 }
@@ -245,7 +247,7 @@ function AnimSetter(props: {
   }, [onValidChange, predict])
 
   return <>
-    <StringInput value={value} label="动画" predict={predict} onChange={props.onChange} inputRef={props.inputRef}/>
+    <StringInput value={value} label="动画" predict={predict} onChange={props.onChange} inputRef={props.inputRef} errorStyle="animation"/>
   </>
 }
 
@@ -328,7 +330,7 @@ type StringInputProps = {
   onChange?: (value: string)=> void,
   onValidChange?: ValidChangeCb,
   predict?: ReturnType<typeof useBasicPredicter>,
-  errorStyle?: "symbol",
+  errorStyle?: "symbol" | "animation" | "default",
   inputRef?: React.Ref<HTMLInputElement>,
 }
 
