@@ -36,6 +36,9 @@ jobs:
       - name: setup CMake
         if : matrix.platform != 'windows-latest' # Windows runners come with cmake pre-installed.
         uses: lukka/get-cmake@latest
+        with:
+          cmake-version: 3.22.1
+          ninjaVersion: 1.10.2
 
       - name: setup node
         uses: actions/setup-node@v4
