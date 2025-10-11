@@ -12,6 +12,10 @@ function Img(props: {src: string}) {
 export default function ChangeLog() {
   return (
     <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
+      <H5>beta - 0.1.6</H5>
+      <UL>
+        <li>修复部分mod动画资源在渲染器中表现错误的bug。</li>
+      </UL>
       <H5>beta - 0.1.5</H5>
       <UL>
         <li>【MacOS】修复在老版本Mac系统中动画渲染器的报错。</li>

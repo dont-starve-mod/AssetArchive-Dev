@@ -669,7 +669,7 @@ local function LinkBuildPresetForAnimation(env)
 				end)
 				result[bankhash] = builds
 			else
-				error("Failed to link bankname: ", bankname)
+				error("Failed to link bankname: ".. bankname)
 			end
 		end
 	end)

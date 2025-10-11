@@ -85,6 +85,13 @@ local AnalyzerMethods = {
 		function IsLinux() return false end
 		function IsRail() return false end
 		function IsSteamDeck() return false end
+		function ValidateLineNumber() return end
+
+		bit = {
+			band = function() return 0 end,
+			bor = function() return 0 end,
+			lshift = function() return 0 end,
+		}
 
 		self:CreateDummyUserdata()
 

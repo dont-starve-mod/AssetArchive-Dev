@@ -287,8 +287,8 @@ function EntryManager:AddTagFromScrapbook()
 		"specialinfo", "harvestable", "activatable", "stewer", 
 		"oar_velocity", "oar_force", "repairitems", "forgerepairable",
 		"animoffsetx", "animoffsety", "animoffsetbgx", "animoffsetbgy", "scale",
-		"floater",
-
+		"floater", "bb_x_extra", "bb_y_extra",
+		"symbolcolours",
 	}
 
 	local TAGS = {
