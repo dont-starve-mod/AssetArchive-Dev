@@ -1,4 +1,4 @@
-name: 'publish'
+name: 'Build and Release Tauri App'
 
 on:
   push:
@@ -33,7 +33,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: setup CMake
+        if : matrix.platform != 'windows-latest' # Windows runners come with cmake pre-installed.
+        uses: lukka/get-cmake@latest
 
+      - name: setup env vars
+        run: |
+          echo "TAURI_SIGNING_PRIVATE_KEY=${{secrets.TAURI_SIGNING_PRIVATE_KEY}}" >> $GITHUB_ENV
+          echo "TAURI_SIGNING_KEY_PASSWORD=${{secrets.TAURI_SIGNING_KEY_PASSWORD}}" >> $GITHUB_ENV
+          echo "DYN_INDEX=${{secrets.DYN_INDEX}}" >> $GITHUB_ENV
+          echo "DYN_MAGIC_NUMBER=${{secrets.DYN_MAGIC_NUMBER}}" >> $GITHUB_ENV
+          
       - name: setup node
         uses: actions/setup-node@v4
         with:
