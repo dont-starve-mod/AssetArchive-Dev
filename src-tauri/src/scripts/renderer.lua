@@ -503,13 +503,13 @@ function Render:Run()
 					pos_global[2] - math.floor(pos_global[2]),
 				}
 				local m1 = {1, 0, 0, 1, img.x-img.w/2, img.y-img.h/2} -- anchor
+				if img.pixi_anchor then -- override mod asset anchor
+					m1 = {1, 0, 0, 1, -img.pixi_anchor[1]* source:width(), -img.pixi_anchor[2]* source:height()}
+				end
 				local m2 = {matrix[1], matrix[3], matrix[2], matrix[4], 0, 0} -- linear transformation part
 				local m3 = {1, 0, 0, 1, -rect[1]+pos_decimal[1], -rect[2]+pos_decimal[2]} -- place to small render rect
 				local m = Mult(m3, (Mult(m2, m1)))
 				m[2], m[3] = m[3], m[2] -- TODO: fix mult function
-
-				-- local small_img = source:affine_transform(render_width, render_height,
-				-- 	m, Image.BILINEAR)
 
 				local key = "task-"..getaddr(source).."("..render_width.."x"..render_height..")"..
 					table.concat(m, "+")
@@ -528,7 +528,6 @@ function Render:Run()
 					filter = filter,
 				}
 				table.insert(buffer, {
-					-- small_img = small_img,
 					small_img_id = key,
 					pos_int = pos_int,
 					render_width = render_width,

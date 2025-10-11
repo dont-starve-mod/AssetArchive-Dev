@@ -38,7 +38,7 @@ local function median(t)
 end
 
 -- loader for <build.bin>
-BuildLoader = Class(function(self, f, lazy)
+BuildLoader = Class(function(self, f, lazy, is_mod_asset)
     local function error(e)
         self.error = e
         funcprint("Error in BuildLoader._ctor(): "..e)
@@ -149,6 +149,10 @@ BuildLoader = Class(function(self, f, lazy)
                 sampler = {},       -- index of texture (atlas-0.tex -> 0)
                 bbx = {}, bby = {}, -- bbox left-top coord
                 cw =  {}, ch =  {}, -- normalized canvas size
+                umin = {}, vmin = {}, -- inner rect range
+                umax = {}, vmax = {},
+                left = {}, right = {},
+                bottom = {}, top = {},
             }
 
             for j = 1, img.numvertexs / 6 do
@@ -161,31 +165,50 @@ BuildLoader = Class(function(self, f, lazy)
                 -- umax    = data[9]  # 1,3 
                 -- vmin    = data[4]  # 0,4 
                 -- vmax    = data[16] # 2,4
-                local left = f:read_f32()   -- 0
-                local top = f:read_f32()    -- 1
-                f:seek_forward(4)
-                local umin = f:read_f32()   -- 3
-                local vmin = f:read_f32()   -- 4
-                local sampler = f:read_f32()-- 5
-                local right = f:read_f32()  -- 6
-                f:seek_forward(8)
-                local umax = f:read_f32()   -- 9
-                f:seek_forward(12)
-                local bottom = f:read_f32() -- 13
-                f:seek_forward(8)
-                local vmax = f:read_f32()   -- 16
-                f:seek_forward(19*4)
+                
+                -- local left = f:read_f32()   -- 0
+                -- local top = f:read_f32()    -- 1
+                -- f:seek_forward(4)
+                -- local umin = f:read_f32()   -- 3
+                -- local vmin = f:read_f32()   -- 4
+                -- local sampler = f:read_f32()-- 5
+                -- local right = f:read_f32()  -- 6
+                -- f:seek_forward(8)
+                -- local umax = f:read_f32()   -- 9
+                -- f:seek_forward(12)
+                -- local bottom = f:read_f32() -- 13
+                -- f:seek_forward(8)
+                -- local vmax = f:read_f32()   -- 16
+                -- f:seek_forward(19*4)
+                
+                local bytes = f:read_f32_vertex_group() -- 36 floats
+                local left, top, right, bottom = bytes[1], bytes[2], bytes[7], bytes[14]
+                local umin, umax, vmin, vmax = bytes[4], bytes[10], 1.0 - bytes[5], 1.0 - bytes[17]
+                local sampler = bytes[6]
 
                 local cw = (right - left) / max(umax - umin, .00001)
-                local ch = (top - bottom) / min(vmax - vmin, -.00001)
+                local ch = (bottom - top) / max(vmax - vmin, .00001)
                 local bbx = umin * cw - (left - x_offset)
-                local bby = (1-vmin) * ch - (top - y_offset)
+                local bby = vmin * ch - (top - y_offset)
 
                 table.insert(temp.sampler, sampler)
                 table.insert(temp.bbx, bbx)
                 table.insert(temp.bby, bby)
                 table.insert(temp.cw, cw)
                 table.insert(temp.ch, ch)
+
+                if is_mod_asset then
+                    -- some mod asset may contain outer bounded element rects
+                    -- use uv box to crop it!
+                    table.insert(temp.umin, umin)
+                    table.insert(temp.umax, umax)
+                    table.insert(temp.vmin, vmin)
+                    table.insert(temp.vmax, vmax)
+                    table.insert(temp.left, left)
+                    table.insert(temp.right, right)
+                    table.insert(temp.bottom, bottom)
+                    table.insert(temp.top, top)
+                end
             end
 
             img.sampler = math.floor(median(temp.sampler) + 0.5)
@@ -193,6 +216,19 @@ BuildLoader = Class(function(self, f, lazy)
             img.bby = round2(median(temp.bby))
             img.cw = round2(median(temp.cw))
             img.ch = round2(median(temp.ch))
+
+            if is_mod_asset then
+                local umin = Algorithm.Min(temp.umin)
+                local umax = Algorithm.Max(temp.umax)
+                local vmin = Algorithm.Min(temp.vmin)
+                local vmax = Algorithm.Max(temp.vmax)
+                local left = Algorithm.Min(temp.left)
+                local right = Algorithm.Max(temp.right)
+                local top = Algorithm.Min(temp.top)
+                local bottom = Algorithm.Max(temp.bottom)
+                img.pixi_texture_rect = {umin, vmin, umax-umin, vmax-vmin}
+                img.pixi_anchor = {-left/(right - left), -top/(bottom - top)}
+            end
 
             if not lazy then
                 img.vertexindex = nil
@@ -1223,7 +1259,7 @@ Fev = Class(function(self)
     self.error = nil 
 end)
 
--- we open a fev file by path (no need for in memory file)
+-- we open a fev file by path (no need for in-memory file)
 function Fev.Open(path)
     local success, result = pcall(Fmod.OpenFev, path)
     local fev = Fev()

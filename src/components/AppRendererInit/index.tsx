@@ -56,7 +56,7 @@ export default function AppRendererInit() {
       // insert mod data
       const {animIndex, buildIndex} = window.mod_anim_asset_data
       const data = JSON.parse(JSON.stringify(anim_predictable_data)) as PredictableData
-      buildIndex.keys().forEach(v=> data.build.push(v))
+      Array.from(buildIndex.keys()).forEach(v=> data.build.push(v))
       const bankCache = {}
       Array.from(animIndex.values()).forEach(index=> {
         index.forEach(({bankhash, name})=> {

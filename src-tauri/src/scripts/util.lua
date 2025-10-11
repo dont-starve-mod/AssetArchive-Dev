@@ -73,8 +73,10 @@ function table.getkeys(t)
 end
 
 function table.update(self, t)
-	for k,v in pairs(t)do
-		self[k] = v
+	if type(t) == "table" then
+		for k,v in pairs(t)do
+			self[k] = v
+		end
 	end
 end
 

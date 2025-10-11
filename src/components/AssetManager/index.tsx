@@ -4,7 +4,6 @@ import { invoke } from '@tauri-apps/api/core'
 import { AnimationData, BuildData, Element, FrameList } from '../AnimCore_Canvas/animcore'
 import { predict } from '../../asyncsearcher'
 import { PredictableData } from '../../renderer_predict'
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import smallhash from '../../smallhash'
 import { RenderParams } from '../AnimCore_Canvas/renderparams'
 

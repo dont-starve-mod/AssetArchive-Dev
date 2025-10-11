@@ -69,6 +69,7 @@ export default function AnimationPanel(props: {left: number}) {
         if (img.index + img.duration <= imgindex) return // check duration
         // add sprite
         const {bbx, bby, cw, ch, x, y, w, h, sampler} = img
+        const {pixi_texture_rect, pixi_anchor} = img as any // mod assets
         const atlas: ImageBitmap & {imgs: {[K: string]: PIXI.Texture}} = anim.atlasLoader({build: sourceBuild.name, sampler}) as any
         if (!atlas) return
         if (!atlas.imgs) atlas.imgs = {}
@@ -76,14 +77,26 @@ export default function AnimationPanel(props: {left: number}) {
         if (!atlas.imgs[id]){
           const {width: WIDTH, height: HEIGHT} = atlas
           const x_scale = WIDTH / cw, y_scale = HEIGHT / ch
-          atlas.imgs[id] = new PIXI.Texture(
-            PIXI.Texture.from(atlas).baseTexture,
-            new PIXI.Rectangle(int(bbx*x_scale), int(bby*y_scale), int(w*x_scale), int(h*y_scale)),
-            new PIXI.Rectangle(0, 0, cw, ch)
-          )
-          // @ts-ignore
-          atlas.imgs[id].atlasScale = [x_scale, y_scale]
-          atlas.imgs[id].defaultAnchor = new PIXI.Point(-x/w+0.5, -y/h+0.5)
+          if (Array.isArray(pixi_texture_rect) && Array.isArray(pixi_anchor)) {
+            atlas.imgs[id] = new PIXI.Texture(
+              PIXI.Texture.from(atlas).baseTexture,
+              new PIXI.Rectangle(int(pixi_texture_rect[0]*cw), int(pixi_texture_rect[1]*ch), int((pixi_texture_rect[2])*cw), int((pixi_texture_rect[3]*ch))),
+              new PIXI.Rectangle(0, 0, cw, ch)
+            )
+            // @ts-ignore
+            atlas.imgs[id].atlasScale = [x_scale, y_scale]
+            atlas.imgs[id].defaultAnchor = new PIXI.Point(pixi_anchor[0], pixi_anchor[1])
+          }
+          else {
+            atlas.imgs[id] = new PIXI.Texture(
+              PIXI.Texture.from(atlas).baseTexture,
+              new PIXI.Rectangle(int(bbx*x_scale), int(bby*y_scale), int(w*x_scale), int(h*y_scale)),
+              new PIXI.Rectangle(0, 0, cw, ch)
+            )
+            // @ts-ignore
+            atlas.imgs[id].atlasScale = [x_scale, y_scale]
+            atlas.imgs[id].defaultAnchor = new PIXI.Point(-x/w+0.5, -y/h+0.5)
+          }
         }
         const {mult, add} = animstate.getSymbolActualTint(imghash)
         const sp = new PIXI.Sprite(atlas.imgs[id])

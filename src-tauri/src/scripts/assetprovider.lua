@@ -1041,6 +1041,9 @@ function Provider:GetSymbolElement(args)
 					unsigned(img.bby * y_scale),
 					unsigned(img.w * x_scale),
 					unsigned(img.h * y_scale)
+				-- mod asset data
+				local pixi_anchor = img.pixi_anchor
+				local pixi_texture_rect = img.pixi_texture_rect
 
 				if args.format == "png" then
 					return Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh):save_png_bytes()
@@ -1066,6 +1069,13 @@ function Provider:GetSymbolElement(args)
 					end
 
 				elseif args.format == "img" then
+					if pixi_texture_rect ~= nil then
+						bbx, bby, subw, subh = 
+							math.floor(pixi_texture_rect[1]* w + 0.5), 
+							math.floor(pixi_texture_rect[2]* h + 0.5),
+							math.floor(pixi_texture_rect[3]* w + 0.5), 
+							math.floor(pixi_texture_rect[4]* h + 0.5)
+					end
 					local img = Image.From_RGBA(CropBytes(atlas:GetImageBytes(0), w, h, bbx, bby, subw, subh), subw, subh)
 					if args.resize == true then
 						-- resize image by source canvas resolution, see renderer.lua

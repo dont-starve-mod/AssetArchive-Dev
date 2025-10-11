@@ -276,6 +276,17 @@ pub mod lua_filesystem {
             }
         }
 
+        fn read_f32_vertex_group(&mut self) -> Option<Vec<f32>> {
+            match self.read_exact(36* 4) {
+                Ok(bytes)=> {
+                    Some(bytes.chunks_exact(4)
+                        .map(|v| f32::from_le_bytes(v.try_into().unwrap())) // only for build.bin loader
+                        .collect())
+                },
+                Err(_)=> None
+            }
+        }
+
         fn read_u16(&mut self)-> Option<u16> {
             let mut buf = [0; 2];
             match self.inner.read_exact(&mut buf) {
@@ -328,6 +339,9 @@ pub mod lua_filesystem {
             });
             _methods.add_method_mut("read_f32_matrix", |_, fs: &mut Self, num: usize|{
                 Ok(fs.read_f32_matrix(num))
+            });
+            _methods.add_method_mut("read_f32_vertex_group", |_, fs: &mut Self, ()|{
+                Ok(fs.read_f32_vertex_group())
             });
             _methods.add_method_mut("read_u64", |_, fs: &mut Self, ()|{
                 Ok(fs.read_u64())

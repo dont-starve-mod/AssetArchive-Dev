@@ -19,7 +19,7 @@ local function LoadModAsset(path, from)
 				end
 			end
 			if build ~= nil then
-				local build = BuildLoader(CreateBytesReader(build))
+				local build = BuildLoader(CreateBytesReader(build), false, true)
 				if build.error then
 					data.build = { error = build.error }
 				else
