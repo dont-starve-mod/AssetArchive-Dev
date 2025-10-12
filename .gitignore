@@ -34,5 +34,4 @@ publish.py
 windows
 macos
 
-# Compile
-src-tauri/src/scripts/compiler/output/
+
