@@ -1,7 +1,7 @@
 local r = require "richtext"
 
 local CHINESE_NUMBER = {
-    "一", "二", "三", "四", "五"
+    "一", "二", "三", "四", "五",
 }
 
 local function Bracket(s)

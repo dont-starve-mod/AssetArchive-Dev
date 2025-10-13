@@ -49,6 +49,10 @@ export default function About() {
         （官方提供的模组制作和发布工具包）
       </p>
       <p>
+        <SimpleLink url="https://msisunny.github.io/dst-mod-tool-publisher/">DST Mod Tool</SimpleLink>
+        （饥荒模组动画和贴图工具）
+      </p>
+      <p>
         <SimpleLink url="https://forums.kleientertainment.com/files/file/73-handsome-matts-tools/">textool</SimpleLink>
         （dxt贴图文件查看器）
       </p>
