@@ -192,6 +192,7 @@ fn main() {
             lua_interrupt,
             lua_reload,
             open_url,
+            open_deeplink,
             fmod_send_message,
             fmod_update,
             fmod_get_data,
@@ -291,8 +292,15 @@ fn get_is_publish_build() -> bool {
 }
 
 #[tauri::command]
-fn open_url(url: String) -> bool {
-    webbrowser::open(url.as_str()).is_ok()
+fn open_url(handle: tauri::AppHandle, url: String) -> bool {
+    // webbrowser::open(url.as_str()).is_ok()
+    open_deeplink(handle, url)
+}
+
+#[tauri::command]
+fn open_deeplink(handle: tauri::AppHandle, url: String) -> bool {
+    use tauri_plugin_opener::OpenerExt;
+    handle.opener().open_url(url, None::<String>).is_ok()
 }
 
 // #[tauri::command]
@@ -370,6 +378,14 @@ fn lua_call(handle: tauri::AppHandle, api: String, param: String) -> Result<LuaB
             globals.set("SelectFileInFolder", scope.create_function(|_, path: String|{
                 use tauri_plugin_opener::OpenerExt;
                 Ok(handle.opener().reveal_item_in_dir(path).is_ok())
+            })?)?;
+            globals.set("OpenInDSTModTool", scope.create_function(|_, path: String|{
+                use tauri_plugin_opener::OpenerExt;
+                use urlencoding::encode;
+                // let url = format!("dst-mod-tool://{}", encode(&path));
+                let url = format!("dst-mod-tool://{}", &path);
+                info!("Visit deeplink: {}", url);
+                Ok(handle.opener().open_url(url, None::<String>).is_ok())
             })?)?;
             // allow tauri to read this file
             globals.set("Core_AllowFile", scope.create_function(|_, path: String|{

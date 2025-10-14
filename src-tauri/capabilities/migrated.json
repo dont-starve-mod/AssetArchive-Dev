@@ -26,6 +26,10 @@
     "dialog:allow-confirm",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
-    "core:webview:allow-create-webview-window"
+    "core:webview:allow-create-webview-window",
+    {
+      "identifier": "opener:allow-open-path",
+      "url": ["file://*", "dst-mod-tool://*"]
+    }
   ]
 }

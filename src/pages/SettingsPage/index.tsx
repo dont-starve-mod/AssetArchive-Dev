@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [numToast, setNumToast] = useLocalStorage("toast_max_num")
   const [aliveTime, setAliveTime] = useLocalStorage("toast_alive_time")
   const [qlAutoReload, setQuicklookAutoReload] = useLocalStorage("quicklook_auto_refresh")
+  const [extDstModToolEnabled, setExtDstModToolEnabled] = useLocalStorage("extention_dst_mod_tool_enabled")
   const [ffmpegState, setFState] = useState<FFmpeg>({
     checking: true,
     installed: false,
@@ -199,6 +200,25 @@ export default function SettingsPage() {
       onChange={e=> setQuicklookAutoReload(e.currentTarget.value === "auto")}>
       <Radio label="每次询问" value="ask"/>
       <Radio label="自动刷新" value="auto"/>
+    </RadioGroup>
+    <hr/>
+    <H4>外部程序扩展</H4>
+    <p className='font-bold'>DST Mod Tool</p>
+    <p>从资源浏览界面直接跳转到
+      <a href="#"
+        onClick={()=> invoke("open_url", {url: "https://msisunny.github.io/dst-mod-tool-publisher/"})}>
+        DST Mod Tool
+      </a>
+    进行更多的编辑操作。（需要先安装该软件）</p>
+    {/* <button onClick={()=> invoke("open_deeplink", {url: "dst-mod-tool:///Users/wzh/Downloads/esctemplate.zip"}).then(console.log, console.log)}>test</button> */}
+    <RadioGroup
+      label=""
+      inline
+      selectedValue={extDstModToolEnabled ? "on" : "off"}
+      onChange={e=> setExtDstModToolEnabled(e.currentTarget.value === "on")}
+    >
+      <Radio label="是" value="on"/>
+      <Radio label="否" value="off"/>
     </RadioGroup>
     <hr/>
     <H4>日志</H4>

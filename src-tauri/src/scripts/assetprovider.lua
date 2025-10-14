@@ -571,6 +571,9 @@ function Provider:Load(args)
 		return self:GetShaderSource(args)
 	elseif type == "show" then
 		return self:ShowAssetInFolder(args)
+	elseif type == "open_in_dst_mod_tool" then
+		args.open_in_dst_mod_tool = true -- special flag
+		return self:ShowAssetInFolder(args)
 	end
 end
 
@@ -1591,7 +1594,11 @@ function Provider:ShowAssetInFolder(args)
 	end
 	assert(is_subitem, "Param invalid: "..args.file)
 	if fullpath:exists() then
-		return SelectFileInFolder(fullpath:as_string())
+		if args.open_in_dst_mod_tool == true then
+			return OpenInDSTModTool(fullpath:as_string())
+		else
+			return SelectFileInFolder(fullpath:as_string())
+		end
 	end
 
 	for k,v in pairs(self.root.databundles)do
@@ -1602,7 +1609,11 @@ function Provider:ShowAssetInFolder(args)
 				else
 				 	local extracted_path = self.root:GetDataBundlesRoot()/file
 				 	if extracted_path:is_file() then
-				 		return SelectFileInFolder(extracted_path:as_string())
+				 		if args.open_in_dst_mod_tool == true then
+				 			return OpenInDSTModTool(extracted_path:as_string())
+				 		else
+					 		return SelectFileInFolder(extracted_path:as_string())
+					 	end
 				 	else
 						return json.encode_compliant({is_databundle = true, path = v.filepath:name()})
 					end

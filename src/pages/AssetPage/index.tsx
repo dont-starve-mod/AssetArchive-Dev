@@ -597,6 +597,9 @@ function ZipPage({type, file, id}) {
     return result
   }, [buildName])
 
+  const [extDstModToolEnabled, _] = useLocalStorage("extention_dst_mod_tool_enabled")
+  const openInDSTMT = useLuaCall<string>("load", console.log, {type: "show", file, open_in_dst_mod_tool: true}, [file])
+
   return <div>
     <H3>{file} <AssetType type={type}/></H3>
     <div className="bp4-running-text">
@@ -822,6 +825,14 @@ function ZipPage({type, file, id}) {
         </div>:
         <></>
       }
+      {
+        extDstModToolEnabled === true &&
+        <>
+          <H5>扩展</H5>
+          <Button onClick={()=> openInDSTMT()}>在DST Mod Tool中打开</Button>
+        </>
+      }
+      <div className='h-[100px]'></div>
     </div>
   </div>
 }

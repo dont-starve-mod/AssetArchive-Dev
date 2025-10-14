@@ -35,6 +35,7 @@ export type LocalStorage = {
   fmod_param_value: {[K: string]: number}, // 0-1 percent
   toast_max_num: number,
   toast_alive_time: number,
+  extention_dst_mod_tool_enabled?: boolean,
 } & {
   anim_panel_bgc_type: "transparent" | "solid",
   anim_panel_color_value: string,
@@ -101,6 +102,7 @@ const localstorage = createSlice<LocalStorage, SliceCaseReducers<LocalStorage>>(
     fmod_param_value: defaultFmodParam,
     toast_max_num: 5,
     toast_alive_time: 7,
+    extention_dst_mod_tool_enabled: false,
 
     anim_panel_axis: "back",
     anim_panel_bgc_type: "solid",

@@ -29,7 +29,7 @@
   },
   "productName": "Asset Archive",
   "mainBinaryName": "Asset Archive",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "identifier": "com.dont-starve-asset-archive.dev",
   "plugins": {
     "updater": {

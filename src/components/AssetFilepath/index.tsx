@@ -1,8 +1,8 @@
-import React, { useCallback, useState, useMemo } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { writeText } from '../../clipboard'
-import { Button, Dialog, DialogBody, Menu, MenuItem } from '@blueprintjs/core'
+import { Dialog, DialogBody, Menu, MenuDivider, MenuItem } from '@blueprintjs/core'
 import { Popover2 } from '@blueprintjs/popover2'
-import { useCopySuccess, useLuaCall } from '../../hooks'
+import { useCopySuccess, useLocalStorage, useLuaCall } from '../../hooks'
 import { useNavigate } from 'react-router-dom'
 
 type AssetFilePathProps = {
@@ -16,6 +16,7 @@ export default function AssetFilePath(props: AssetFilePathProps) {
   const success = useCopySuccess("path")
   const navigate = useNavigate()
   const [bundleInfo, setBundleInfo] = useState<{zippath: string}>()
+  const [extDstModToolEnabled, setExtDstModToolEnabled] = useLocalStorage("extention_dst_mod_tool_enabled")
 
   const fevData = useMemo(()=> {
     if (type === "fev" || type === "fev_link") {
@@ -55,8 +56,8 @@ export default function AssetFilePath(props: AssetFilePathProps) {
     }
   }, {type: "show", file: path})
 
-  const requestOpeningFolder = useCallback((select_databundle: boolean)=> {
-    call({select_databundle})
+  const requestOpeningFolder = useCallback((select_databundle: boolean, open_in_dst_mod_tool?: boolean)=> {
+    call({select_databundle, open_in_dst_mod_tool})
   }, [call])
 
   return (
@@ -84,6 +85,14 @@ export default function AssetFilePath(props: AssetFilePathProps) {
           }
           {
             type === "fev_link" && Boolean(fevData) && <MenuItem text="跳转到音效包" icon="link" onClick={()=> navigate(directURL)}/>
+          }
+          {
+            extDstModToolEnabled && 
+            (type === "xml" || type === "xml_link" || type === "tex") &&
+            <>
+              <MenuDivider/>
+              <MenuItem text="在DST Mod Tool中打开" icon="export" onClick={()=> requestOpeningFolder(false, true)}/>
+            </>
           }
         </Menu>}>
           <a 

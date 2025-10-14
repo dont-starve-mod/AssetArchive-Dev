@@ -96,3 +96,7 @@ end
 SelectFileInFolder = function(path)
 	-- open a file browser in the folder
 end
+
+OpenInDSTModTool = function(path)
+	-- open the file in dst mod tool
+end

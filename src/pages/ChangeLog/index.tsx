@@ -12,6 +12,10 @@ function Img(props: {src: string}) {
 export default function ChangeLog() {
   return (
     <div className="p-5 bp4-running-text overflow-scroll" style={{maxHeight: "100vh"}}>
+      <H5>beta - 0.1.7</H5>
+      <UL>
+        <li>现在可以在软件内直接打开DST Mod Tool编辑资源（需在设置页面启用）。</li>
+      </UL>
       <H5>beta - 0.1.6</H5>
       <UL>
         <li>修复部分mod动画资源在渲染器中表现错误的bug。</li>
