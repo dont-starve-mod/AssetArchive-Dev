@@ -9,6 +9,7 @@ pub mod lua_algorithm {
     use zune_inflate::{DeflateDecoder, errors::InflateDecodeErrors};
     use miniz_oxide::inflate::decompress_to_vec;
     use miniz_oxide::deflate::compress_to_vec;
+
     // use libdeflater::Decompressor;
 
     // #[inline]
@@ -88,6 +89,47 @@ pub mod lua_algorithm {
         }
     }
 
+    // #[inline]
+    // fn vec_u32_to_u8(vec: Vec<u32>) -> Vec<u8> {
+    //     use std::mem;
+    //     unsafe {
+    //         let mut vec = vec;
+    //         vec.shrink_to_fit();
+            
+    //         let ptr = vec.as_mut_ptr();
+    //         let len = vec.len() * mem::size_of::<u32>();
+    //         let cap = vec.capacity() * mem::size_of::<u32>();
+            
+    //         mem::forget(vec);
+    //         Vec::from_raw_parts(ptr as *mut u8, len, cap)
+    //     }
+    // }
+    
+    fn vec_u32_to_rgba(vec: Vec<u32>) -> Vec<u8> {
+        let mut result = Vec::with_capacity(vec.len() * 4);
+        for pixel in vec {
+            result.push(((pixel >> 16) & 0xFF) as u8);
+            result.push(((pixel >> 8)  & 0xFF) as u8);
+            result.push(( pixel        & 0xFF) as u8);
+            result.push(((pixel >> 24) & 0xFF) as u8);
+        }
+        result
+    }
+
+    #[inline]
+    fn etc2_decompress(compressed_data: &[u8], width: usize, height: usize) -> Vec<u8> {
+        let mut buf = vec![0; width* height];
+        match texture2ddecoder::decode_etc2_rgba8(compressed_data, width, height, &mut buf) {
+            Ok(_)=> vec_u32_to_rgba(buf),
+            Err(e)=> {
+                eprintln!("Failed to decode etc2 data[{}] ({}x{}):{}",
+                    compressed_data.len(),
+                    width,
+                    height, e);
+                vec![]
+            }
+        }
+    }
 
     #[inline]
     fn flip_bytes(bytes: &[u8], linewidth: usize) -> Vec<u8> {
@@ -252,6 +294,9 @@ pub mod lua_algorithm {
                 "DXT5" => dxt5_decompress(data, width, height),
                 s=> return Err(LuaError::RuntimeError(format!("Unknown format: {}", s)))
             };
+            if bytes.is_empty() {
+                return lua.create_string(&[]);
+            }
             if flip {
                 flip_bytes_mut(&mut bytes, width*4);
             }
@@ -260,6 +305,26 @@ pub mod lua_algorithm {
             }
             lua.create_string(&bytes)
         })?)?;
+        table.set("Etc2_Decompress", lua_ctx.create_function(|lua_ctx: Context,
+            (data, options): (LuaString, Table)|{
+            let data = data.as_bytes();
+            let width = options.get::<_, usize>("width")?;
+            let height = options.get::<_, usize>("height")?;
+            let flip = options.get::<_, Option<bool>>("flip_y")?.unwrap_or(true);
+            let div = options.get::<_, Option<bool>>("div_alpha")?.unwrap_or(true);
+            let mut bytes = etc2_decompress(data, width, height);
+            if bytes.is_empty() {
+                return lua_ctx.create_string(&[]);
+            }
+            if flip {
+                flip_bytes_mut(&mut bytes, width*4);
+            }
+            if div {
+                div_alpha_mut(&mut bytes);
+            }
+            lua_ctx.create_string(&bytes)
+        })?)?;
+
         table.set("SmallHash_Impl", lua_ctx.create_function(|_, s: LuaString|{
             Ok(kleihash(s.as_bytes()))
         })?)?;

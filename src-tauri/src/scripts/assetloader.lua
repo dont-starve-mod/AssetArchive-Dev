@@ -1,9 +1,8 @@
 local CreateReader = FileSystem.CreateReader
 local CreateBytesReader = FileSystem.CreateBytesReader
 local Deflate = Algorithm.Deflate
--- local DXT5_Decompress = Algorithm.DXT5_Decompress
--- local DXT1_Decompress = Algorithm.DXT1_Decompress
 local Bc_Decompress = Algorithm.Bc_Decompress
+local Etc2_Decompress = Algorithm.Etc2_Decompress
 local FlipBytes = Algorithm.FlipBytes
 local DivAlpha = Algorithm.DivAlpha
 local CropBytes = Algorithm.CropBytes
@@ -557,13 +556,21 @@ TexLoader = Class(function(self, f)
     --     [4] = "ARGB",
     --     [5] = "RGB",
     --     [7] = "Unknown",
+    --     [18] = "ETC2",
     -- }
+     
+    if pixelformat == 18 then
+        self.is_portable_edition = true
+    end
+
     local mipmaps = {}
     self.nummips = nummips
     self.pixelformat = pixelformat
     self.mipmaps = mipmaps
 
-    if pixelformat == 0 or pixelformat == 2 or pixelformat == 5 then -- DXT1 / DXT5 / RGB
+    self.numchannels = pixelformat == 5 and 3 or 4
+
+    if pixelformat < 6 or pixelformat == 18 then
         for i = 1, nummips do
             local w, h, p, s = f:read_and_unpack("HHHI")
             if s == nil then
@@ -605,9 +612,9 @@ end
 function TexLoader:GetImage(i)
     local bytes, width, height = self:GetImageBytes(i)
     if bytes then
-        if self.pixelformat == 5 then
+        if self.numchannels == 3 then
             return Image.From_RGB(bytes, width, height)
-        elseif self.pixelformat == 2 or self.pixelformat == 0 then
+        elseif self.numchannels == 4 then
             return Image.From_RGBA(bytes, width, height)
         end
     end
@@ -625,11 +632,21 @@ function TexLoader:GetImageBytes(i)
             m.pixels = FlipBytes(m.data, m.width*3)
             m.data = nil
             return m.pixels, m.width, m.height
+        elseif self.pixelformat == 4 then
+            m.pixels = FlipBytes(m.data, m.width*4)
+            m.data = nil
+            return m.pixels, m.width, m.height
         elseif self.pixelformat == 2 then
             m.pixels = Bc_Decompress(m.data, {format = "DXT5", width = m.width, height = m.height})
             return m.pixels, m.width, m.height
+        elseif self.pixelformat == 1 then
+            m.pixels = Bc_Decompress(m.data, {format = "DXT3", width = m.width, height = m.height})
+            return m.pixels, m.width, m.height
         elseif self.pixelformat == 0 then
             m.pixels = Bc_Decompress(m.data, {format = "DXT1", width = m.width, height = m.height})
+            return m.pixels, m.width, m.height
+        elseif self.pixelformat == 18 then
+            m.pixels = Etc2_Decompress(m.data, {width = m.width, height = m.height, div_alpha = false})
             return m.pixels, m.width, m.height
         else
             error("Unsupported pixelformat: "..self.pixelformat)
@@ -644,6 +661,7 @@ TexLoader.PIXEL_FORMAT = {
     [4] = "ARGB",
     [5] = "RGB",
     [7] = "UNKNOWN",
+    [18] = "ETC2",
 }
 
 function TexLoader:GetPixelFormatString()
